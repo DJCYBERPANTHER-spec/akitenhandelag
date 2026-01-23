@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AKTIEN HANDEL AG</title>
+<title>Multi-KI Aktien Analyse – 130 Tage Historie + Schwankungen</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0/dist/tf.min.js"></script>
 <style>
@@ -129,7 +129,7 @@ selectStock.addEventListener("change",e=>{
     if(sym) startLivePrice(sym);
 });
 
-// --- Historische Daten abrufen + tägliche Schwankungen berechnen ---
+// --- Historische Daten abrufen + tägliche Schwankungen + Volatilität ---
 async function fetchHistoricalData(symbol, period=130){
     const now=Math.floor(Date.now()/1000);
     const start=now - period*24*60*60;
@@ -139,34 +139,44 @@ async function fetchHistoricalData(symbol, period=130){
         if(j.s !== "ok" || !j.c || j.c.length<period) throw "Nicht genügend historische Daten";
         const prices = j.c.map(v=>Number(v));
 
-        // Tägliche Schwankungen berechnen
+        // Tägliche Schwankungen
         let changes = [0];
         for(let i=1;i<prices.length;i++){
             changes.push((prices[i]-prices[i-1])/prices[i-1]);
         }
 
-        // Rückgabe als Array von Objekten {price, change}
-        return prices.map((p,i)=>({price:p, change:changes[i]}));
+        // Gleitende Volatilität 10 Tage
+        let volatility = Array(prices.length).fill(0);
+        for(let i=9;i<prices.length;i++){
+            const slice = changes.slice(i-9,i+1);
+            const avg = slice.reduce((a,b)=>a+b,0)/slice.length;
+            const stdDev = Math.sqrt(slice.map(d=>Math.pow(d-avg,2)).reduce((a,b)=>a+b,0)/slice.length);
+            volatility[i] = stdDev;
+        }
+
+        // Rückgabe als Array von Objekten {price, change, vol}
+        return prices.map((p,i)=>({price:p, change:changes[i], vol:volatility[i]}));
     }catch{
         const usd = await fetchQuote(symbol);
         const fx = await fetchUsdChf();
         const priceChf = usd*fx;
-        let arr = Array(period).fill({price:priceChf, change:0});
+        let arr = Array(period).fill({price:priceChf, change:0, vol:0});
         return arr;
     }
 }
 </script>
 <script>
-// --- KI-Prognose mit LSTM + Schwankungen ---
+// --- KI-Prognose mit LSTM + Schwankungen & Volatilität ---
 async function predictModel(data, basePeriod, label, kiIndex){
     const loaderText = document.getElementById("progressText");
     const progressBar = document.getElementById("progressBar");
 
     const period = basePeriod + kiIndex*2;
 
-    // Feature: [preis normalisiert, tägliche Schwankung]
+    // Features: Preis normalisiert, tägliche Schwankung, Volatilität
     const prices = data.map(d=>d.price);
     const changes = data.map(d=>d.change);
+    const vols = data.map(d=>d.vol);
 
     const min = Math.min(...prices);
     const max = Math.max(...prices);
@@ -176,7 +186,7 @@ async function predictModel(data, basePeriod, label, kiIndex){
     for(let i=0; i<normPrices.length-period; i++){
         let slice=[];
         for(let j=0;j<period;j++){
-            slice.push([normPrices[i+j], changes[i+j]]);
+            slice.push([normPrices[i+j], changes[i+j], vols[i+j]]);
         }
         X.push(slice);
         Y.push([normPrices[i+period]]);
@@ -189,7 +199,7 @@ async function predictModel(data, basePeriod, label, kiIndex){
 
     const units = 12 + kiIndex*2;
     const model = tf.sequential();
-    model.add(tf.layers.lstm({units, inputShape:[period,2]}));
+    model.add(tf.layers.lstm({units, inputShape:[period,3]}));
     model.add(tf.layers.dense({units:1}));
     model.compile({optimizer:"adam",loss:"meanSquaredError"});
 
@@ -220,12 +230,12 @@ function getConfidence(diff){
     return "Niedrig";
 }
 
-// --- Massive Bewegungen erkennen ---
+// --- Warnungen massive Bewegungen ---
 function getMassiveMoveAlert(data){
     if(data.length<20) return "";
     let diffs=[];
     for(let i=data.length-20;i<data.length-1;i++){
-        diffs.push(data[i+1].price-data[i].price)/data[i].price;
+        diffs.push((data[i+1].price - data[i].price)/data[i].price);
     }
     const avgChange = diffs.reduce((a,b)=>a+b,0)/diffs.length;
     const stdDev = Math.sqrt(diffs.map(d=>Math.pow(d-avgChange,2)).reduce((a,b)=>a+b,0)/diffs.length);
@@ -315,4 +325,3 @@ function openSwissquote(){window.open(`https://www.swissquote.ch/sqw-en/private/
 </script>
 </body>
 </html>
-
