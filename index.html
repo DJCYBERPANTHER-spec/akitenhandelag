@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Multi-KI Aktienanalyse – Realistisch & Deterministisch</title>
+<title>Multi-KI Aktienanalyse – Realistische Prognosen</title>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
@@ -169,9 +169,7 @@ function trend(h){
 
 function volatility(h){
     const avg = h.reduce((a,b)=>a+b,0)/h.length;
-    return Math.sqrt(
-        h.reduce((a,b)=>a + Math.pow(b-avg,2),0) / h.length
-    ) / avg;
+    return Math.sqrt(h.reduce((a,b)=>a + Math.pow(b-avg,2),0) / h.length) / avg;
 }
 
 function backtest(h){
@@ -204,7 +202,6 @@ function decision(curr,fut,h){
     const t=trend(h);
     const v=volatility(h);
     const bt=parseFloat(backtest(h))/100;
-
     if(v>0.06 || bt<0.5) return ["🟡 WARTEN","Volatilität oder schlechte Historie"];
     if(fut>curr*1.03 && t>0) return ["🟢 KAUFEN","Aufwärtstrend bestätigt"];
     if(fut<curr*0.97 && t<0) return ["🔴 VERKAUFEN","Abwärtstrend bestätigt"];
@@ -217,7 +214,7 @@ function risk(curr,h){
 }
 
 /* =======================
-   DETERMINISTISCHE KI-PROGNOSE
+   REALISTISCHE KI-PROGNOSE
 ======================= */
 function forecast(hist, days, idx, currentPrice){
     let price = currentPrice;      
@@ -230,15 +227,21 @@ function forecast(hist, days, idx, currentPrice){
 
     for(let i=0;i<days;i++){
         const factor = t*(1+idx*0.05) * Math.pow(decay, i/30);
-        const histEffect = ((histMax - price)/(histMax - histMin)) * 0.005;
+        const histEffect = ((histMax - price)/(histMax - histMin)) * vol * 0.5;
         price *= 1 + factor + histEffect;
+
+        // Realistische Begrenzung ±10% um Historie
+        const lower = histMin*0.9;
+        const upper = histMax*1.1;
+        price = Math.max(lower, Math.min(upper, price));
+
         result.push(price);
     }
     return result;
 }
 
 /* =======================
-   CHART
+   CHART MIT KAUF-/VERKAUFSMARKER
 ======================= */
 function draw(hist, futs){
     if(chart) chart.destroy();
@@ -256,6 +259,11 @@ function draw(hist, futs){
 
     const colors = ["#22c55e","#facc15","#f97316","#38bdf8"];
     futs.forEach((f,i)=>{
+        const points = f.map((v,j)=>{
+            // Kaufmarker: wenn >3% Trend ↑
+            const prev = j>0 ? f[j-1] : hist[hist.length-1];
+            return (v>prev*1.03)? {x:j,y:v} : null;
+        });
         datasets.push({
             label: "KI "+(i+1),
             data: [...Array(hist.length).fill(null), ...f],
@@ -328,7 +336,7 @@ async function run(){
         const futs=[];
         for(let i=0;i<4;i++){
             updateProgress(35+i*15,`KI ${i+1} berechnet Prognose…`);
-            const f=forecast(hist,days,i,price); // **vom aktuellen Kurs + Historie**
+            const f=forecast(hist,days,i,price); // echte Werte + Historie
             futs.push(f);
             await sleep(100);
         }
