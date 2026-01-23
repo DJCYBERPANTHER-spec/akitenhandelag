@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Multi‑KI Aktienanalyse – Echtzeit & 365d Historie</title>
+<title>Multi-KI Aktienanalyse – Batch 20 pro Minute</title>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
@@ -32,9 +32,8 @@ progress{width:80%;height:16px}
 </head>
 
 <body>
-
-<h1>Multi‑KI Aktienanalyse – Echtzeit & 365d Historie</h1>
-<div class="subtitle">Nur große US‑Aktien mit 365 Tagen Historie • Echtzeit Kurs & Prognose</div>
+<h1>Multi-KI Aktienanalyse – Batch 20 pro Minute</h1>
+<div class="subtitle">Automatisches Laden großer Aktienlisten mit 365 Tage Historie</div>
 
 <div class="controls">
 <select id="stock"></select>
@@ -49,7 +48,7 @@ progress{width:80%;height:16px}
 <option value="1320">5 Jahre</option>
 </select>
 
-<button onclick="run()">Analyse starten</button>
+<button onclick="runSelected()">Analyse starten</button>
 </div>
 
 <div id="status">Bereit</div>
@@ -85,9 +84,9 @@ progress{width:80%;height:16px}
 <div class="footer">⚠️ Analyse‑Tool – keine Anlageberatung</div>
 
 <script>
-const API_KEY = "d5ohqjhr01qjast6qrjgd5ohqjhr01q"; // Finnhub API‑Key
+const API_KEY = "d5ohqjhr01qjast6qrjgd5ohqjhr01q"; // Finnhub API-Key
 
-// Feste Liste mit 130 Aktien und Namen
+// Liste der Aktien (130 Stück), Symbol + Name
 const STOCKS = [
   {symbol:"AAPL", name:"Apple"},
   {symbol:"MSFT", name:"Microsoft"},
@@ -96,7 +95,6 @@ const STOCKS = [
   {symbol:"GOOGL", name:"Alphabet Class A"},
   {symbol:"GOOG", name:"Alphabet Class C"},
   {symbol:"META", name:"Meta Platforms"},
-  {symbol:"BRK.B", name:"Berkshire Hathaway B"},
   {symbol:"NVDA", name:"NVIDIA"},
   {symbol:"UNH", name:"UnitedHealth Group"},
   {symbol:"V", name:"Visa"},
@@ -110,7 +108,7 @@ const STOCKS = [
   {symbol:"CMCSA", name:"Comcast"},
   {symbol:"XOM", name:"Exxon Mobil"},
   {symbol:"PFE", name:"Pfizer"},
-  {symbol:"KO", name:"Coca‑Cola"},
+  {symbol:"KO", name:"Coca-Cola"},
   {symbol:"CSCO", name:"Cisco Systems"},
   {symbol:"PEP", name:"PepsiCo"},
   {symbol:"INTC", name:"Intel"},
@@ -127,7 +125,7 @@ const STOCKS = [
   {symbol:"ACN", name:"Accenture"},
   {symbol:"QCOM", name:"Qualcomm"},
   {symbol:"MCD", name:"McDonald’s"},
-  {symbol:"BMY", name:"Bristol‑Myers Squibb"},
+  {symbol:"BMY", name:"Bristol-Myers Squibb"},
   {symbol:"AVGO", name:"Broadcom"},
   {symbol:"MDT", name:"Medtronic"},
   {symbol:"HON", name:"Honeywell"},
@@ -160,7 +158,7 @@ const STOCKS = [
   {symbol:"EL", name:"Estée Lauder"},
   {symbol:"COP", name:"ConocoPhillips"},
   {symbol:"SYK", name:"Stryker"},
-  {symbol:"TMUS", name:"T‑Mobile US"},
+  {symbol:"TMUS", name:"T-Mobile US"},
   {symbol:"USB", name:"U.S. Bancorp"},
   {symbol:"TGT", name:"Target"},
   {symbol:"CHTR", name:"Charter Communications"},
@@ -200,23 +198,41 @@ const STOCKS = [
   {symbol:"WBA", name:"Walgreens Boots Alliance"}
 ];
 
-// Fülle Dropdown mit vollständigen Namen
-const sel = document.getElementById("stock");
-STOCKS.forEach(s => {
-    const o = document.createElement("option");
-    o.value = s.symbol;
-    o.textContent = `${s.name} (${s.symbol})`;
-    sel.appendChild(o);
-});
-sel.selectedIndex = 0;
+// Dropdown füllen
+const sel=document.getElementById("stock");
+STOCKS.forEach(s=>{const o=document.createElement("option"); o.value=s.symbol; o.textContent=`${s.name} (${s.symbol})`; sel.appendChild(o);});
+sel.selectedIndex=0;
 
 // Hilfsfunktionen
-function updateProgress(p,text){
-    document.getElementById("progressBar").value = p;
-    document.getElementById("progressText").textContent = text;
-}
 function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
 function getBuyLink(sym){return `https://www.tradingview.com/symbol/${sym}.US/`;}
+
+// Batch Setup
+const batchSize = 20;
+let batchIndex = 0;
+
+async function fetchBatch(){
+  const start = batchIndex*batchSize;
+  const end = start+batchSize;
+  const batch = STOCKS.slice(start,end);
+  document.getElementById("status").textContent=`Lade Batch ${batchIndex+1}/${Math.ceil(STOCKS.length/batchSize)}`;
+  
+  for(const s of batch){
+    try{
+      const hist = await fetchHist(s.symbol);
+      console.log(s.symbol,"OK", hist.closes[hist.closes.length-1]);
+      // Hier später: KI-Prognose, Tabelle, Chart aktualisieren
+    }catch(e){
+      console.warn(s.symbol,"Fehler:", e.message);
+    }
+  }
+  batchIndex++;
+  if(batchIndex*batchSize < STOCKS.length){
+    setTimeout(fetchBatch, 60*1000); // nächste 20 Aktien in 1 Minute
+  }else{
+    document.getElementById("status").textContent="Alle Batches geladen ✔";
+  }
+}
 </script>
 <script>
 let chart = null;
@@ -347,9 +363,9 @@ function startPriceInterval(){
 }
 
 /* =======================
-   RUN ANALYSE
+   RUN ANALYSE FÜR AUSGEWÄHLTE AKTIE
 ======================= */
-async function run(){
+async function runSelected(){
     try{
         updateProgress(0,"Starte Analyse…");
         document.getElementById("status").textContent="Analyse läuft…";
@@ -411,6 +427,14 @@ async function run(){
         updateProgress(0,"Fehler");
         document.getElementById("status").textContent="Fehler: "+err;
     }
+}
+
+/* =======================
+   Fortschrittsanzeige
+======================= */
+function updateProgress(p,text){
+    document.getElementById("progressBar").value = p;
+    document.getElementById("progressText").textContent = text;
 }
 </script>
 </body>
