@@ -3,15 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Multi-KI Aktienanalyse – Kauf & Verkauf</title>
+<title>Multi-KI Aktienanalyse – Pro</title>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0/dist/tf.min.js"></script>
 
 <style>
-body{background:#0f172a;color:#e5e7eb;font-family:Arial;margin:0;padding:15px}
+body{background:#0f172a;color:#e5e7eb;font-family:Arial;padding:15px}
 h1{text-align:center}
-.subtitle{text-align:center;color:#94a3b8}
+.subtitle{text-align:center;color:#94a3b8;font-size:0.9rem}
 .controls{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin:12px 0}
 select,button{background:#020617;color:#e5e7eb;border:1px solid #22c55e;padding:8px 12px;border-radius:6px}
 button:hover{background:#22c55e;color:#020617}
@@ -23,7 +23,7 @@ th,td{border:1px solid #22c55e;padding:6px;text-align:center}
 .hold{color:#facc15;font-weight:bold}
 .warning{color:#f87171;font-weight:bold}
 .conf{color:#38bdf8;font-weight:bold}
-.footer{text-align:center;color:#94a3b8;font-size:0.75rem;margin-top:12px}
+.footer{text-align:center;font-size:0.75rem;color:#94a3b8;margin-top:12px}
 progress{width:80%;height:16px}
 </style>
 </head>
@@ -31,7 +31,7 @@ progress{width:80%;height:16px}
 <body>
 
 <h1>Multi-KI Aktienanalyse</h1>
-<div class="subtitle">Kauf- & Verkaufszeitpunkte aus echten Daten</div>
+<div class="subtitle">Echte Daten · Prognosen · Kauf-/Verkaufssignale</div>
 
 <div class="controls">
 <select id="stock"></select>
@@ -61,10 +61,10 @@ progress{width:80%;height:16px}
 <th>KI</th>
 <th>Prognose</th>
 <th>Signal</th>
-<th>Δ</th>
+<th>Δ %</th>
 <th>Konfidenz</th>
 <th>Warnung</th>
-<th>Genauigkeit</th>
+<th>Backtest</th>
 <th>Aktion jetzt</th>
 <th>Stop / Ziel</th>
 </tr>
@@ -72,13 +72,12 @@ progress{width:80%;height:16px}
 <tbody id="out"></tbody>
 </table>
 
-<div class="footer">⚠️ Lern- & Analyse-Tool – keine Anlageberatung</div>
+<div class="footer">⚠️ Analyse-Tool – keine Anlageberatung</div>
 
 <script>
 const API_KEY="d5ohqjhr01qjast6qrjgd5ohqjhr01qjast6qrk0";
 let chart=null;
 
-// ---------------- Aktienliste ----------------
 const STOCKS=[
 {symbol:"AAPL",name:"Apple"},
 {symbol:"MSFT",name:"Microsoft"},
@@ -88,21 +87,23 @@ const STOCKS=[
 {symbol:"TSLA",name:"Tesla"},
 {symbol:"META",name:"Meta"}
 ];
-const stockSel=document.getElementById("stock");
+
+const sel=document.getElementById("stock");
 STOCKS.forEach(s=>{
 let o=document.createElement("option");
 o.value=s.symbol;
 o.textContent=s.name+" ("+s.symbol+")";
-stockSel.appendChild(o);
+sel.appendChild(o);
 });
-
-// ---------------- Daten ----------------
+</script>
+<script>
+// ---------------- DATEN ----------------
 async function fetchHist(sym,days=365){
 const now=Math.floor(Date.now()/1000);
 const from=now-days*86400;
 const r=await fetch(`https://finnhub.io/api/v1/stock/candle?symbol=${sym}&resolution=D&from=${from}&to=${now}&token=${API_KEY}`);
 const j=await r.json();
-if(j.s!=="ok") throw "Keine Daten";
+if(j.s!=="ok") throw "Keine historischen Daten";
 return j.c.map(Number);
 }
 
@@ -112,11 +113,11 @@ const j=await r.json();
 return j.c;
 }
 
-// ---------------- Analyse-Logik ----------------
+// ---------------- ANALYSE ----------------
 function trend(hist){
-let a=hist.slice(-20).reduce((x,y)=>x+y)/20;
-let b=hist.slice(-100).reduce((x,y)=>x+y)/100;
-return (a-b)/b;
+let s=hist.slice(-20).reduce((a,b)=>a+b)/20;
+let l=hist.slice(-100).reduce((a,b)=>a+b)/100;
+return (s-l)/l;
 }
 
 function volatility(hist){
@@ -126,19 +127,19 @@ return Math.sqrt(hist.reduce((a,b)=>a+(b-avg)**2,0)/hist.length)/avg;
 
 function backtest(hist){
 let err=0;
-for(let i=hist.length-50;i<hist.length-1;i++){
+for(let i=hist.length-60;i<hist.length-1;i++){
 let pred=hist[i]*(1+trend(hist.slice(0,i)));
 err+=Math.abs((pred-hist[i+1])/hist[i+1]);
 }
-return ((1-err/50)*100).toFixed(1)+"%";
+return ((1-err/60)*100).toFixed(1)+"%";
 }
 
 function decision(curr,fut,hist){
 let t=trend(hist), v=volatility(hist);
 if(t>0.05 && fut>curr && v<0.03) return ["🟢 KAUFEN","Jetzt"];
-if(t<-0.04) return ["🔴 VERKAUFEN","Jetzt"];
+if(t<-0.05) return ["🔴 VERKAUFEN","Trend bricht"];
 if(v>0.05) return ["🟡 WARTEN","Hohe Schwankung"];
-return ["⚪ HALTEN","Kein Signal"];
+return ["⚪ HALTEN","Abwarten"];
 }
 
 function risk(curr,hist){
@@ -149,9 +150,9 @@ tp:(curr+3*v).toFixed(2)
 };
 }
 
-// ---------------- Prognose ----------------
+// ---------------- PROGNOSE (4 KIs) ----------------
 function forecast(hist,days,idx){
-let t=trend(hist)*(1+idx*0.2);
+let t=trend(hist)*(1+idx*0.25);
 let base=hist[hist.length-1];
 let res=[];
 for(let i=0;i<days;i++){
@@ -161,7 +162,7 @@ res.push(base);
 return res;
 }
 
-// ---------------- Chart ----------------
+// ---------------- CHART ----------------
 function draw(hist,futs){
 if(chart) chart.destroy();
 let labels=[];
@@ -189,15 +190,18 @@ options:{animation:false}
 // ---------------- RUN ----------------
 async function run(){
 document.getElementById("status").textContent="Analyse läuft…";
-let sym=stockSel.value;
+document.getElementById("progressBar").value=0;
+
+let sym=sel.value;
 let days=+document.getElementById("forecastRange").value;
 let hist=await fetchHist(sym);
 let price=await fetchPrice(sym);
 
 let futs=[];
 for(let i=0;i<4;i++){
-document.getElementById("progressBar").value=(i+1)*25;
+document.getElementById("progressText").textContent="KI "+(i+1)+" berechnet…";
 futs.push(forecast(hist,days,i));
+document.getElementById("progressBar").value=(i+1)*25;
 }
 
 draw(hist,futs);
@@ -205,23 +209,25 @@ draw(hist,futs);
 let html="";
 futs.forEach((f,i)=>{
 let last=f[f.length-1];
-let d=decision(price,last,hist);
+let dec=decision(price,last,hist);
 let r=risk(price,hist);
 html+=`
 <tr>
 <td>KI${i+1}</td>
 <td>${last.toFixed(2)}</td>
-<td>${last>price?"<span class='buy'>↑</span>":"<span class='sell'>↓</span>"}</td>
+<td class="${last>price?"buy":"sell"}">${last>price?"↑":"↓"}</td>
 <td>${((last-price)/price*100).toFixed(2)}%</td>
 <td class="conf">${volatility(hist)<0.03?"Hoch":"Mittel"}</td>
 <td class="warning">${volatility(hist)>0.05?"⚠️ Risiko":""}</td>
 <td>${backtest(hist)}</td>
-<td><b>${d[0]}</b><br>${d[1]}</td>
+<td><b>${dec[0]}</b><br>${dec[1]}</td>
 <td>🛑 ${r.sl}<br>🎯 ${r.tp}</td>
 </tr>`;
 });
+
 document.getElementById("out").innerHTML=html;
 document.getElementById("status").textContent="Fertig";
+document.getElementById("progressText").textContent="Analyse abgeschlossen";
 }
 </script>
 
