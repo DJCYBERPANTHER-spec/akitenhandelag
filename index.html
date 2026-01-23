@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Multi-KI Aktienanalyse – 200 Tage Historie</title>
+<title>Multi-KI Aktienanalyse – Flexible Historie</title>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
@@ -32,8 +32,8 @@ progress{width:80%;height:16px}
 </head>
 
 <body>
-<h1>Multi-KI Aktienanalyse – 200 Tage Historie</h1>
-<div class="subtitle">Nur Aktien mit 200-Tage-Historie werden geladen</div>
+<h1>Multi-KI Aktienanalyse – Flexible Historie</h1>
+<div class="subtitle">Dropdown zeigt Aktien mit beliebiger Historie, mindestens 100 Tage</div>
 
 <div class="controls">
 <select id="stock" size="6" style="min-width:250px"></select>
@@ -101,15 +101,18 @@ const STOCKS = [
 {symbol:"XOM",name:"Exxon Mobil"},{symbol:"PFE",name:"Pfizer"}
 ];
 
-// Prüft ob Aktie 200-Tage-Historie hat
-async function checkHistValid(stock){
+// Prüft, wie viele Tage Historie verfügbar sind, mindestens 100 Tage
+async function checkHistValid(stock, minDays=100){
     try{
         const now = Math.floor(Date.now()/1000);
-        const from = now - 200*86400; // 200 Tage
+        const from = now - 200*86400; // Maximal 200 Tage
         const res = await fetch(`https://finnhub.io/api/v1/stock/candle?symbol=${stock.symbol}.US&resolution=D&from=${from}&to=${now}&token=${API_KEY}`);
         const data = await res.json();
-        return (data.s==="ok" && data.c && data.c.length>=200);
-    }catch{return false;}
+        if(data.s==="ok" && data.c && data.c.length >= minDays){
+            return {ok:true, availableDays:data.c.length};
+        }
+        return {ok:false, availableDays:0};
+    }catch{return {ok:false, availableDays:0};}
 }
 
 // Fügt nächste 20 gültige Aktien hinzu (Batch)
@@ -117,15 +120,13 @@ async function loadNext20Batch(){
     const start = currentBatch * BATCH_SIZE;
     const end = start + BATCH_SIZE;
     const batch = STOCKS.slice(start, end);
-    let newValidStocks = [];
     for(const s of batch){
-        const ok = await checkHistValid(s);
-        if(ok && !validStocks.find(v=>v.symbol===s.symbol)){
-            newValidStocks.push(s);
-            validStocks.push(s);
+        const info = await checkHistValid(s);
+        if(info.ok && !validStocks.find(v=>v.symbol===s.symbol)){
+            validStocks.push({...s, days: info.availableDays});
             const o = document.createElement("option");
             o.value = s.symbol;
-            o.textContent = `${s.name} (${s.symbol})`;
+            o.textContent = `${s.name} (${s.symbol}) – ${info.availableDays} Tage Historie`;
             sel.appendChild(o);
         }
     }
@@ -136,7 +137,7 @@ async function loadNext20Batch(){
 }
 
 // =====================
-// Initial-Füllung – direkt 20 gültige Aktien laden
+// Initial-Füllung – mindestens 20 gültige Aktien laden
 // =====================
 async function loadInitialValidStocks(){
     validStocks = [];
@@ -146,12 +147,12 @@ async function loadInitialValidStocks(){
         const end = start + BATCH_SIZE;
         const batch = STOCKS.slice(start,end);
         for(const s of batch){
-            const ok = await checkHistValid(s);
-            if(ok && !validStocks.find(v=>v.symbol===s.symbol)){
-                validStocks.push(s);
+            const info = await checkHistValid(s);
+            if(info.ok && !validStocks.find(v=>v.symbol===s.symbol)){
+                validStocks.push({...s, days: info.availableDays});
                 const o = document.createElement("option");
                 o.value = s.symbol;
-                o.textContent = `${s.name} (${s.symbol})`;
+                o.textContent = `${s.name} (${s.symbol}) – ${info.availableDays} Tage Historie`;
                 sel.appendChild(o);
             }
         }
@@ -159,7 +160,7 @@ async function loadInitialValidStocks(){
     }
     if(validStocks.length === 0){
         const o = document.createElement("option");
-        o.textContent = "Keine Aktie mit 200 Tagen Historie verfügbar";
+        o.textContent = "Keine Aktie mit ausreichend Historie verfügbar";
         o.disabled = true;
         sel.appendChild(o);
     }
@@ -182,12 +183,12 @@ let priceInterval = null;
 /* =======================
    HISTORIE & AKTUELLER KURS
 ======================= */
-async function fetchHist(sym, days = 200) { // 200 Tage
+async function fetchHist(sym, maxDays = 200) {
     const now = Math.floor(Date.now() / 1000);
-    const from = now - days * 86400;
+    const from = now - maxDays * 86400;
     const res = await fetch(`https://finnhub.io/api/v1/stock/candle?symbol=${sym}.US&resolution=D&from=${from}&to=${now}&token=${API_KEY}`);
     const data = await res.json();
-    if(data.s==="ok" && data.c && data.c.length>=days){
+    if(data.s==="ok" && data.c && data.c.length>0){
         const dates = data.t.map(ts => new Date(ts*1000).toISOString().split("T")[0]);
         const closes = data.c.map(v => Number(v));
         return {dates, closes};
@@ -206,19 +207,20 @@ async function fetchPrice(sym){
 ======================= */
 function forecastKIs(hist, days, currentPrice){
     const futs=[];
-    let slope=(hist[hist.length-1]-hist[0])/hist.length; 
+    const n = hist.length;
+    let slope = (hist[n-1]-hist[0])/n; 
     let arr1=[]; let p=currentPrice;
     for(let i=0;i<days;i++){p+=slope; arr1.push(p);} futs.push(arr1);
 
     let arr2=[]; p=currentPrice;
-    const avg20=hist.slice(-20).reduce((a,b)=>a+b,0)/20;
+    const avg20=hist.slice(-20).reduce((a,b)=>a+b,0)/Math.min(20,hist.length);
     for(let i=0;i<days;i++){p=p*0.8 + avg20*0.2; arr2.push(p);} futs.push(arr2);
 
-    let arr3=[]; p=currentPrice; let alpha=0.1; let ema=hist[hist.length-1];
+    let arr3=[]; p=currentPrice; let alpha=0.1; let ema=hist[n-1];
     for(let i=0;i<days;i++){ema=alpha*ema+(1-alpha)*p; p=ema; arr3.push(p);} futs.push(arr3);
 
     let arr4=[]; p=currentPrice; const changes=[]; for(let i=1;i<hist.length;i++) changes.push((hist[i]-hist[i-1])/hist[i-1]);
-    const avgChange=changes.reduce((a,b)=>a+b,0)/changes.length; const vol=Math.sqrt(changes.reduce((a,b)=>a+Math.pow(b-avgChange,2),0)/changes.length);
+    const avgChange=changes.reduce((a,b)=>a+b,0)/changes.length || 0; const vol=Math.sqrt(changes.reduce((a,b)=>a+Math.pow(b-avgChange,2),0)/changes.length || 0);
     for(let i=0;i<days;i++){p*=(1+avgChange*(1+vol*0.5)); arr4.push(p);} futs.push(arr4);
 
     return futs;
@@ -227,7 +229,7 @@ function forecastKIs(hist, days, currentPrice){
 /* =======================
    TREND, VOLATILITÄT, BACKTEST, WARNUNG
 ======================= */
-function trend(h){return (h.slice(-20).reduce((a,b)=>a+b,0)/20 - h.slice(-100).reduce((a,b)=>a+b,0)/100)/h.slice(-100).reduce((a,b)=>a+b,0)/100;}
+function trend(h){return h.length<20?0:(h.slice(-20).reduce((a,b)=>a+b,0)/20 - h.slice(-Math.min(100,h.length)).reduce((a,b)=>a+b,0)/Math.min(100,h.length))/h.slice(-Math.min(100,h.length)).reduce((a,b)=>a+b,0)/Math.min(100,h.length);}
 function volatility(h){const avg=h.reduce((a,b)=>a+b,0)/h.length; return Math.sqrt(h.reduce((a,b)=>a+Math.pow(b-avg,2),0)/h.length)/avg;}
 function backtest(h){let e=0; const n=Math.min(60,h.length-1); for(let i=h.length-n;i<h.length-1;i++){const p=h[i]*(1+trend(h.slice(0,i))); e+=Math.min(Math.abs((p-h[i+1])/h[i+1]),1);} return Math.max(0,((1-e/n)*100)).toFixed(1)+"%";}
 function calcConfidence(h){return Math.min(1,0.5+0.3*(parseFloat(backtest(h))/100)+0.2*(1-volatility(h)))*100;}
@@ -271,7 +273,7 @@ function draw(histObj,futs){
     if(chart) chart.destroy();
     const labels = [...histObj.dates];
     futs.forEach(f=>{f.forEach((v,i)=>{if(!labels.includes("+"+(i+1)+"d")) labels.push("+"+(i+1)+"d")});});
-    const datasets=[{label:"Historie (200 Tage)",data:histObj.closes,borderColor:"#3b82f6",fill:false}];
+    const datasets=[{label:"Historie",data:histObj.closes,borderColor:"#3b82f6",fill:false}];
     const colors=["#22c55e","#facc15","#f97316","#38bdf8"];
     futs.forEach((f,i)=>datasets.push({label:"KI "+(i+1),data:[...Array(histObj.closes.length).fill(null),...f],borderColor:colors[i],fill:false,pointRadius:2}));
     chart=new Chart(document.getElementById("chart"),{type:"line",data:{labels,datasets},options:{animation:false,responsive:true}});
@@ -308,7 +310,7 @@ function startPriceInterval(){
 ======================= */
 async function runSelected(){
     if(!validStocks || validStocks.length===0){
-        alert("Keine gültige Aktie mit 200 Tagen Historie ausgewählt.");
+        alert("Keine gültige Aktie verfügbar.");
         return;
     }
     try{
