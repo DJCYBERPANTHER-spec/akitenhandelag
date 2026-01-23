@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Multi-KI Aktienanalyse – Große US-Aktien</title>
+<title>Multi-KI Aktien & Krypto Analyse</title>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
@@ -32,11 +32,11 @@ progress{width:80%;height:16px}
 </head>
 
 <body>
-<h1>Multi-KI Aktienanalyse – Große US-Aktien</h1>
-<div class="subtitle">Dropdown zeigt nur Aktien mit sicherer Historie bei Finnhub</div>
+<h1>Multi-KI Analyse – Aktien & Krypto</h1>
+<div class="subtitle">Dropdown zeigt nur Assets mit verfügbarer Historie</div>
 
 <div class="controls">
-<select id="stock" size="6" style="min-width:250px"></select>
+<select id="asset" size="8" style="min-width:250px"></select>
 
 <select id="forecastRange">
 <option value="1">1 Tag</option>
@@ -54,7 +54,7 @@ progress{width:80%;height:16px}
 <div id="status">Bereit</div>
 <div id="currentPrice"></div>
 <div style="text-align:center">
-<button id="buyLink" onclick="window.open(getBuyLink(stock.value),'_blank')">Aktie kaufen</button>
+<button id="buyLink" onclick="window.open(getBuyLink(asset.value),'_blank')">Asset kaufen</button>
 </div>
 
 <div style="text-align:center">
@@ -85,9 +85,9 @@ progress{width:80%;height:16px}
 
 <script>
 const API_KEY = "d5ohqjhr01qjast6qrjgd5ohqjhr01q";
-const sel = document.getElementById("stock");
+const sel = document.getElementById("asset");
 
-// **Sichere große US-Aktien mit historischer Verfügbarkeit**
+// Große US-Aktien (sicher bei Finnhub)
 const STOCKS = [
 {symbol:"AAPL",name:"Apple"},
 {symbol:"MSFT",name:"Microsoft"},
@@ -98,28 +98,30 @@ const STOCKS = [
 {symbol:"META",name:"Meta"},
 {symbol:"NVDA",name:"NVIDIA"},
 {symbol:"UNH",name:"UnitedHealth"},
-{symbol:"V",name:"Visa"},
-{symbol:"HD",name:"Home Depot"},
-{symbol:"PG",name:"Procter & Gamble"},
-{symbol:"JPM",name:"JPMorgan Chase"},
-{symbol:"MA",name:"Mastercard"},
-{symbol:"DIS",name:"Disney"},
-{symbol:"BAC",name:"Bank of America"},
-{symbol:"ADBE",name:"Adobe"},
-{symbol:"CMCSA",name:"Comcast"},
-{symbol:"XOM",name:"Exxon Mobil"},
-{symbol:"PFE",name:"Pfizer"}
+{symbol:"V",name:"Visa"}
 ];
 
-// Dropdown füllen
-STOCKS.forEach(s=>{
+// Krypto Assets (Finnhub: Binance-Spot)
+const CRYPTOS = [
+{symbol:"BINANCE:BTCUSDT",name:"Bitcoin (BTC/USD)"},
+{symbol:"BINANCE:ETHUSDT",name:"Ethereum (ETH/USD)"},
+{symbol:"BINANCE:XRPUSDT",name:"XRP (XRP/USD)"},
+{symbol:"BINANCE:ADAUSDT",name:"Cardano (ADA/USD)"},
+{symbol:"BINANCE:SOLUSDT",name:"Solana (SOL/USD)"}
+];
+
+// Dropdown füllen (erst Aktien, dann Krypto)
+[...STOCKS,...CRYPTOS].forEach(a=>{
     const o = document.createElement("option");
-    o.value = s.symbol;
-    o.textContent = `${s.name} (${s.symbol})`;
+    o.value = a.symbol;
+    o.textContent = a.name;
     sel.appendChild(o);
 });
 
-function getBuyLink(sym){return `https://www.tradingview.com/symbol/${sym}.US/`;}
+function getBuyLink(sym){
+    if(sym.startsWith("BINANCE:")) return `https://www.binance.com/en/trade/${sym.split(":")[1]}`;
+    else return `https://www.tradingview.com/symbol/${sym}/`;
+}
 function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
 </script>
 <script>
@@ -132,7 +134,10 @@ let priceInterval = null;
 async function fetchHist(sym, maxDays = 200) {
     const now = Math.floor(Date.now() / 1000);
     const from = now - maxDays * 86400;
-    const res = await fetch(`https://finnhub.io/api/v1/stock/candle?symbol=${sym}.US&resolution=D&from=${from}&to=${now}&token=${API_KEY}`);
+    let url = sym.startsWith("BINANCE:") 
+        ? `https://finnhub.io/api/v1/crypto/candle?symbol=${sym}&resolution=D&from=${from}&to=${now}&token=${API_KEY}`
+        : `https://finnhub.io/api/v1/stock/candle?symbol=${sym}&resolution=D&from=${from}&to=${now}&token=${API_KEY}`;
+    const res = await fetch(url);
     const data = await res.json();
     if(data.s==="ok" && data.c && data.c.length>0){
         const dates = data.t.map(ts => new Date(ts*1000).toISOString().split("T")[0]);
@@ -142,14 +147,19 @@ async function fetchHist(sym, maxDays = 200) {
 }
 
 async function fetchPrice(sym){
-    const res = await fetch(`https://finnhub.io/api/v1/quote?symbol=${sym}.US&token=${API_KEY}`);
+    let url = sym.startsWith("BINANCE:") 
+        ? `https://finnhub.io/api/v1/crypto/candle?symbol=${sym}&resolution=1&from=${Math.floor(Date.now()/1000)-60}&to=${Math.floor(Date.now()/1000)}&token=${API_KEY}`
+        : `https://finnhub.io/api/v1/quote?symbol=${sym}&token=${API_KEY}`;
+    const res = await fetch(url);
     const data = await res.json();
-    if(data && data.c) return Number(data.c);
+    if(sym.startsWith("BINANCE:")){
+        if(data.c && data.c.length>0) return Number(data.c[data.c.length-1]);
+    } else if(data && data.c) return Number(data.c);
     throw new Error("Aktueller Kurs nicht verfügbar");
 }
 
 /* =======================
-   KI-PROGNOSE
+   KI-PROGNOSE & TREND
 ======================= */
 function forecastKIs(hist, days, currentPrice){
     const futs=[];
@@ -172,9 +182,6 @@ function forecastKIs(hist, days, currentPrice){
     return futs;
 }
 
-/* =======================
-   TREND, VOLATILITÄT, BACKTEST, WARNUNG
-======================= */
 function trend(h){return h.length<20?0:(h.slice(-20).reduce((a,b)=>a+b,0)/20 - h.slice(-Math.min(100,h.length)).reduce((a,b)=>a+b,0)/Math.min(100,h.length))/h.slice(-Math.min(100,h.length)).reduce((a,b)=>a+b,0)/Math.min(100,h.length);}
 function volatility(h){const avg=h.reduce((a,b)=>a+b,0)/h.length; return Math.sqrt(h.reduce((a,b)=>a+Math.pow(b-avg,2),0)/h.length)/avg;}
 function backtest(h){let e=0; const n=Math.min(60,h.length-1); for(let i=h.length-n;i<h.length-1;i++){const p=h[i]*(1+trend(h.slice(0,i))); e+=Math.min(Math.abs((p-h[i+1])/h[i+1]),1);} return Math.max(0,((1-e/n)*100)).toFixed(1)+"%";}
@@ -252,7 +259,7 @@ function startPriceInterval(){
 }
 
 /* =======================
-   RUN ANALYSE FÜR AUSGEWÄHLTE AKTIE
+   RUN ANALYSE FÜR AUSGEWÄHLTES ASSET
 ======================= */
 async function runSelected(){
     try{
@@ -328,3 +335,4 @@ function updateProgress(p,text){
 </script>
 </body>
 </html>
+
