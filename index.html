@@ -2,7 +2,7 @@
 <html lang="de">
 <head>
 <meta charset="UTF-8">
-<title>KI Aktien Analyse – Lokal</title>
+<title>KI Aktien Analyse – 30 Tage Historie</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
@@ -23,8 +23,8 @@ canvas{margin-top:20px}
 
 <body>
 
-<h1>🧠 KI Aktien Analyse (lokale Liste)</h1>
-<p style="text-align:center">Nur gespeicherte Aktien • echte Historie • Quant-Logik</p>
+<h1>🧠 KI Aktien Analyse</h1>
+<p style="text-align:center">Nur gespeicherte Aktien • ≥30 Tage Historie • Quant-Logik</p>
 
 <div style="text-align:center">
   <select id="stock"></select><br>
@@ -70,20 +70,22 @@ const loader=document.getElementById("loader");
 const resultBox=document.getElementById("result");
 let chart=null;
 
-/* ================= HISTORIE ================= */
+/* ================= HISTORIE (≥30 TAGE) ================= */
 async function fetchHistory(symbol){
   const now=Math.floor(Date.now()/1000);
-  const from=now-160*86400;
-  const r=await fetch(`https://finnhub.io/api/v1/stock/candle?symbol=${symbol}&resolution=D&from=${from}&to=${now}&token=${API_KEY}`);
+  const from=now-45*86400; // Puffer für ≥30 Tage
+  const r=await fetch(
+    `https://finnhub.io/api/v1/stock/candle?symbol=${symbol}&resolution=D&from=${from}&to=${now}&token=${API_KEY}`
+  );
   const j=await r.json();
-  if(j.s==="ok" && j.c.length>=100) return j.c;
+  if(j.s==="ok" && j.c && j.c.length>=30) return j.c;
   throw "Keine Daten";
 }
 
 /* ================= AKTIEN LADEN ================= */
 async function loadStocks(){
   selectStock.innerHTML="<option>Prüfe Aktien…</option>";
-  loader.textContent="🔍 Prüfe lokale Aktienliste…";
+  loader.textContent="🔍 Prüfe ≥30 Tage Historie…";
   selectStock.innerHTML="<option value=''>Aktie wählen</option>";
 
   let found=0;
@@ -108,23 +110,23 @@ function aiCheck(prices){
   const EMA=(a,p)=>{let k=2/(p+1),e=a[0];for(let i=1;i<a.length;i++)e=a[i]*k+e*(1-k);return e};
 
   const last=prices.at(-1);
+  const perf15=(last-prices.at(-15))/prices.at(-15)*100;
   const perf30=(last-prices.at(-30))/prices.at(-30)*100;
-  const perf90=(last-prices.at(-90))/prices.at(-90)*100;
-  const vol=std(prices.slice(-30));
-  const ema20=EMA(prices.slice(-60),20);
-  const ema50=EMA(prices.slice(-60),50);
+  const vol=std(prices.slice(-15));
+  const ema10=EMA(prices.slice(-30),10);
+  const ema20=EMA(prices.slice(-30),20);
 
   let score=50;
-  if(ema20>ema50) score+=15;
-  if(last>ema20) score+=10;
-  if(perf30>0) score+=10;
-  if(perf90>5) score+=10;
-  if(vol<mean(prices)*0.03) score+=10;
-  if(vol>mean(prices)*0.07) score-=15;
+  if(ema10>ema20) score+=15;
+  if(last>ema10) score+=10;
+  if(perf15>0) score+=10;
+  if(perf30>3) score+=10;
+  if(vol<mean(prices)*0.025) score+=10;
+  if(vol>mean(prices)*0.06) score-=15;
 
   score=Math.max(0,Math.min(100,score));
   const verdict=score>=80?"🟢 Investierbar":score>=60?"🟡 Beobachten":score>=40?"🟠 Schwach":"🔴 Meiden";
-  return{score,verdict,perf30,perf90,vol};
+  return{score,verdict,perf15,perf30,vol};
 }
 
 /* ================= ANALYSE ================= */
@@ -135,20 +137,24 @@ async function runAnalysis(){
   loader.textContent="📊 Analyse läuft…";
   resultBox.style.display="none";
 
-  const prices=await fetchHistory(sym);
-  const ai=aiCheck(prices);
+  try{
+    const prices=await fetchHistory(sym);
+    const ai=aiCheck(prices);
 
-  resultBox.innerHTML=`
-    <b>${sym}</b><br>
-    KI-Score: ${ai.score}/100<br>
-    Status: ${ai.verdict}<br><br>
-    30T: ${ai.perf30.toFixed(2)}%<br>
-    90T: ${ai.perf90.toFixed(2)}%<br>
-    Risiko: ${ai.vol.toFixed(2)}
-  `;
-  resultBox.style.display="block";
-  drawChart(prices);
-  loader.textContent="✅ Fertig";
+    resultBox.innerHTML=`
+      <b>${sym}</b><br>
+      KI-Score: ${ai.score}/100<br>
+      Status: ${ai.verdict}<br><br>
+      15T: ${ai.perf15.toFixed(2)}%<br>
+      30T: ${ai.perf30.toFixed(2)}%<br>
+      Risiko: ${ai.vol.toFixed(2)}
+    `;
+    resultBox.style.display="block";
+    drawChart(prices);
+    loader.textContent="✅ Fertig";
+  }catch{
+    loader.textContent="❌ Fehler bei Analyse (API-Limit?)";
+  }
 }
 
 /* ================= CHART ================= */
@@ -156,7 +162,10 @@ function drawChart(data){
   if(chart) chart.destroy();
   chart=new Chart(document.getElementById("chart"),{
     type:"line",
-    data:{labels:data.map((_,i)=>i),datasets:[{label:"Kurs",data,borderColor:"#38bdf8",fill:false}]},
+    data:{
+      labels:data.map((_,i)=>i),
+      datasets:[{label:"Kurs",data,borderColor:"#38bdf8",fill:false}]
+    },
     options:{responsive:true}
   });
 }
