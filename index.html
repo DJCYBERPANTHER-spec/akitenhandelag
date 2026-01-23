@@ -34,7 +34,7 @@ progress{width:80%;height:16px}
 <body>
 
 <h1>Multi-KI Aktienanalyse – Echtzeit & Forecast</h1>
-<div class="subtitle">365 Tage Historie · Prognosen auf echten Kurs · Frühwarnsystem</div>
+<div class="subtitle">Nur Aktien mit 365 Tagen Historie werden angezeigt · Echtzeit Kurs & Prognose</div>
 
 <div class="controls">
 <select id="stock"></select>
@@ -89,77 +89,80 @@ const API_KEY = "d5ohqjhr01qjast6qrjgd5ohqjhr01q";
 let chart = null;
 let priceInterval = null;
 
-/* =======================
-   FESTE 130 AKTIEN
-======================= */
-const sel = document.getElementById("stock");
 const STOCKS = [
-  {symbol:"AAPL", name:"Apple"}, {symbol:"MSFT", name:"Microsoft"}, {symbol:"AMZN", name:"Amazon"},
-  {symbol:"TSLA", name:"Tesla"}, {symbol:"GOOGL", name:"Alphabet"}, {symbol:"GOOG", name:"Alphabet Class C"},
-  {symbol:"META", name:"Meta Platforms"}, {symbol:"BRK.B", name:"Berkshire Hathaway"}, {symbol:"NVDA", name:"NVIDIA"},
-  {symbol:"UNH", name:"UnitedHealth"}, {symbol:"V", name:"Visa"}, {symbol:"PG", name:"Procter & Gamble"},
-  {symbol:"LLY", name:"Eli Lilly"}, {symbol:"MA", name:"Mastercard"}, {symbol:"HD", name:"Home Depot"},
-  {symbol:"BAC", name:"Bank of America"}, {symbol:"XOM", name:"Exxon Mobil"}, {symbol:"JPM", name:"JP Morgan"},
-  {symbol:"KO", name:"Coca-Cola"}, {symbol:"DIS", name:"Disney"}, {symbol:"ADBE", name:"Adobe"},
-  {symbol:"NFLX", name:"Netflix"}, {symbol:"CMCSA", name:"Comcast"}, {symbol:"PFE", name:"Pfizer"},
-  {symbol:"PEP", name:"PepsiCo"}, {symbol:"ABBV", name:"AbbVie"}, {symbol:"INTC", name:"Intel"},
-  {symbol:"CSCO", name:"Cisco"}, {symbol:"T", name:"AT&T"}, {symbol:"WMT", name:"Walmart"},
-  {symbol:"CRM", name:"Salesforce"}, {symbol:"ABT", name:"Abbott"}, {symbol:"ACN", name:"Accenture"},
-  {symbol:"AVGO", name:"Broadcom"}, {symbol:"COST", name:"Costco"}, {symbol:"CVX", name:"Chevron"},
-  {symbol:"NKE", name:"Nike"}, {symbol:"ORCL", name:"Oracle"}, {symbol:"TXN", name:"Texas Instruments"},
-  {symbol:"MCD", name:"McDonald's"}, {symbol:"QCOM", name:"Qualcomm"}, {symbol:"NEE", name:"NextEra Energy"},
-  {symbol:"DHR", name:"Danaher"}, {symbol:"MDT", name:"Medtronic"}, {symbol:"BMY", name:"Bristol-Myers Squibb"},
-  {symbol:"LOW", name:"Lowe's"}, {symbol:"AMGN", name:"Amgen"}, {symbol:"HON", name:"Honeywell"},
-  {symbol:"SBUX", name:"Starbucks"}, {symbol:"LIN", name:"Linde"}, {symbol:"UNP", name:"Union Pacific"},
-  {symbol:"AMAT", name:"Applied Materials"}, {symbol:"RTX", name:"Raytheon"}, {symbol:"MMM", name:"3M"},
-  {symbol:"GE", name:"General Electric"}, {symbol:"AXP", name:"American Express"}, {symbol:"UPS", name:"UPS"},
-  {symbol:"PLD", name:"Prologis"}, {symbol:"BKNG", name:"Booking Holdings"}, {symbol:"SPGI", name:"S&P Global"},
-  {symbol:"SCHW", name:"Charles Schwab"}, {symbol:"BLK", name:"BlackRock"}, {symbol:"TMO", name:"Thermo Fisher"},
-  {symbol:"GILD", name:"Gilead"}, {symbol:"ANTM", name:"Anthem"}, {symbol:"MS", name:"Morgan Stanley"},
-  {symbol:"DUK", name:"Duke Energy"}, {symbol:"PYPL", name:"PayPal"}, {symbol:"ISRG", name:"Intuitive Surgical"},
-  {symbol:"ADP", name:"ADP"}, {symbol:"BDX", name:"Becton Dickinson"}, {symbol:"CVS", name:"CVS Health"},
-  {symbol:"ZTS", name:"Zoetis"}, {symbol:"MO", name:"Altria"}, {symbol:"LMT", name:"Lockheed Martin"},
-  {symbol:"CCI", name:"Crown Castle"}, {symbol:"EL", name:"Estée Lauder"}, {symbol:"COP", name:"ConocoPhillips"},
-  {symbol:"SYK", name:"Stryker"}, {symbol:"C", name:"Citigroup"}, {symbol:"PNC", name:"PNC Financial"},
-  {symbol:"TMUS", name:"T-Mobile"}, {symbol:"GS", name:"Goldman Sachs"}, {symbol:"USB", name:"US Bank"},
-  {symbol:"TGT", name:"Target"}, {symbol:"CHTR", name:"Charter Communications"}, {symbol:"SO", name:"Southern Co."},
-  {symbol:"CI", name:"Cigna"}, {symbol:"CB", name:"Chubb"}, {symbol:"AON", name:"Aon"}, {symbol:"MMC", name:"Marsh McLennan"},
-  {symbol:"DE", name:"Deere & Co."}, {symbol:"ES", name:"Eversource"}, {symbol:"EMR", name:"Emerson Electric"},
-  {symbol:"ATVI", name:"Activision"}, {symbol:"EW", name:"Edwards Lifesciences"}, {symbol:"KMB", name:"Kimberly-Clark"},
-  {symbol:"SLB", name:"Schlumberger"}, {symbol:"ETN", name:"Eaton"}, {symbol:"HUM", name:"Humana"}, {symbol:"GM", name:"General Motors"},
-  {symbol:"F", name:"Ford"}, {symbol:"FDX", name:"FedEx"}, {symbol:"ICE", name:"Intercontinental Exchange"}, {symbol:"PNW", name:"Pinnacle West"},
-  {symbol:"ADSK", name:"Autodesk"}, {symbol:"DLR", name:"Digital Realty"}, {symbol:"APD", name:"Air Products"}, {symbol:"ZBH", name:"Zimmer Biomet"},
-  {symbol:"ETR", name:"Entergy"}, {symbol:"HCA", name:"HCA Healthcare"}, {symbol:"CL", name:"Colgate-Palmolive"}, {symbol:"MAR", name:"Marriott"},
-  {symbol:"PGR", name:"Progressive"}, {symbol:"ALL", name:"Allstate"}, {symbol:"STZ", name:"Constellation Brands"},
-  {symbol:"AIG", name:"AIG"}, {symbol:"LRCX", name:"Lam Research"}, {symbol:"MSI", name:"Motorola Solutions"},
-  {symbol:"REGN", name:"Regeneron"}, {symbol:"ROP", name:"Roper Technologies"}, {symbol:"AEP", name:"American Electric Power"},
-  {symbol:"MCO", name:"Moody's"}, {symbol:"MHK", name:"Mohawk Industries"}, {symbol:"SHW", name:"Sherwin-Williams"},
-  {symbol:"ILMN", name:"Illumina"}, {symbol:"VRTX", name:"Vertex Pharmaceuticals"}, {symbol:"KHC", name:"Kraft Heinz"},
-  {symbol:"KR", name:"Kroger"}, {symbol:"HSY", name:"Hershey"}, {symbol:"PNR", name:"Pentair"}, {symbol:"WBA", name:"Walgreens"},
-  {symbol:"CTAS", name:"Cintas"}, {symbol:"ECL", name:"Ecolab"}, {symbol:"FIS", name:"Fidelity National Information Services"},
-  {symbol:"IQV", name:"IQVIA"}, {symbol:"SRE", name:"Sempra Energy"}, {symbol:"WMB", name:"Williams Companies"}, {symbol:"OXY", name:"Occidental Petroleum"},
-  {symbol:"AMLX", name:"AmerisourceBergen"}
+  {symbol:"AAPL", name:"Apple"}, 
+  {symbol:"MSFT", name:"Microsoft"},
+  {symbol:"TSLA", name:"Tesla"},
+  {symbol:"AMZN", name:"Amazon"},
+  {symbol:"GOOGL", name:"Alphabet"},
+  {symbol:"META", name:"Meta Platforms"},
+  {symbol:"NVDA", name:"NVIDIA"},
+  {symbol:"JPM", name:"JP Morgan"},
+  {symbol:"DIS", name:"Disney"},
+  {symbol:"NFLX", name:"Netflix"},
+  {symbol:"PG", name:"Procter & Gamble"},
+  {symbol:"V", name:"Visa"}
+  // ... hier können weitere Aktien hinzugefügt werden
 ];
-STOCKS.forEach(s=>{const o=document.createElement("option");o.value=s.symbol;o.textContent=`${s.name} (${s.symbol})`;sel.appendChild(o);});
-sel.selectedIndex=0;
 
-/* =======================
-   HILFSFUNKTIONEN
-======================= */
-function updateProgress(p,text){document.getElementById("progressBar").value=p;document.getElementById("progressText").textContent=text;}
+const sel = document.getElementById("stock");
+const progressBar = document.getElementById("progressBar");
+const progressText = document.getElementById("progressText");
+
+function updateProgress(p, text){
+    progressBar.value = p;
+    progressText.textContent = text;
+}
+
 function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
-function getBuyLink(sym){return `https://www.tradingview.com/symbols/${sym}/`;}
+function getBuyLink(sym){return `https://www.tradingview.com/symbol/${sym}.US/`;}
+
+async function filterStocksWithHistory(){
+    sel.innerHTML = "";
+    updateProgress(0,"Überprüfe Aktienhistorie…");
+    let validCount = 0;
+    for(let i=0;i<STOCKS.length;i++){
+        const s = STOCKS[i];
+        try{
+            const now = Math.floor(Date.now()/1000);
+            const from = now - 365*86400;
+            const res = await fetch(`https://finnhub.io/api/v1/stock/candle?symbol=${s.symbol}.US&resolution=D&from=${from}&to=${now}&token=${API_KEY}`);
+            const data = await res.json();
+            if(data.s === "ok" && data.c && data.c.length >= 365){
+                const o = document.createElement("option");
+                o.value = s.symbol;
+                o.textContent = `${s.name} (${s.symbol})`;
+                sel.appendChild(o);
+                validCount++;
+            } else {
+                console.log(`Keine 365 Tage Historie für ${s.symbol}`);
+            }
+        } catch(e){
+            console.log(`Fehler bei ${s.symbol}: ${e}`);
+        }
+        updateProgress(((i+1)/STOCKS.length)*100, `Überprüft ${i+1} / ${STOCKS.length} Aktien`);
+        await sleep(50); // kleine Pause für API-Limit
+    }
+    if(validCount === 0) updateProgress(0,"Keine Aktien mit 365 Tagen Historie gefunden!");
+    else updateProgress(100,`Fertig! ${validCount} Aktien verfügbar`);
+}
+
+// Filterung beim Laden starten
+filterStocksWithHistory();
 </script>
 <script>
+let chart = null;
+let priceInterval = null;
+
 /* =======================
    HISTORIE & AKTUELLER KURS
 ======================= */
 async function fetchHist(sym, days = 365) {
     const now = Math.floor(Date.now() / 1000);
     const from = now - days * 86400;
-    const res = await fetch(`https://finnhub.io/api/v1/stock/candle?symbol=${sym}&resolution=D&from=${from}&to=${now}&token=${API_KEY}`);
+    const res = await fetch(`https://finnhub.io/api/v1/stock/candle?symbol=${sym}.US&resolution=D&from=${from}&to=${now}&token=${API_KEY}`);
     const data = await res.json();
-    if(data.s==="ok" && data.c && data.c.length>30){
+    if(data.s==="ok" && data.c && data.c.length>=days){
         const dates = data.t.map(ts => new Date(ts*1000).toISOString().split("T")[0]);
         const closes = data.c.map(v => Number(v));
         return {dates, closes};
@@ -167,28 +170,28 @@ async function fetchHist(sym, days = 365) {
 }
 
 async function fetchPrice(sym){
-    const res = await fetch(`https://finnhub.io/api/v1/quote?symbol=${sym}&token=${API_KEY}`);
+    const res = await fetch(`https://finnhub.io/api/v1/quote?symbol=${sym}.US&token=${API_KEY}`);
     const data = await res.json();
     if(data && data.c) return Number(data.c);
     throw new Error("Aktueller Kurs nicht verfügbar");
 }
 
 /* =======================
-   KI-PROGNOSE (echter Forecast)
+   KI-PROGNOSE
 ======================= */
 function forecastKIs(hist, days, currentPrice){
     const futs=[];
-    // KI1: lineare Trend
-    let slope=(hist[hist.length-1]-hist[0])/hist.length; let arr1=[]; let p=currentPrice;
+    let slope=(hist[hist.length-1]-hist[0])/hist.length; 
+    let arr1=[]; let p=currentPrice;
     for(let i=0;i<days;i++){p+=slope; arr1.push(p);} futs.push(arr1);
-    // KI2: 20-Tage Durchschnitt
+
     let arr2=[]; p=currentPrice;
     const avg20=hist.slice(-20).reduce((a,b)=>a+b,0)/20;
     for(let i=0;i<days;i++){p=p*0.8 + avg20*0.2; arr2.push(p);} futs.push(arr2);
-    // KI3: EMA
+
     let arr3=[]; p=currentPrice; let alpha=0.1; let ema=hist[hist.length-1];
     for(let i=0;i<days;i++){ema=alpha*ema+(1-alpha)*p; p=ema; arr3.push(p);} futs.push(arr3);
-    // KI4: Volatilitätsgewichtet
+
     let arr4=[]; p=currentPrice; const changes=[]; for(let i=1;i<hist.length;i++) changes.push((hist[i]-hist[i-1])/hist[i-1]);
     const avgChange=changes.reduce((a,b)=>a+b,0)/changes.length; const vol=Math.sqrt(changes.reduce((a,b)=>a+Math.pow(b-avgChange,2),0)/changes.length);
     for(let i=0;i<days;i++){p*=(1+avgChange*(1+vol*0.5)); arr4.push(p);} futs.push(arr4);
