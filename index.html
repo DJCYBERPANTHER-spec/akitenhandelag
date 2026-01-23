@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Multi-KI Aktienanalyse – 130 Aktien</title>
+<title>Multi-KI Aktienanalyse – Echtzeit & Forecast</title>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
@@ -33,14 +33,14 @@ progress{width:80%;height:16px}
 
 <body>
 
-<h1>Multi-KI Aktienanalyse – 130 Aktien</h1>
-<div class="subtitle">365 Tage Historie · Prognosen auf ausgewählte Aktie · Frühwarnsystem</div>
+<h1>Multi-KI Aktienanalyse – Echtzeit & Forecast</h1>
+<div class="subtitle">365 Tage Historie · Prognosen auf echten Kurs · Frühwarnsystem</div>
 
 <div class="controls">
 <select id="stock"></select>
 
 <select id="forecastRange">
-<option value="1">24h</option>
+<option value="1">1 Tag</option>
 <option value="5">1 Woche</option>
 <option value="22">1 Monat</option>
 <option value="66">3 Monate</option>
@@ -152,105 +152,58 @@ function getBuyLink(sym){return `https://www.tradingview.com/symbols/${sym}/`;}
 </script>
 <script>
 /* =======================
-   HISTORIE + AKTUELLER KURS MIT FALLBACK
+   HISTORIE & AKTUELLER KURS
 ======================= */
 async function fetchHist(sym, days = 365) {
     const now = Math.floor(Date.now() / 1000);
     const from = now - days * 86400;
-    try {
-        const res = await fetch(`https://finnhub.io/api/v1/stock/candle?symbol=${sym}&resolution=D&from=${from}&to=${now}&token=${API_KEY}`);
-        const data = await res.json();
-        if (data.s === "ok" && data.c && data.c.length >= 30) {
-            const dates = data.t.map(ts => new Date(ts * 1000).toISOString().split("T")[0]);
-            const closes = data.c.map(v => Number(v));
-            return { dates, closes };
-        }
-    } catch (e) {}
-    // Fallback: Fake-Daten falls API nicht geht
-    const arr = [], dates = [];
-    let base = 400;
-    for (let i = 0; i < days; i++) {
-        base *= 1 + 0.001 * Math.sin(i / 5);
-        arr.push(base);
-        const d = new Date();
-        d.setDate(d.getDate() - days + i);
-        dates.push(d.toISOString().split("T")[0]);
-    }
-    return { dates, closes: arr };
+    const res = await fetch(`https://finnhub.io/api/v1/stock/candle?symbol=${sym}&resolution=D&from=${from}&to=${now}&token=${API_KEY}`);
+    const data = await res.json();
+    if(data.s==="ok" && data.c && data.c.length>30){
+        const dates = data.t.map(ts => new Date(ts*1000).toISOString().split("T")[0]);
+        const closes = data.c.map(v => Number(v));
+        return {dates, closes};
+    } else throw new Error("Historische Daten nicht verfügbar");
 }
 
-async function fetchPrice(sym) {
-    try {
-        const r = await fetch(`https://finnhub.io/api/v1/quote?symbol=${sym}&token=${API_KEY}`);
-        const j = await r.json();
-        if (j && j.c) return j.c;
-    } catch {}
-    return null;
-}
-
-async function getCurrentPriceWithFallback(sym, retries = 5) {
-    let price = null;
-    let attempts = 0;
-    while(price === null && attempts < retries){
-        price = await fetchPrice(sym);
-        if(price === null){
-            attempts++;
-            console.warn(`Aktueller Kurs konnte nicht geladen werden. Versuch ${attempts}/${retries}`);
-            await sleep(1000);
-        }
-    }
-    if(price === null){
-        const hist = await fetchHist(sym);
-        price = hist.closes[hist.closes.length-1];
-        document.getElementById("currentPrice").textContent = `Aktueller Kurs ${sym}: ${price.toFixed(2)} USD (Fallback historisch)`;
-    } else {
-        document.getElementById("currentPrice").textContent = `Aktueller Kurs ${sym}: ${price.toFixed(2)} USD`;
-    }
-    return price;
+async function fetchPrice(sym){
+    const res = await fetch(`https://finnhub.io/api/v1/quote?symbol=${sym}&token=${API_KEY}`);
+    const data = await res.json();
+    if(data && data.c) return Number(data.c);
+    throw new Error("Aktueller Kurs nicht verfügbar");
 }
 
 /* =======================
-   KI-PROGNOSE-LOGIK (4 verschiedene Strategien)
+   KI-PROGNOSE (echter Forecast)
 ======================= */
 function forecastKIs(hist, days, currentPrice){
     const futs=[];
-    // KI1: lineare Trendfortsetzung
-    let slope = (hist[hist.length-1]-hist[0])/hist.length;
-    let arr1=[]; let p=currentPrice;
+    // KI1: lineare Trend
+    let slope=(hist[hist.length-1]-hist[0])/hist.length; let arr1=[]; let p=currentPrice;
     for(let i=0;i<days;i++){p+=slope; arr1.push(p);} futs.push(arr1);
-
-    // KI2: gleitender Durchschnitt 20 Tage
+    // KI2: 20-Tage Durchschnitt
     let arr2=[]; p=currentPrice;
-    const avg20 = hist.slice(-20).reduce((a,b)=>a+b,0)/20;
-    for(let i=0;i<days;i++){p = p*0.8 + avg20*0.2; arr2.push(p);} futs.push(arr2);
-
-    // KI3: exponentielle Glättung EMA 0.1
-    let arr3=[]; p=currentPrice;
-    const alpha=0.1;
-    let ema=hist[hist.length-1];
+    const avg20=hist.slice(-20).reduce((a,b)=>a+b,0)/20;
+    for(let i=0;i<days;i++){p=p*0.8 + avg20*0.2; arr2.push(p);} futs.push(arr2);
+    // KI3: EMA
+    let arr3=[]; p=currentPrice; let alpha=0.1; let ema=hist[hist.length-1];
     for(let i=0;i<days;i++){ema=alpha*ema+(1-alpha)*p; p=ema; arr3.push(p);} futs.push(arr3);
-
-    // KI4: volatilitätsgewichtete historische Änderung
-    let arr4=[]; p=currentPrice;
-    const changes=[]; for(let i=1;i<hist.length;i++) changes.push((hist[i]-hist[i-1])/hist[i-1]);
-    const avgChange=changes.reduce((a,b)=>a+b,0)/changes.length;
-    const vol=Math.sqrt(changes.reduce((a,b)=>a+Math.pow(b-avgChange,2),0)/changes.length);
+    // KI4: Volatilitätsgewichtet
+    let arr4=[]; p=currentPrice; const changes=[]; for(let i=1;i<hist.length;i++) changes.push((hist[i]-hist[i-1])/hist[i-1]);
+    const avgChange=changes.reduce((a,b)=>a+b,0)/changes.length; const vol=Math.sqrt(changes.reduce((a,b)=>a+Math.pow(b-avgChange,2),0)/changes.length);
     for(let i=0;i<days;i++){p*=(1+avgChange*(1+vol*0.5)); arr4.push(p);} futs.push(arr4);
 
     return futs;
 }
 
 /* =======================
-   TREND, VOLATILITÄT, BACKTEST
+   TREND, VOLATILITÄT, BACKTEST, WARNUNG
 ======================= */
-function trend(h) { return (h.slice(-20).reduce((a,b)=>a+b,0)/20 - h.slice(-100).reduce((a,b)=>a+b,0)/100)/h.slice(-100).reduce((a,b)=>a+b,0)/100; }
-function volatility(h) { const avg = h.reduce((a,b)=>a+b,0)/h.length; return Math.sqrt(h.reduce((a,b)=>a+Math.pow(b-avg,2),0)/h.length)/avg; }
-function backtest(h) { let e = 0; const n = Math.min(60, h.length-1); for(let i = h.length-n; i<h.length-1;i++){ const p=h[i]*(1+trend(h.slice(0,i))); e+=Math.min(Math.abs((p-h[i+1])/h[i+1]),1);} return Math.max(0,((1-e/n)*100)).toFixed(1)+"%"; }
-function calcConfidence(hist){return Math.min(1,0.5+0.3*(parseFloat(backtest(hist))/100)+0.2*(1-volatility(hist)))*100;}
+function trend(h){return (h.slice(-20).reduce((a,b)=>a+b,0)/20 - h.slice(-100).reduce((a,b)=>a+b,0)/100)/h.slice(-100).reduce((a,b)=>a+b,0)/100;}
+function volatility(h){const avg=h.reduce((a,b)=>a+b,0)/h.length; return Math.sqrt(h.reduce((a,b)=>a+Math.pow(b-avg,2),0)/h.length)/avg;}
+function backtest(h){let e=0; const n=Math.min(60,h.length-1); for(let i=h.length-n;i<h.length-1;i++){const p=h[i]*(1+trend(h.slice(0,i))); e+=Math.min(Math.abs((p-h[i+1])/h[i+1]),1);} return Math.max(0,((1-e/n)*100)).toFixed(1)+"%";}
+function calcConfidence(h){return Math.min(1,0.5+0.3*(parseFloat(backtest(h))/100)+0.2*(1-volatility(h)))*100;}
 
-/* =======================
-   WARNUNGEN
-======================= */
 const financialCrises=[
 {start:"2007-10-01",end:"2009-03-01",name:"Finanzkrise 2008"},
 {start:"2010-04-01",end:"2012-06-30",name:"Euro-Schuldenkrise"},
@@ -259,24 +212,15 @@ const financialCrises=[
 ];
 
 function calcWarningForecast(dates,h,future=null){
-    const vol = volatility(h);
-    const tr = trend(h);
-    const last = future!==null?future:h[h.length-1];
-    const prev = h[h.length-2]||last;
-    const delta = (last-prev)/prev;
-
+    const vol=volatility(h), tr=trend(h); const last=future!==null?future:h[h.length-1]; const prev=h[h.length-2]||last;
+    const delta=(last-prev)/prev;
     if(vol>0.06) return "⚠️ Hohe Volatilität";
     if(delta<-0.05) return "⚠️ Starker Kursabfall";
     if(delta>0.05) return "⚠️ Starker Anstieg";
     if(tr<-0.15) return "⚠️ Abwärtstrend";
     if(tr>0.15) return "⚠️ Aufwärtstrend";
-
     const lastDate = dates[dates.length-1];
-    for(let crisis of financialCrises){
-        const start=new Date(crisis.start), end=new Date(crisis.end), d=new Date(lastDate);
-        if(d>=start && d<=end) return `⚠️ Finanzkrise: ${crisis.name}`;
-    }
-
+    for(let crisis of financialCrises){const start=new Date(crisis.start), end=new Date(crisis.end), d=new Date(lastDate); if(d>=start && d<=end) return `⚠️ Finanzkrise: ${crisis.name}`;}
     return "";
 }
 
@@ -293,7 +237,7 @@ function decision(curr,fut,h){
 function risk(curr,h){const v=volatility(h)*curr;return {sl:(curr-2*v).toFixed(2),tp:(curr+3*v).toFixed(2)};}
 
 /* =======================
-   CHART
+   CHART ZEICHNEN
 ======================= */
 function draw(histObj,futs){
     if(chart) chart.destroy();
@@ -306,7 +250,7 @@ function draw(histObj,futs){
 }
 
 /* =======================
-   BESTE KI
+   BESTE KI MARKIEREN
 ======================= */
 function markBestKI(){
     const rows=document.querySelectorAll("#out tr");
@@ -321,8 +265,14 @@ function markBestKI(){
 ======================= */
 function startPriceInterval(){
     if(priceInterval) clearInterval(priceInterval);
-    getCurrentPriceWithFallback(sel.value); // initial
-    priceInterval=setInterval(()=>getCurrentPriceWithFallback(sel.value),5000);
+    priceInterval=setInterval(async ()=>{
+        try{
+            const price = await fetchPrice(sel.value);
+            document.getElementById("currentPrice").textContent = `Aktueller Kurs ${sel.value}: ${price.toFixed(2)} USD`;
+        }catch{
+            document.getElementById("currentPrice").textContent = `Aktueller Kurs ${sel.value} nicht verfügbar ⚠️`;
+        }
+    },5000);
 }
 
 /* =======================
@@ -340,10 +290,18 @@ async function run(){
         const histObj=await fetchHist(sym);
         await sleep(150);
 
-        updateProgress(25,"Lade aktuellen Kurs…");
-        const price = await getCurrentPriceWithFallback(sym);
+        updateProgress(40,"Lade aktuellen Kurs…");
+        let price;
+        try{
+            price = await fetchPrice(sym);
+            document.getElementById("currentPrice").textContent = `Aktueller Kurs ${sym}: ${price.toFixed(2)} USD`;
+        }catch{
+            document.getElementById("currentPrice").textContent = `Aktueller Kurs ${sym} nicht verfügbar ⚠️`;
+            updateProgress(0,"Analyse abgebrochen – aktueller Kurs fehlt");
+            return;
+        }
 
-        updateProgress(40,"Berechne Prognosen…");
+        updateProgress(50,"Berechne Prognosen…");
         const futs=forecastKIs(histObj.closes,days,price);
 
         updateProgress(70,"Erstelle Diagramm…");
