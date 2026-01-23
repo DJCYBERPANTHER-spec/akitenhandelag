@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Multi-KI Aktienanalyse – Auto-Batch 20/Min</title>
+<title>Multi-KI Aktienanalyse – 200 Tage Historie</title>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
@@ -32,8 +32,8 @@ progress{width:80%;height:16px}
 </head>
 
 <body>
-<h1>Multi-KI Aktienanalyse – Auto-Batch 20/Min</h1>
-<div class="subtitle">Nur Aktien mit 365-Tage-Historie werden geladen</div>
+<h1>Multi-KI Aktienanalyse – 200 Tage Historie</h1>
+<div class="subtitle">Nur Aktien mit 200-Tage-Historie werden geladen</div>
 
 <div class="controls">
 <select id="stock" size="6" style="min-width:250px"></select>
@@ -101,14 +101,14 @@ const STOCKS = [
 {symbol:"XOM",name:"Exxon Mobil"},{symbol:"PFE",name:"Pfizer"}
 ];
 
-// Prüft ob Aktie 365-Tage-Historie hat
+// Prüft ob Aktie 200-Tage-Historie hat
 async function checkHistValid(stock){
     try{
         const now = Math.floor(Date.now()/1000);
-        const from = now - 365*86400;
+        const from = now - 200*86400; // 200 Tage
         const res = await fetch(`https://finnhub.io/api/v1/stock/candle?symbol=${stock.symbol}.US&resolution=D&from=${from}&to=${now}&token=${API_KEY}`);
         const data = await res.json();
-        return (data.s==="ok" && data.c && data.c.length>=365);
+        return (data.s==="ok" && data.c && data.c.length>=200);
     }catch{return false;}
 }
 
@@ -159,7 +159,7 @@ async function loadInitialValidStocks(){
     }
     if(validStocks.length === 0){
         const o = document.createElement("option");
-        o.textContent = "Keine Aktie mit 365 Tagen Historie verfügbar";
+        o.textContent = "Keine Aktie mit 200 Tagen Historie verfügbar";
         o.disabled = true;
         sel.appendChild(o);
     }
@@ -182,7 +182,7 @@ let priceInterval = null;
 /* =======================
    HISTORIE & AKTUELLER KURS
 ======================= */
-async function fetchHist(sym, days = 365) {
+async function fetchHist(sym, days = 200) { // 200 Tage
     const now = Math.floor(Date.now() / 1000);
     const from = now - days * 86400;
     const res = await fetch(`https://finnhub.io/api/v1/stock/candle?symbol=${sym}.US&resolution=D&from=${from}&to=${now}&token=${API_KEY}`);
@@ -271,7 +271,7 @@ function draw(histObj,futs){
     if(chart) chart.destroy();
     const labels = [...histObj.dates];
     futs.forEach(f=>{f.forEach((v,i)=>{if(!labels.includes("+"+(i+1)+"d")) labels.push("+"+(i+1)+"d")});});
-    const datasets=[{label:"Historie (365 Tage)",data:histObj.closes,borderColor:"#3b82f6",fill:false}];
+    const datasets=[{label:"Historie (200 Tage)",data:histObj.closes,borderColor:"#3b82f6",fill:false}];
     const colors=["#22c55e","#facc15","#f97316","#38bdf8"];
     futs.forEach((f,i)=>datasets.push({label:"KI "+(i+1),data:[...Array(histObj.closes.length).fill(null),...f],borderColor:colors[i],fill:false,pointRadius:2}));
     chart=new Chart(document.getElementById("chart"),{type:"line",data:{labels,datasets},options:{animation:false,responsive:true}});
@@ -308,7 +308,7 @@ function startPriceInterval(){
 ======================= */
 async function runSelected(){
     if(!validStocks || validStocks.length===0){
-        alert("Keine gültige Aktie mit 365 Tagen Historie ausgewählt.");
+        alert("Keine gültige Aktie mit 200 Tagen Historie ausgewählt.");
         return;
     }
     try{
