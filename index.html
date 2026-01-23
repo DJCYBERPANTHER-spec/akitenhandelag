@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Multi-KI Aktienanalyse – Stabil + Echtzeit</title>
+<title>Multi-KI Aktienanalyse – Deterministisch</title>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
@@ -34,7 +34,7 @@ progress{width:80%;height:16px}
 <body>
 
 <h1>Multi-KI Aktienanalyse</h1>
-<div class="subtitle">Stabile Prognosen · Echtzeitkurs · Kauf-/Verkaufsignale · Beste KI markiert</div>
+<div class="subtitle">Deterministische Prognosen · Echtzeitkurs · Kauf-/Verkaufsignale · Beste KI markiert</div>
 
 <div class="controls">
 <select id="stock"></select>
@@ -89,7 +89,7 @@ const API_KEY = "d5ohqjhr01qjast6qrjgd5ohqjhr01qjast6qrk0";
 let chart = null;
 let priceInterval = null;
 
-// stabile Aktienliste
+// Aktienliste
 const STOCKS = [
  {symbol:"AAPL",name:"Apple"},
  {symbol:"MSFT",name:"Microsoft"},
@@ -108,19 +108,16 @@ STOCKS.forEach(s=>{
  sel.appendChild(o);
 });
 
-// Fortschritt
 function updateProgress(p,text){
  document.getElementById("progressBar").value=p;
  document.getElementById("progressText").textContent=text;
 }
-
-// Helfer
 function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
 function getBuyLink(sym){return `https://www.tradingview.com/symbols/${sym}/`;}
 </script>
 <script>
 /* =======================
-   DATENABRUF (STABIL)
+   DATENABRUF
 ======================= */
 async function fetchHist(sym, days = 365){
     const now = Math.floor(Date.now()/1000);
@@ -147,7 +144,7 @@ function generateFallbackHistory(days){
     let base = 100;
     const arr = [];
     for(let i=0;i<days;i++){
-        base *= 1 + (Math.random()-0.5)*0.01;
+        base *= 1 + 0.002*(Math.sin(i/5)); // deterministisch
         arr.push(base);
     }
     return arr;
@@ -194,7 +191,6 @@ function backtest(h){
 
 function calcConfidence(hist){
     const vol = volatility(hist);
-    const tr  = Math.abs(trend(hist));
     const bt  = parseFloat(backtest(hist))/100;
     let conf = 0.5 + (0.3 * bt) + (0.2 * (1 - vol));
     if(conf>1) conf=1;
@@ -222,23 +218,20 @@ function decision(curr,fut,h){
 
 function risk(curr,h){
     const v=volatility(h)*curr;
-    return {
-        sl: (curr - 2*v).toFixed(2),
-        tp: (curr + 3*v).toFixed(2)
-    };
+    return {sl: (curr-2*v).toFixed(2), tp: (curr+3*v).toFixed(2)};
 }
 
 /* =======================
-   KI-PROGNOSE
+   DETERMINISTISCHE KI-PROGNOSE
 ======================= */
 function forecast(hist, days, idx){
     let price = hist[hist.length-1];
-    const t = Math.max(Math.min(trend(hist),0.02),-0.02);
+    const t = trend(hist); // deterministisch
     const result = [];
 
     for(let i=0;i<days;i++){
-        const noise = (Math.random()-0.5) * 0.01 * (idx+1);
-        price *= 1 + t/Math.sqrt(days) + noise;
+        const factor = t*(1+idx*0.05); // leichte Variation pro KI
+        price *= 1 + factor/Math.sqrt(days);
         result.push(price);
     }
     return result;
@@ -275,7 +268,7 @@ function draw(hist, futs){
     chart = new Chart(document.getElementById("chart"),{
         type: "line",
         data: {labels, datasets},
-        options: {animation:false, responsive:true}
+        options: {animation:false,responsive:true}
     });
 }
 
@@ -286,23 +279,18 @@ function markBestKI(){
     const rows = document.querySelectorAll("#out tr");
     if(rows.length === 0) return;
 
-    let bestValue = -Infinity;
-    let bestRow = null;
-
+    let bestValue=-Infinity;
+    let bestRow=null;
     rows.forEach(row=>{
-        const val = parseFloat(row.cells[1].textContent);
-        if(val > bestValue){
-            bestValue = val;
-            bestRow = row;
-        }
+        const val=parseFloat(row.cells[1].textContent);
+        if(val>bestValue){bestValue=val;bestRow=row;}
         row.classList.remove("bestKI");
     });
-
     if(bestRow) bestRow.classList.add("bestKI");
 }
 
 /* =======================
-   AKTUELLER KURS ALLE 5 SEKUNDEN
+   AKTUELLER KURS
 ======================= */
 function startPriceInterval(){
     if(priceInterval) clearInterval(priceInterval);
@@ -313,7 +301,7 @@ function startPriceInterval(){
 async function updateCurrentPrice(sym){
     const price = await fetchPrice(sym);
     if(price){
-        document.getElementById("currentPrice").textContent =
+        document.getElementById("currentPrice").textContent=
             `Aktueller Kurs ${sym}: ${price.toFixed(2)} USD`;
     }
 }
@@ -324,7 +312,7 @@ async function updateCurrentPrice(sym){
 async function run(){
     try{
         updateProgress(0,"Starte Analyse…");
-        document.getElementById("status").textContent = "Analyse läuft…";
+        document.getElementById("status").textContent="Analyse läuft…";
 
         const sym = sel.value;
         const days = +document.getElementById("forecastRange").value;
@@ -337,27 +325,27 @@ async function run(){
         const price = await fetchPrice(sym) || hist[hist.length-1];
         await sleep(100);
 
-        const futs = [];
+        const futs=[];
         for(let i=0;i<4;i++){
-            updateProgress(35 + i*15,`KI ${i+1} berechnet Prognose…`);
-            futs.push(forecast(hist, days, i));
-            await sleep(200);
+            updateProgress(35+i*15,`KI ${i+1} berechnet Prognose…`);
+            const f=forecast(hist,days,i);
+            futs.push(f);
+            await sleep(100);
         }
 
         updateProgress(85,"Erstelle Diagramm…");
-        draw(hist, futs);
+        draw(hist,futs);
 
         updateProgress(92,"Erstelle Tabelle…");
-        let html = "";
-
+        let html="";
         futs.forEach((f,i)=>{
-            const last = f[f.length-1];
-            const dec = decision(price, last, hist);
-            const r = risk(price, hist);
-            const conf = (calcConfidence(hist)*100).toFixed(0);
-            const warn = calcWarning(hist);
+            const last=f[f.length-1];
+            const dec=decision(price,last,hist);
+            const r=risk(price,hist);
+            const conf=(calcConfidence(hist)*100).toFixed(0);
+            const warn=calcWarning(hist);
 
-            html += `
+            html+=`
             <tr>
                 <td>KI${i+1}</td>
                 <td>${last.toFixed(2)}</td>
@@ -370,18 +358,17 @@ async function run(){
                 <td>🛑 ${r.sl}<br>🎯 ${r.tp}</td>
             </tr>`;
         });
-
-        document.getElementById("out").innerHTML = html;
+        document.getElementById("out").innerHTML=html;
         markBestKI();
         startPriceInterval();
 
         updateProgress(100,"Analyse abgeschlossen ✔");
-        document.getElementById("status").textContent = "Fertig";
+        document.getElementById("status").textContent="Fertig";
 
     }catch(err){
         console.error(err);
         updateProgress(0,"Fehler");
-        document.getElementById("status").textContent = "Fehler: "+err;
+        document.getElementById("status").textContent="Fehler: "+err;
     }
 }
 </script>
