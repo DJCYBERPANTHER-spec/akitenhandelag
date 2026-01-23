@@ -83,18 +83,30 @@ const POSSIBLE_STOCKS=[
   {symbol:"PEP",name:"PepsiCo Inc."},{symbol:"JNJ",name:"Johnson & Johnson"},{symbol:"PFE",name:"Pfizer Inc."}
 ];
 
-// --- Dropdown laden ---
+// --- Prüfen, welche Aktien ≥30 Tage Historie haben ---
 const selectStock=document.getElementById("stock");
-function loadDropdown(){
-  selectStock.innerHTML="<option value=''>Aktie wählen</option>";
-  POSSIBLE_STOCKS.forEach(s=>{
-    const o=document.createElement("option");
-    o.value=s.symbol;
-    o.textContent=`${s.name} (${s.symbol})`;
-    selectStock.appendChild(o);
-  });
+async function validateStocks(){
+    selectStock.innerHTML="<option value=''>Lade Aktien…</option>";
+    const loader=document.getElementById("loader");
+    loader.textContent="Prüfe Aktien auf Historie…";
+    const validStocks=[];
+    for(let i=0;i<POSSIBLE_STOCKS.length;i++){
+        const sym=POSSIBLE_STOCKS[i].symbol;
+        try{
+            const hist=await fetchHistoricalData(sym,30);
+            if(hist.length>=30) validStocks.push(POSSIBLE_STOCKS[i]);
+        }catch{}
+    }
+    selectStock.innerHTML="<option value=''>Aktie wählen</option>";
+    validStocks.forEach(s=>{
+        const o=document.createElement("option");
+        o.value=s.symbol;
+        o.textContent=`${s.name} (${s.symbol})`;
+        selectStock.appendChild(o);
+    });
+    loader.textContent="Fertig! Bitte Aktie auswählen.";
 }
-loadDropdown();
+validateStocks();
 
 // --- Live-Kurs abrufen ---
 async function fetchUsdChf(){ 
@@ -269,7 +281,7 @@ async function run(){
     }
 }
 
-// --- Kauf-Links ---
+// --- Kauf-Buttons ---
 function openYahoo(){
     const sym=document.getElementById("stock").value;
     if(sym) window.open(`https://finance.yahoo.com/quote/${sym}`,"_blank");
