@@ -1,9 +1,105 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Multi-KI Aktienanalyse – Batch 20 pro Minute</title>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+body{background:#0f172a;color:#e5e7eb;font-family:Arial;padding:15px}
+h1{text-align:center}
+.subtitle{text-align:center;color:#94a3b8;font-size:0.9rem}
+.controls{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin:12px 0}
+select,button{background:#020617;color:#e5e7eb;border:1px solid #22c55e;padding:8px 12px;border-radius:6px}
+button:hover{background:#22c55e;color:#020617;cursor:pointer}
+canvas{background:#020617;border-radius:10px;margin-top:15px}
+table{width:100%;border-collapse:collapse;margin-top:15px;font-size:0.85rem}
+th,td{border:1px solid #22c55e;padding:6px;text-align:center}
+.buy{color:#22c55e;font-weight:bold}
+.sell{color:#ef4444;font-weight:bold}
+.hold{color:#facc15;font-weight:bold}
+.warning{color:#f87171;font-weight:bold}
+.conf{color:#38bdf8;font-weight:bold}
+.footer{text-align:center;font-size:0.75rem;color:#94a3b8;margin-top:12px}
+progress{width:80%;height:16px}
+.bestKI{background-color:#22c55e33;}
+#currentPrice{margin:8px 0;font-weight:bold;text-align:center;font-size:1rem}
+#buyLink{margin-top:4px;padding:6px 12px;border-radius:6px;border:1px solid #22c55e;background:#020617;color:#e5e7eb}
+#buyLink:hover{background:#22c55e;color:#020617;cursor:pointer}
+</style>
+</head>
+
+<body>
+<h1>Multi-KI Aktienanalyse – Batch 20 pro Minute</h1>
+<div class="subtitle">Automatisches Laden großer Aktienlisten mit 365 Tage Historie</div>
+
+<div class="controls">
+<select id="stock"></select>
+
+<select id="forecastRange">
+<option value="1">1 Tag</option>
+<option value="5">1 Woche</option>
+<option value="22">1 Monat</option>
+<option value="66">3 Monate</option>
+<option value="132">6 Monate</option>
+<option value="264">1 Jahr</option>
+<option value="1320">5 Jahre</option>
+</select>
+
+<button onclick="runSelected()">Analyse starten</button>
+</div>
+
+<div id="status">Bereit</div>
+<div id="currentPrice"></div>
+<div style="text-align:center">
+<button id="buyLink" onclick="window.open(getBuyLink(stock.value),'_blank')">Aktie kaufen</button>
+</div>
+
+<div style="text-align:center">
+<progress id="progressBar" value="0" max="100"></progress>
+<div id="progressText"></div>
+</div>
+
+<canvas id="chart" height="260"></canvas>
+
+<table>
+<thead>
+<tr>
+<th>KI</th>
+<th>Prognose</th>
+<th>Signal</th>
+<th>Δ %</th>
+<th>Konfidenz</th>
+<th>Warnung</th>
+<th>Backtest</th>
+<th>Aktion</th>
+<th>Stop / Ziel</th>
+</tr>
+</thead>
+<tbody id="out"></tbody>
+</table>
+
+<div class="footer">⚠️ Analyse‑Tool – keine Anlageberatung</div>
+
 <script>
 const API_KEY = "d5ohqjhr01qjast6qrjgd5ohqjhr01q"; // Finnhub API-Key
 const BATCH_SIZE = 20;
 let currentBatch = 0;
-let validStocks = []; // Nur Aktien mit 365 Tagen Historie
+let validStocks = [];
 const sel = document.getElementById("stock");
+
+// Beispiel: Aktienliste (Symbol + Name) – du kannst auf 130 erweitern
+const STOCKS = [
+{symbol:"AAPL",name:"Apple"},{symbol:"MSFT",name:"Microsoft"},{symbol:"AMZN",name:"Amazon"},
+{symbol:"TSLA",name:"Tesla"},{symbol:"GOOGL",name:"Alphabet Class A"},{symbol:"GOOG",name:"Alphabet Class C"},
+{symbol:"META",name:"Meta Platforms"},{symbol:"NVDA",name:"NVIDIA"},{symbol:"UNH",name:"UnitedHealth Group"},
+{symbol:"V",name:"Visa"},{symbol:"HD",name:"Home Depot"},{symbol:"PG",name:"Procter & Gamble"},
+{symbol:"JPM",name:"JPMorgan Chase"},{symbol:"MA",name:"Mastercard"},{symbol:"DIS",name:"Disney"},
+{symbol:"BAC",name:"Bank of America"},{symbol:"ADBE",name:"Adobe"},{symbol:"CMCSA",name:"Comcast"},
+{symbol:"XOM",name:"Exxon Mobil"},{symbol:"PFE",name:"Pfizer"}
+];
 
 async function checkHistValid(stock){
     try{
@@ -67,212 +163,168 @@ setTimeout(nextDropdownBatch, 60*1000);
 function getBuyLink(sym){return `https://www.tradingview.com/symbol/${sym}.US/`;}
 function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
 </script>
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Multi-KI Aktienanalyse – Batch 20 pro Minute</title>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+body{background:#0f172a;color:#e5e7eb;font-family:Arial;padding:15px}
+h1{text-align:center}
+.subtitle{text-align:center;color:#94a3b8;font-size:0.9rem}
+.controls{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin:12px 0}
+select,button{background:#020617;color:#e5e7eb;border:1px solid #22c55e;padding:8px 12px;border-radius:6px}
+button:hover{background:#22c55e;color:#020617;cursor:pointer}
+canvas{background:#020617;border-radius:10px;margin-top:15px}
+table{width:100%;border-collapse:collapse;margin-top:15px;font-size:0.85rem}
+th,td{border:1px solid #22c55e;padding:6px;text-align:center}
+.buy{color:#22c55e;font-weight:bold}
+.sell{color:#ef4444;font-weight:bold}
+.hold{color:#facc15;font-weight:bold}
+.warning{color:#f87171;font-weight:bold}
+.conf{color:#38bdf8;font-weight:bold}
+.footer{text-align:center;font-size:0.75rem;color:#94a3b8;margin-top:12px}
+progress{width:80%;height:16px}
+.bestKI{background-color:#22c55e33;}
+#currentPrice{margin:8px 0;font-weight:bold;text-align:center;font-size:1rem}
+#buyLink{margin-top:4px;padding:6px 12px;border-radius:6px;border:1px solid #22c55e;background:#020617;color:#e5e7eb}
+#buyLink:hover{background:#22c55e;color:#020617;cursor:pointer}
+</style>
+</head>
+
+<body>
+<h1>Multi-KI Aktienanalyse – Batch 20 pro Minute</h1>
+<div class="subtitle">Automatisches Laden großer Aktienlisten mit 365 Tage Historie</div>
+
+<div class="controls">
+<select id="stock"></select>
+
+<select id="forecastRange">
+<option value="1">1 Tag</option>
+<option value="5">1 Woche</option>
+<option value="22">1 Monat</option>
+<option value="66">3 Monate</option>
+<option value="132">6 Monate</option>
+<option value="264">1 Jahr</option>
+<option value="1320">5 Jahre</option>
+</select>
+
+<button onclick="runSelected()">Analyse starten</button>
+</div>
+
+<div id="status">Bereit</div>
+<div id="currentPrice"></div>
+<div style="text-align:center">
+<button id="buyLink" onclick="window.open(getBuyLink(stock.value),'_blank')">Aktie kaufen</button>
+</div>
+
+<div style="text-align:center">
+<progress id="progressBar" value="0" max="100"></progress>
+<div id="progressText"></div>
+</div>
+
+<canvas id="chart" height="260"></canvas>
+
+<table>
+<thead>
+<tr>
+<th>KI</th>
+<th>Prognose</th>
+<th>Signal</th>
+<th>Δ %</th>
+<th>Konfidenz</th>
+<th>Warnung</th>
+<th>Backtest</th>
+<th>Aktion</th>
+<th>Stop / Ziel</th>
+</tr>
+</thead>
+<tbody id="out"></tbody>
+</table>
+
+<div class="footer">⚠️ Analyse‑Tool – keine Anlageberatung</div>
+
 <script>
-let chart = null;
-let priceInterval = null;
+const API_KEY = "d5ohqjhr01qjast6qrjgd5ohqjhr01q"; // Finnhub API-Key
+const BATCH_SIZE = 20;
+let currentBatch = 0;
+let validStocks = [];
+const sel = document.getElementById("stock");
 
-/* =======================
-   HISTORIE & AKTUELLER KURS
-======================= */
-async function fetchHist(sym, days = 365) {
-    const now = Math.floor(Date.now() / 1000);
-    const from = now - days * 86400;
-    const res = await fetch(`https://finnhub.io/api/v1/stock/candle?symbol=${sym}.US&resolution=D&from=${from}&to=${now}&token=${API_KEY}`);
-    const data = await res.json();
-    if(data.s==="ok" && data.c && data.c.length>=days){
-        const dates = data.t.map(ts => new Date(ts*1000).toISOString().split("T")[0]);
-        const closes = data.c.map(v => Number(v));
-        return {dates, closes};
-    } else throw new Error("Historische Daten nicht verfügbar");
-}
-
-async function fetchPrice(sym){
-    const res = await fetch(`https://finnhub.io/api/v1/quote?symbol=${sym}.US&token=${API_KEY}`);
-    const data = await res.json();
-    if(data && data.c) return Number(data.c);
-    throw new Error("Aktueller Kurs nicht verfügbar");
-}
-
-/* =======================
-   KI-PROGNOSE
-======================= */
-function forecastKIs(hist, days, currentPrice){
-    const futs=[];
-    let slope=(hist[hist.length-1]-hist[0])/hist.length; 
-    let arr1=[]; let p=currentPrice;
-    for(let i=0;i<days;i++){p+=slope; arr1.push(p);} futs.push(arr1);
-
-    let arr2=[]; p=currentPrice;
-    const avg20=hist.slice(-20).reduce((a,b)=>a+b,0)/20;
-    for(let i=0;i<days;i++){p=p*0.8 + avg20*0.2; arr2.push(p);} futs.push(arr2);
-
-    let arr3=[]; p=currentPrice; let alpha=0.1; let ema=hist[hist.length-1];
-    for(let i=0;i<days;i++){ema=alpha*ema+(1-alpha)*p; p=ema; arr3.push(p);} futs.push(arr3);
-
-    let arr4=[]; p=currentPrice; const changes=[]; for(let i=1;i<hist.length;i++) changes.push((hist[i]-hist[i-1])/hist[i-1]);
-    const avgChange=changes.reduce((a,b)=>a+b,0)/changes.length; const vol=Math.sqrt(changes.reduce((a,b)=>a+Math.pow(b-avgChange,2),0)/changes.length);
-    for(let i=0;i<days;i++){p*=(1+avgChange*(1+vol*0.5)); arr4.push(p);} futs.push(arr4);
-
-    return futs;
-}
-
-/* =======================
-   TREND, VOLATILITÄT, BACKTEST, WARNUNG
-======================= */
-function trend(h){return (h.slice(-20).reduce((a,b)=>a+b,0)/20 - h.slice(-100).reduce((a,b)=>a+b,0)/100)/h.slice(-100).reduce((a,b)=>a+b,0)/100;}
-function volatility(h){const avg=h.reduce((a,b)=>a+b,0)/h.length; return Math.sqrt(h.reduce((a,b)=>a+Math.pow(b-avg,2),0)/h.length)/avg;}
-function backtest(h){let e=0; const n=Math.min(60,h.length-1); for(let i=h.length-n;i<h.length-1;i++){const p=h[i]*(1+trend(h.slice(0,i))); e+=Math.min(Math.abs((p-h[i+1])/h[i+1]),1);} return Math.max(0,((1-e/n)*100)).toFixed(1)+"%";}
-function calcConfidence(h){return Math.min(1,0.5+0.3*(parseFloat(backtest(h))/100)+0.2*(1-volatility(h)))*100;}
-
-const financialCrises=[
-{start:"2007-10-01",end:"2009-03-01",name:"Finanzkrise 2008"},
-{start:"2010-04-01",end:"2012-06-30",name:"Euro-Schuldenkrise"},
-{start:"2020-02-01",end:"2020-04-30",name:"COVID-19 Crash"},
-{start:"2022-01-20",end:"2022-12-31",name:"Ukraine / Marktvolatilität"}
+// Beispiel: Aktienliste (Symbol + Name) – du kannst auf 130 erweitern
+const STOCKS = [
+{symbol:"AAPL",name:"Apple"},{symbol:"MSFT",name:"Microsoft"},{symbol:"AMZN",name:"Amazon"},
+{symbol:"TSLA",name:"Tesla"},{symbol:"GOOGL",name:"Alphabet Class A"},{symbol:"GOOG",name:"Alphabet Class C"},
+{symbol:"META",name:"Meta Platforms"},{symbol:"NVDA",name:"NVIDIA"},{symbol:"UNH",name:"UnitedHealth Group"},
+{symbol:"V",name:"Visa"},{symbol:"HD",name:"Home Depot"},{symbol:"PG",name:"Procter & Gamble"},
+{symbol:"JPM",name:"JPMorgan Chase"},{symbol:"MA",name:"Mastercard"},{symbol:"DIS",name:"Disney"},
+{symbol:"BAC",name:"Bank of America"},{symbol:"ADBE",name:"Adobe"},{symbol:"CMCSA",name:"Comcast"},
+{symbol:"XOM",name:"Exxon Mobil"},{symbol:"PFE",name:"Pfizer"}
 ];
 
-function calcWarningForecast(dates,h,future=null){
-    const vol=volatility(h), tr=trend(h); const last=future!==null?future:h[h.length-1]; const prev=h[h.length-2]||last;
-    const delta=(last-prev)/prev;
-    if(vol>0.06) return "⚠️ Hohe Volatilität";
-    if(delta<-0.05) return "⚠️ Starker Kursabfall";
-    if(delta>0.05) return "⚠️ Starker Anstieg";
-    if(tr<-0.15) return "⚠️ Abwärtstrend";
-    if(tr>0.15) return "⚠️ Aufwärtstrend";
-    const lastDate = dates[dates.length-1];
-    for(let crisis of financialCrises){const start=new Date(crisis.start), end=new Date(crisis.end), d=new Date(lastDate); if(d>=start && d<=end) return `⚠️ Finanzkrise: ${crisis.name}`;}
-    return "";
-}
-
-/* =======================
-   ENTSCHEIDUNG / STOP & ZIEL
-======================= */
-function decision(curr,fut,h){
-    const t=trend(h), v=volatility(h), bt=parseFloat(backtest(h))/100;
-    if(v>0.06||bt<0.5) return ["🟡 WARTEN","Volatilität oder schlechte Historie"];
-    if(fut>curr*1.03 && t>0) return ["🟢 KAUFEN","Aufwärtstrend bestätigt"];
-    if(fut<curr*0.97 && t<0) return ["🔴 VERKAUFEN","Abwärtstrend bestätigt"];
-    return ["⚪ HALTEN","Keine klare Richtung"];
-}
-function risk(curr,h){const v=volatility(h)*curr;return {sl:(curr-2*v).toFixed(2),tp:(curr+3*v).toFixed(2)};}
-
-/* =======================
-   CHART ZEICHNEN
-======================= */
-function draw(histObj,futs){
-    if(chart) chart.destroy();
-    const labels = [...histObj.dates];
-    futs.forEach(f=>{f.forEach((v,i)=>{if(!labels.includes("+"+(i+1)+"d")) labels.push("+"+(i+1)+"d")});});
-    const datasets=[{label:"Historie (365 Tage)",data:histObj.closes,borderColor:"#3b82f6",fill:false}];
-    const colors=["#22c55e","#facc15","#f97316","#38bdf8"];
-    futs.forEach((f,i)=>datasets.push({label:"KI "+(i+1),data:[...Array(histObj.closes.length).fill(null),...f],borderColor:colors[i],fill:false,pointRadius:2}));
-    chart=new Chart(document.getElementById("chart"),{type:"line",data:{labels,datasets},options:{animation:false,responsive:true}});
-}
-
-/* =======================
-   BESTE KI MARKIEREN
-======================= */
-function markBestKI(){
-    const rows=document.querySelectorAll("#out tr");
-    if(rows.length===0) return;
-    let bestValue=-Infinity,bestRow=null;
-    rows.forEach(row=>{const val=parseFloat(row.cells[1].textContent);if(val>bestValue){bestValue=val;bestRow=row;}row.classList.remove("bestKI");});
-    if(bestRow) bestRow.classList.add("bestKI");
-}
-
-/* =======================
-   LIVE-AKTUELLER KURS
-======================= */
-function startPriceInterval(){
-    if(priceInterval) clearInterval(priceInterval);
-    priceInterval=setInterval(async ()=>{
-        try{
-            const price = await fetchPrice(sel.value);
-            document.getElementById("currentPrice").textContent = `Aktueller Kurs ${sel.value}: ${price.toFixed(2)} USD`;
-        }catch{
-            document.getElementById("currentPrice").textContent = `Aktueller Kurs ${sel.value} nicht verfügbar ⚠️`;
-        }
-    },5000);
-}
-
-/* =======================
-   RUN ANALYSE FÜR AUSGEWÄHLTE AKTIE
-======================= */
-async function runSelected(){
-    if(!validStocks || validStocks.length===0){
-        alert("Keine gültige Aktie mit 365 Tagen Historie ausgewählt.");
-        return;
-    }
+async function checkHistValid(stock){
     try{
-        updateProgress(0,"Starte Analyse…");
-        document.getElementById("status").textContent="Analyse läuft…";
+        const now = Math.floor(Date.now() / 1000);
+        const from = now - 365*86400;
+        const res = await fetch(`https://finnhub.io/api/v1/stock/candle?symbol=${stock.symbol}.US&resolution=D&from=${from}&to=${now}&token=${API_KEY}`);
+        const data = await res.json();
+        if(data.s==="ok" && data.c && data.c.length>=365){
+            return true;
+        } else return false;
+    }catch{return false;}
+}
 
-        const sym=sel.value;
-        const days=+document.getElementById("forecastRange").value;
+// Lade Batch und prüfe Historie
+async function loadDropdownBatch(batchIndex){
+    sel.innerHTML = "";
+    const start = batchIndex * BATCH_SIZE;
+    const end = start + BATCH_SIZE;
+    const batch = STOCKS.slice(start,end);
 
-        updateProgress(10,"Lade historische Daten…");
-        const histObj=await fetchHist(sym);
-        await sleep(150);
+    validStocks = [];
+    for(const s of batch){
+        const ok = await checkHistValid(s);
+        if(ok) validStocks.push(s);
+    }
 
-        updateProgress(40,"Lade aktuellen Kurs…");
-        let price;
-        try{
-            price = await fetchPrice(sym);
-            document.getElementById("currentPrice").textContent = `Aktueller Kurs ${sym}: ${price.toFixed(2)} USD`;
-        }catch{
-            document.getElementById("currentPrice").textContent = `Aktueller Kurs ${sym} nicht verfügbar ⚠️`;
-            updateProgress(0,"Analyse abgebrochen – aktueller Kurs fehlt");
-            return;
-        }
+    // Nur gültige Aktien ins Dropdown
+    validStocks.forEach(s=>{
+        const o = document.createElement("option");
+        o.value = s.symbol;
+        o.textContent = `${s.name} (${s.symbol})`;
+        sel.appendChild(o);
+    });
 
-        updateProgress(50,"Berechne Prognosen…");
-        const futs=forecastKIs(histObj.closes,days,price);
+    if(validStocks.length===0){
+        const o = document.createElement("option");
+        o.textContent = "Keine Aktie mit 365 Tagen Historie in dieser Batch";
+        o.disabled = true;
+        sel.appendChild(o);
+    }
 
-        updateProgress(70,"Erstelle Diagramm…");
-        draw(histObj,futs);
+    sel.selectedIndex = 0;
+}
 
-        updateProgress(85,"Erstelle Tabelle…");
-        let html="";
-        futs.forEach((f,i)=>{
-            const last=f[f.length-1];
-            const dec=decision(price,last,histObj.closes);
-            const r=risk(price,histObj.closes);
-            const conf=calcConfidence(histObj.closes).toFixed(0);
-            const warn=calcWarningForecast(histObj.dates,histObj.closes,last);
+// Initial Batch laden
+loadDropdownBatch(currentBatch);
 
-            html+=`<tr>
-                <td>KI${i+1}</td>
-                <td>${last.toFixed(2)}</td>
-                <td class="${last>price?'buy':last<price?'sell':'hold'}">${last>price?'↑':last<price?'↓':'→'}</td>
-                <td>${((last-price)/price*100).toFixed(2)}%</td>
-                <td class="conf">${conf}%</td>
-                <td class="warning">${warn}</td>
-                <td>${backtest(histObj.closes)}</td>
-                <td><b>${dec[0]}</b><br>${dec[1]}</td>
-                <td>🛑 ${r.sl}<br>🎯 ${r.tp}</td>
-            </tr>`;
-        });
-        document.getElementById("out").innerHTML=html;
-        markBestKI();
-        startPriceInterval();
-
-        updateProgress(100,"Analyse abgeschlossen ✔");
-        document.getElementById("status").textContent="Fertig";
-
-    }catch(err){
-        console.error(err);
-        updateProgress(0,"Fehler");
-        document.getElementById("status").textContent="Fehler: "+err;
+// Nächste Batch jede Minute laden
+function nextDropdownBatch(){
+    currentBatch++;
+    if(currentBatch*BATCH_SIZE < STOCKS.length){
+        loadDropdownBatch(currentBatch);
+        setTimeout(nextDropdownBatch, 60*1000);
     }
 }
 
-/* =======================
-   Fortschrittsanzeige
-======================= */
-function updateProgress(p,text){
-    document.getElementById("progressBar").value = p;
-    document.getElementById("progressText").textContent = text;
-}
+// Starte automatische Batch-Erweiterung
+setTimeout(nextDropdownBatch, 60*1000);
+
+// Hilfsfunktionen
+function getBuyLink(sym){return `https://www.tradingview.com/symbol/${sym}.US/`;}
+function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
 </script>
-</body>
-</html>
