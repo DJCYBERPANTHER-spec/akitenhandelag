@@ -176,7 +176,6 @@ async function predictFuture(data, steps, kiIndex){
 
     await model.fit(xs,ys,{epochs:5,verbose:0});
 
-    // --- Unterschiedliche Zukunftswerte pro KI ---
     let lastWindow=norm.slice(-period).map(v=>[v]);
     const future=[];
     for(let i=0;i<steps;i++){
@@ -217,43 +216,24 @@ function getAccuracy(future){
 // --- Peaks/Drops im Chart markieren ---
 function drawChart(hist,futures){
     if(chart) chart.destroy();
+
     const labels=[];
     const totalLength = hist.length + futures[0].length;
     for(let i=0;i<totalLength;i++){
         labels.push(i<hist.length?`T-${hist.length-i}`:`T+${i-hist.length+1}`);
     }
 
-    const datasets=[{label:"Historie",data:hist,borderColor:"#3b82f6",fill:false}];
+    const datasets=[{label:"Historie", data:hist.map(v=>Number(v)), borderColor:"#3b82f6", fill:false}];
     const colors=["#22c55e","#facc15","#f97316","#38bdf8"];
+
     futures.forEach((fut,i)=>{
+        const safeFut=fut.map(v=>v!==undefined?v:null);
         datasets.push({
             label:`KI${i+1}`,
-            data:[...Array(hist.length).fill(null),...fut],
+            data:[...Array(hist.length).fill(null), ...safeFut],
             borderColor:colors[i],
             fill:false,
             pointRadius:2
-        });
-    });
-
-    // Peaks/Drops markieren
-    futures.forEach((fut,i)=>{
-        const max=Math.max(...fut);
-        const min=Math.min(...fut);
-        chart.data.datasets.push({
-            label:`KI${i+1} Peak`,
-            data: Array(hist.length).fill(null).concat(fut.map(v=>v===max?v:null)),
-            borderColor:colors[i],
-            pointStyle:'triangle',
-            pointRadius:6,
-            showLine:false
-        });
-        chart.data.datasets.push({
-            label:`KI${i+1} Drop`,
-            data: Array(hist.length).fill(null).concat(fut.map(v=>v===min?v:null)),
-            borderColor:colors[i],
-            pointStyle:'rectRot',
-            pointRadius:6,
-            showLine:false
         });
     });
 
@@ -262,6 +242,19 @@ function drawChart(hist,futures){
         data:{labels,datasets},
         options:{responsive:true,plugins:{legend:{position:'top'}},animation:false}
     });
+
+    // Peaks/Drops hinzufügen
+    futures.forEach((fut,i)=>{
+        const max=Math.max(...fut);
+        const min=Math.min(...fut);
+        const peakData = Array(hist.length).fill(null).concat(fut.map(v=>v===max?v:null));
+        const dropData = Array(hist.length).fill(null).concat(fut.map(v=>v===min?v:null));
+
+        chart.data.datasets.push({label:`KI${i+1} Peak`, data:peakData, borderColor:colors[i], pointStyle:'triangle', pointRadius:6, showLine:false});
+        chart.data.datasets.push({label:`KI${i+1} Drop`, data:dropData, borderColor:colors[i], pointStyle:'rectRot', pointRadius:6, showLine:false});
+    });
+
+    chart.update();
 }
 
 // --- Prognose starten ---
@@ -269,6 +262,7 @@ async function run(){
     const sel=document.getElementById("stock").value;
     if(!sel){alert("Bitte Aktie auswählen!");return;}
     const steps=parseInt(document.getElementById("forecastRange").value);
+
     document.getElementById("progressBar").value=0;
     document.getElementById("progressText").textContent="Berechnung startet…";
     document.getElementById("status").textContent="Analyse läuft…";
@@ -291,7 +285,6 @@ async function run(){
 
         drawChart(hist,futures);
 
-        // Tabelle ausgeben
         let html="";
         const now=new Date();
         const timeStr=now.toLocaleString();
