@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Aktienanalyse</title>
+<title>Multi-KI Aktienanalyse – Dynamische Prognosen</title>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
@@ -34,7 +34,7 @@ progress{width:80%;height:16px}
 <body>
 
 <h1>Multi-KI Aktienanalyse</h1>
-<div class="subtitle">Realistische Prognosen vom aktuellen Kurs jeder Aktie · Beste KI markiert</div>
+<div class="subtitle">Dynamische Prognosen vom aktuellen Kurs jeder Aktie · Beste KI markiert</div>
 
 <div class="controls">
 <select id="stock"></select>
@@ -136,7 +136,7 @@ async function fetchHist(sym, days = 365){
 }
 
 function generateFallbackHistory(days){
-    let base = 100;
+    let base = 400; // realistischer Startwert für große Aktien wie Tesla
     const arr = [];
     for(let i=0;i<days;i++){
         base *= 1 + 0.002*(Math.sin(i/5));
@@ -217,21 +217,23 @@ function risk(curr,h){
    REALISTISCHE KI-PROGNOSE
 ======================= */
 function forecast(hist, days, idx, currentPrice){
-    let price = currentPrice;      
-    const t = trend(hist);         
+    let price = currentPrice;    
+    const t = trend(hist);      
     const vol = volatility(hist);  
-    const decay = 0.95;            
+    const decay = 0.95;          
     const histMax = Math.max(...hist);
     const histMin = Math.min(...hist);
     const result = [];
 
     for(let i=0;i<days;i++){
-        const factor = t*(1+idx*0.05) * Math.pow(decay, i/30);
-        const histEffect = ((histMax - price)/(histMax - histMin)) * vol * 0.5;
-        price *= 1 + factor + histEffect;
+        // Trend + Volatilität + kleine Zufallskomponente
+        const factor = t*(1+idx*0.05)*Math.pow(decay,i/30);
+        const randEffect = (Math.random()-0.5)*vol*0.5;  // kleine Zufallsschwankung
+        price *= 1 + factor + randEffect;
 
-        const lower = histMin*0.9;
-        const upper = histMax*1.1;
+        // Begrenzung ±20% um historischen Bereich
+        const lower = histMin*0.8;
+        const upper = histMax*1.2;
         price = Math.max(lower, Math.min(upper, price));
 
         result.push(price);
