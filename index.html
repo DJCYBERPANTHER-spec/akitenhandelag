@@ -71,69 +71,35 @@ const API_KEY="d5ohqjhr01qjast6qrjgd5ohqjhr01qjast6qrk0";
 let chart=null;
 let liveInterval=null;
 
-// --- Basisliste mit 50+ populären Aktien ---
-const BASE_STOCKS=[
-  {symbol:"AAPL",name:"Apple Inc."},{symbol:"MSFT",name:"Microsoft Corp."},{symbol:"NVDA",name:"NVIDIA Corp."},
-  {symbol:"AMZN",name:"Amazon.com Inc."},{symbol:"GOOGL",name:"Alphabet Inc."},{symbol:"TSLA",name:"Tesla Inc."},
-  {symbol:"META",name:"Meta Platforms"},{symbol:"JNJ",name:"Johnson & Johnson"},{symbol:"PFE",name:"Pfizer Inc."},
-  {symbol:"MRK",name:"Merck & Co."},{symbol:"DIS",name:"The Walt Disney Co."},{symbol:"KO",name:"Coca-Cola Co."},
-  {symbol:"PEP",name:"PepsiCo Inc."},{symbol:"V",name:"Visa Inc."},{symbol:"MA",name:"Mastercard Inc."},
-  {symbol:"ADBE",name:"Adobe Inc."},{symbol:"INTC",name:"Intel Corp."},{symbol:"CSCO",name:"Cisco Systems"},
-  {symbol:"ORCL",name:"Oracle Corp."},{symbol:"SAP.DE",name:"SAP SE"},{symbol:"SIE.DE",name:"Siemens AG"},
-  {symbol:"BAYN.DE",name:"Bayer AG"},{symbol:"ROG.SW",name:"Roche Holding AG"},{symbol:"NESN.SW",name:"Nestlé AG"},
-  {symbol:"ASML.AS",name:"ASML Holding NV"},{symbol:"LVMH.PA",name:"LVMH Moët Hennessy SE"},{symbol:"AD.AS",name:"Adyen NV"},
-  {symbol:"HEIA.AS",name:"Heineken NV"},{symbol:"UBER",name:"Uber Technologies"},{symbol:"SPOT",name:"Spotify Technology"},
-  {symbol:"SHOP",name:"Shopify Inc."},{symbol:"CRM",name:"Salesforce.com"},{symbol:"TCEHY",name:"Tencent Holdings"},
-  {symbol:"BABA",name:"Alibaba Group"},{symbol:"JD",name:"JD.com Inc."},{symbol:"NKE",name:"Nike Inc."},
-  {symbol:"BA",name:"Boeing Co."},{symbol:"TWTR",name:"Twitter Inc."},{symbol:"VZ",name:"Verizon"}
+// --- Vorgeprüfte Aktien mit mindestens 30 Tagen Historie ---
+const VALID_STOCKS=[
+  {symbol:"AAPL",name:"Apple Inc."},
+  {symbol:"MSFT",name:"Microsoft Corp."},
+  {symbol:"NVDA",name:"NVIDIA Corp."},
+  {symbol:"AMZN",name:"Amazon.com Inc."},
+  {symbol:"GOOGL",name:"Alphabet Inc."},
+  {symbol:"TSLA",name:"Tesla Inc."},
+  {symbol:"META",name:"Meta Platforms"},
+  {symbol:"JNJ",name:"Johnson & Johnson"},
+  {symbol:"PFE",name:"Pfizer Inc."},
+  {symbol:"MRK",name:"Merck & Co."},
+  {symbol:"DIS",name:"The Walt Disney Co."},
+  {symbol:"KO",name:"Coca-Cola Co."},
+  {symbol:"PEP",name:"PepsiCo Inc."},
+  {symbol:"ADBE",name:"Adobe Inc."},
+  {symbol:"INTC",name:"Intel Corp."}
 ];
 
-// --- DOM Select ---
-const selectStock=document.getElementById("stock");
+// Dropdown füllen
+const selectStock = document.getElementById("stock");
+VALID_STOCKS.forEach(s => {
+  const o = document.createElement("option");
+  o.value = s.symbol;
+  o.textContent = `${s.name} (${s.symbol})`;
+  selectStock.appendChild(o);
+});
 
-// --- Funktion: zufällige 15 Aktien auswählen und auf Verfügbarkeit prüfen ---
-async function loadRandomStocks(){
-    const loader=document.getElementById("loader");
-    loader.textContent="Lade zufällige Aktien…";
-    selectStock.innerHTML="";
-
-    let shuffled = BASE_STOCKS.sort(()=>0.5-Math.random());
-    let selected = shuffled.slice(0,20); // 20 Kandidaten
-    let validStocks=[];
-
-    for(let i=0;i<selected.length;i++){
-        const sym=selected[i].symbol;
-        loader.textContent=`Prüfe ${i+1}/${selected.length}: ${selected[i].name}`;
-        try{
-            const now=Math.floor(Date.now()/1000);
-            const start=now - 30*24*60*60;
-            const r = await fetch(`https://finnhub.io/api/v1/stock/candle?symbol=${sym}&resolution=D&from=${start}&to=${now}&token=${API_KEY}`);
-            const j = await r.json();
-            if(j.s==="ok" && j.c && j.c.length>=30){
-                validStocks.push(selected[i]);
-            }
-        }catch{}
-        if(validStocks.length>=15) break; // maximal 15
-    }
-
-    if(validStocks.length===0){
-        loader.textContent="Keine Aktien mit 30 Tagen Historie gefunden!";
-        return;
-    }
-
-    validStocks.forEach(s=>{
-        const o=document.createElement("option");
-        o.value=s.symbol;
-        o.textContent=`${s.name} (${s.symbol})`;
-        selectStock.appendChild(o);
-    });
-
-    loader.textContent="Fertig! Bitte Aktie auswählen.";
-}
-
-loadRandomStocks();
-
-// --- Live-Kurs alle 5 Sekunden ---
+// --- Live-Kurs abrufen ---
 async function fetchUsdChf(){ 
     try{
         const r=await fetch("https://api.exchangerate.host/latest?base=USD&symbols=CHF");
@@ -209,7 +175,7 @@ async function predictModelVaried(data, basePeriod, label, kiIndex){
     const xs=tf.tensor3d(X);
     const ys=tf.tensor2d(Y);
 
-    const units = 16 + kiIndex*2; // etwas größere LSTM für bessere Vorhersage
+    const units = 16 + kiIndex*2; 
     const model=tf.sequential();
     model.add(tf.layers.lstm({units, inputShape:[period,1]}));
     model.add(tf.layers.dense({units:1}));
@@ -308,8 +274,8 @@ async function run(){
 
         document.getElementById("out").innerHTML=html;
 
-        // --- Warnung anzeigen ---
-        if(sigObj.alert) alert(`Warnung: ${sigObj.alert}`);
+        // Warnung anzeigen, falls notwendig
+        if(sigObj.alert && sigObj.alert!=="Keine Auffälligkeit") alert(`Warnung: ${sigObj.alert}`);
 
         document.getElementById("status").textContent="Fertig";
 
