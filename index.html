@@ -2,7 +2,7 @@
 <html lang="de">
 <head>
 <meta charset="UTF-8">
-<title>KI Aktien Prüfer (Finnhub)</title>
+<title>KI Aktien Analyse – Finnhub</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -24,73 +24,72 @@ select,button{
   border-radius:6px;
 }
 button:hover{background:#22c55e;color:#000;cursor:pointer}
-#loader{color:#38bdf8;margin-top:10px}
+#loader{text-align:center;color:#38bdf8;margin-top:10px}
 .card{
   background:#020617;
-  padding:12px;
+  padding:14px;
   border-radius:8px;
   margin-top:12px;
 }
 .good{color:#22c55e}
 .mid{color:#facc15}
 .bad{color:#ef4444}
+canvas{margin-top:20px}
 </style>
 </head>
 
 <body>
 
-<h1>🧠 KI Aktien-Prüfer</h1>
-<p style="text-align:center">Echte Daten • Echte Bewertung • Keine Spielerei</p>
+<h1>Aktien Analyse</h1>
+<p style="text-align:center">Echte Daten • Quant-Logik • Lern-Tool</p>
 
 <div style="text-align:center">
   <select id="stock">
     <option>Lade Aktien…</option>
-  </select>
-  <br>
-  <button onclick="loadStocks()">🔄 Neu scannen</button>
+  </select><br>
+  <button onclick="loadStocks()">🔄 Neu laden</button>
   <button onclick="runAnalysis()">📊 Analyse starten</button>
 </div>
 
-<div id="loader" style="text-align:center">–</div>
-
+<div id="loader">–</div>
 <div id="result" class="card" style="display:none"></div>
 
 <canvas id="chart" height="260"></canvas>
 
 <script>
-/* =============================
+/* ============================
    API
-============================= */
-const API_KEY = "DEIN_FINNHUB_API_KEY";
+============================ */
+const API_KEY = "d5ohqjhr01qjast6qrjgd5ohqjhr01qjast6qrk0";
 
-/* =============================
+/* ============================
    Aktien Pool (stabil)
-============================= */
+============================ */
 const STOCK_POOL = [
 "AAPL","MSFT","GOOGL","AMZN","META","NVDA","TSLA","JPM",
 "V","MA","KO","PEP","WMT","DIS","INTC","ORCL","CSCO",
 "IBM","ADBE","NFLX"
 ];
 
-/* =============================
+/* ============================
    DOM
-============================= */
+============================ */
 const selectStock = document.getElementById("stock");
 const loader = document.getElementById("loader");
 const resultBox = document.getElementById("result");
-let chart=null;
+let chart = null;
 
-/* =============================
-   Helfer
-============================= */
+/* ============================
+   Utils
+============================ */
 const shuffle = a => a.sort(()=>Math.random()-0.5);
 
-/* =============================
-   Historische Daten (≥100)
-============================= */
+/* ============================
+   Historische Daten ≥100 Tage
+============================ */
 async function fetchHistory(symbol){
   const now = Math.floor(Date.now()/1000);
-  const from = now - 150*86400;
+  const from = now - 160*86400;
 
   const r = await fetch(
     `https://finnhub.io/api/v1/stock/candle?symbol=${symbol}&resolution=D&from=${from}&to=${now}&token=${API_KEY}`
@@ -98,37 +97,40 @@ async function fetchHistory(symbol){
   const j = await r.json();
 
   if(j.s==="ok" && j.c.length>=100) return j.c;
-  throw "Keine Daten";
+  throw "Keine Historie";
 }
 
-/* =============================
+/* ============================
    Aktien laden
-============================= */
+============================ */
 async function loadStocks(){
   selectStock.innerHTML="<option>Suche Aktien…</option>";
-  loader.textContent="🔍 Prüfe Finnhub Daten…";
+  loader.textContent="🔍 Prüfe Finnhub Historie…";
   selectStock.innerHTML="<option value=''>Aktie wählen</option>";
 
-  let found=0;
+  let found = 0;
+
   for(const s of shuffle([...STOCK_POOL])){
     loader.textContent=`Prüfe ${s}…`;
     try{
       await fetchHistory(s);
       const o=document.createElement("option");
-      o.value=s; o.textContent=s;
+      o.value=s;
+      o.textContent=s;
       selectStock.appendChild(o);
       found++;
       if(found>=10) break;
     }catch{}
   }
-  loader.textContent=found
+
+  loader.textContent = found
     ? `✅ ${found} Aktien verfügbar`
-    : "❌ Keine gefunden (API-Limit?)";
+    : "❌ Keine Aktien gefunden (API-Limit?)";
 }
 
-/* =============================
-   ECHTE KI-PRÜFUNG
-============================= */
+/* ============================
+   ECHTE KI / Quant-Analyse
+============================ */
 function aiCheck(prices){
   const mean=a=>a.reduce((x,y)=>x+y)/a.length;
   const std=a=>{
@@ -166,24 +168,24 @@ function aiCheck(prices){
   return {score,verdict,perf30,perf90,vol};
 }
 
-/* =============================
+/* ============================
    Analyse starten
-============================= */
+============================ */
 async function runAnalysis(){
-  const sym=selectStock.value;
+  const sym = selectStock.value;
   if(!sym) return alert("Bitte Aktie wählen");
 
-  loader.textContent="📈 Lade Daten…";
+  loader.textContent="📈 Analyse läuft…";
   resultBox.style.display="none";
 
   try{
-    const prices=await fetchHistory(sym);
-    const ai=aiCheck(prices);
+    const prices = await fetchHistory(sym);
+    const ai = aiCheck(prices);
 
-    resultBox.innerHTML=`
+    resultBox.innerHTML = `
       <b>Aktie:</b> ${sym}<br>
       <b>KI-Score:</b> ${ai.score}/100<br>
-      <b>Status:</b> ${ai.verdict}<br>
+      <b>Status:</b> ${ai.verdict}<br><br>
       30T Performance: ${ai.perf30.toFixed(2)}%<br>
       90T Performance: ${ai.perf90.toFixed(2)}%<br>
       Risiko (Volatilität): ${ai.vol.toFixed(2)}
@@ -193,16 +195,16 @@ async function runAnalysis(){
     drawChart(prices);
     loader.textContent="✅ Analyse abgeschlossen";
   }catch{
-    loader.textContent="❌ Fehler bei Analyse";
+    loader.textContent="❌ Analyse fehlgeschlagen";
   }
 }
 
-/* =============================
+/* ============================
    Chart
-============================= */
+============================ */
 function drawChart(data){
   if(chart) chart.destroy();
-  chart=new Chart(document.getElementById("chart"),{
+  chart = new Chart(document.getElementById("chart"),{
     type:"line",
     data:{
       labels:data.map((_,i)=>i),
@@ -217,9 +219,9 @@ function drawChart(data){
   });
 }
 
-/* =============================
+/* ============================
    Start
-============================= */
+============================ */
 loadStocks();
 </script>
 
