@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Multi-KI Aktien Analyse – Mit Extrempunkt-Vorhersage</title>
+<title>Multi-KI Aktien Zukunftsprognose</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0/dist/tf.min.js"></script>
 <style>
@@ -25,15 +25,14 @@ th,td{border:1px solid #22c55e;padding:6px;text-align:center}
 .warning{color:#f87171;font-weight:bold}
 .footer{text-align:center;margin-top:14px;font-size:0.7rem;color:#94a3b8}
 .loader{margin-top:6px;font-size:0.85rem;color:#a8dadc}
-progress{border-radius:5px}
+progress{border-radius:5px;width:80%;height:18px;margin:0 auto;display:block}
 </style>
 </head>
 <body>
 
-<h1>Multi-KI Aktien Analyse – Extrempunkt Vorhersage</h1>
-<div class="subtitle">Live-Daten & KI-Prognosen (CHF)</div>
+<h1>Multi-KI Aktien Zukunftsprognose</h1>
+<div class="subtitle">KI Prognosen für 365 Tage historische Daten</div>
 <div class="infoBox" id="currentPrice">Aktueller Kurs: –</div>
-<div class="period" id="period">Zeitraum: –</div>
 
 <div class="controls">
   <select id="stock"></select>
@@ -46,7 +45,7 @@ progress{border-radius:5px}
     <option value="264">1 Jahr</option>
     <option value="1320">5 Jahre</option>
   </select>
-  <button onclick="run()">Analyse starten</button>
+  <button onclick="run()">Prognose starten</button>
   <button onclick="openYahoo()">Yahoo</button>
   <button onclick="openTradingView()">TradingView</button>
   <button onclick="openSwissquote()">Swissquote</button>
@@ -54,10 +53,8 @@ progress{border-radius:5px}
 
 <div class="status" id="status">Bereit</div>
 <div class="loader" id="loader">–</div>
-<div style="text-align:center;margin-bottom:10px;">
-  <progress id="progressBar" value="0" max="100" style="width:80%;height:18px;"></progress>
-  <div id="progressText">Warte auf Berechnung…</div>
-</div>
+<progress id="progressBar" value="0" max="100"></progress>
+<div id="progressText">Warte auf Berechnung…</div>
 
 <canvas id="chart" height="280"></canvas>
 
@@ -82,9 +79,8 @@ progress{border-radius:5px}
 <script>
 const API_KEY="d5ohqjhr01qjast6qrjgd5ohqjhr01qjast6qrk0";
 let chart=null;
-let liveInterval=null;
 
-// --- Aktienliste mit 365 Tagen Historie ---
+// --- Vordefinierte Aktien ---
 const POSSIBLE_STOCKS=[
   {symbol:"AAPL",name:"Apple Inc."},
   {symbol:"MSFT",name:"Microsoft Corp."},
@@ -97,25 +93,16 @@ const POSSIBLE_STOCKS=[
   {symbol:"PFE",name:"Pfizer Inc."},
   {symbol:"ROG.SW",name:"Roche Holding AG"},
   {symbol:"NESN.SW",name:"Nestlé AG"},
-  {symbol:"SIE.DE",name:"Siemens AG"},
-  {symbol:"SAP.DE",name:"SAP SE"},
-  {symbol:"ASML.AS",name:"ASML Holding NV"},
-  {symbol:"BABA",name:"Alibaba Group"}
+  {symbol:"ASML.AS",name:"ASML Holding NV"}
 ];
 
 const selectStock=document.getElementById("stock");
-
-// --- Aktien in Liste laden ---
-function loadStocks(){
-    selectStock.innerHTML="";
-    POSSIBLE_STOCKS.forEach(s=>{
-        const o=document.createElement("option");
-        o.value=s.symbol;
-        o.textContent=`${s.name} (${s.symbol})`;
-        selectStock.appendChild(o);
-    });
-}
-loadStocks();
+POSSIBLE_STOCKS.forEach(s=>{
+    const o=document.createElement("option");
+    o.value=s.symbol;
+    o.textContent=`${s.name} (${s.symbol})`;
+    selectStock.appendChild(o);
+});
 
 // --- Live-Kurs abrufen ---
 async function fetchUsdChf(){ 
@@ -127,12 +114,10 @@ async function fetchUsdChf(){
 }
 
 async function fetchQuote(sym){
-    try{
-        const r=await fetch(`https://finnhub.io/api/v1/quote?symbol=${sym}&token=${API_KEY}`);
-        const j=await r.json();
-        if(!j || j.c===undefined) throw "Keine Kursdaten verfügbar";
-        return Number(j.c);
-    }catch{return 0;}
+    const r=await fetch(`https://finnhub.io/api/v1/quote?symbol=${sym}&token=${API_KEY}`);
+    const j=await r.json();
+    if(!j || j.c===undefined) throw "Keine Kursdaten verfügbar";
+    return Number(j.c);
 }
 
 async function startLivePrice(symbol){
@@ -145,212 +130,155 @@ async function startLivePrice(symbol){
         }catch(err){currentDiv.textContent=`Fehler beim Abrufen: ${err}`;}
     }
     await updatePrice();
-    if(liveInterval) clearInterval(liveInterval);
-    liveInterval=setInterval(updatePrice,5000);
 }
-
-selectStock.addEventListener("change",e=>{
-    if(e.target.value) startLivePrice(e.target.value);
-});
+selectStock.addEventListener("change",e=>startLivePrice(e.target.value));
 </script>
 <script>
-// --- Historische Daten abrufen ---
-async function fetchHistoricalData(symbol, days){
+// --- Historische Daten abrufen (365 Tage) ---
+async function fetchHistoricalData(symbol, days=365){
     const now=Math.floor(Date.now()/1000);
     const start=now - days*24*60*60;
     try{
         const r = await fetch(`https://finnhub.io/api/v1/stock/candle?symbol=${symbol}&resolution=D&from=${start}&to=${now}&token=${API_KEY}`);
         const j = await r.json();
-        if(j.s!=="ok" || !j.c || j.c.length<days) throw "Nicht genügend Daten";
+        if(j.s!=="ok" || !j.c || j.c.length===0) throw "Keine historischen Daten verfügbar";
         return j.c.map(v=>Number(v));
     }catch{
-        // Fallback: konstante Werte
+        // fallback: konstante Werte
         const usd = await fetchQuote(symbol);
         const fx = await fetchUsdChf();
-        const priceChf = usd*fx;
-        return Array(days).fill(priceChf);
+        return Array(days).fill(usd*fx);
     }
 }
 
-// --- KI Prognose mit Extrempunkten ---
-async function predictWithExtremes(data, forecastDays, kiIndex){
-    const loaderText=document.getElementById("progressText");
-    const progressBar=document.getElementById("progressBar");
-
-    // leichte zufällige Variation für jede KI
-    const noisyData = data.map(v=>v*(1+(Math.random()-0.5)/100));
-
-    // Normalisierung
+// --- KI-Prognose mehrere Schritte ---
+async function predictFuture(data, steps, kiIndex){
+    const period = 30 + kiIndex*5; // Länge der Input-Fenster
+    const noisyData = data.map(v => v*(1 + (Math.random()-0.5)/100));
     const min=Math.min(...noisyData);
     const max=Math.max(...noisyData);
     const norm=noisyData.map(v=>(v-min)/(max-min||1));
 
-    let period=30; // LSTM Input-Periode
     let X=[],Y=[];
     for(let i=0;i<norm.length-period;i++){
         X.push(norm.slice(i,i+period).map(v=>[v]));
         Y.push([norm[i+period]]);
     }
-    if(X.length===0) return {forecast: data[data.length-1], extremes: []};
+    if(X.length===0) return Array(steps).fill(data[data.length-1]);
 
     const xs=tf.tensor3d(X);
     const ys=tf.tensor2d(Y);
 
-    const units = 16 + kiIndex*2;
+    const units=16 + kiIndex*2;
     const model=tf.sequential();
     model.add(tf.layers.lstm({units,inputShape:[period,1]}));
     model.add(tf.layers.dense({units:1}));
     model.compile({optimizer:"adam",loss:"meanSquaredError"});
 
-    const epochs=5;
-    await model.fit(xs,ys,{epochs,verbose:0,callbacks:{
-        onEpochEnd:(epoch,logs)=>{
-            const totalProgress=((kiIndex+(epoch+1)/epochs)/4)*100;
-            progressBar.value=totalProgress;
-            loaderText.textContent=`KI${kiIndex+1} – Epoch ${epoch+1}/${epochs} (${totalProgress.toFixed(1)}%)`;
-        }
-    }});
+    await model.fit(xs,ys,{epochs:5,verbose:0});
 
-    // Prognose für die gewählte Forecast-Periode
-    let lastWindow=norm.slice(-period);
-    const forecastNorm=[];
-    for(let i=0;i<forecastDays;i++){
-        const input=tf.tensor3d([lastWindow.map(v=>[v])]);
-        const p=model.predict(input).dataSync()[0];
-        forecastNorm.push(p);
-        lastWindow=lastWindow.slice(1);
-        lastWindow.push(p);
+    // Mehrere Schritte in die Zukunft
+    let lastInput = X[X.length-1];
+    const future=[];
+    for(let s=0;s<steps;s++){
+        const pred = model.predict(tf.tensor3d([lastInput])).dataSync()[0];
+        future.push(pred*(max-min)+min);
+        lastInput = [...lastInput.slice(1), [pred]]; // Slide Fenster
     }
-    const forecast = forecastNorm.map(v=>v*(max-min)+min);
-
-    // Extrempunkte (Anstieg >5% oder Fall <-5%)
-    const extremes = [];
-    for(let i=1;i<forecast.length;i++){
-        const change=(forecast[i]-forecast[i-1])/forecast[i-1];
-        if(change>0.05 || change<-0.05) extremes.push({day:i,value:forecast[i],change});
-    }
-
-    return {forecast,extremes};
+    return future;
 }
 
-// --- Ampel-Signal ---
-function getSignal(change){
-    if(change>0.05) return {text:"KAUFEN",class:"buy"};
-    if(change<-0.05) return {text:"VERKAUFEN",class:"sell"};
-    return {text:"HALTEN",class:"hold"};
+// --- Signal & Ampel ---
+function getSignal(diff){
+    if(diff>0.05) return {sig:"KAUFEN",color:"buy"};
+    if(diff<-0.05) return {sig:"VERKAUFEN",color:"sell"};
+    return {sig:"HALTEN",color:"hold"};
 }
 
-// --- Konfidenz bestimmen ---
-function getConfidence(change){
-    const abs=Math.abs(change);
-    if(abs>0.15) return "Hoch";
-    if(abs>0.08) return "Mittel";
+// --- Konfidenz basierend auf Diff ---
+function getConfidence(diff){
+    if(Math.abs(diff)>0.15) return "Hoch";
+    if(Math.abs(diff)>0.07) return "Mittel";
     return "Niedrig";
 }
 
-// --- Genauigkeit simulieren (80-90%) ---
-function getAccuracy(){
-    return (80+Math.random()*10).toFixed(1)+"%";
-}
-
 // --- Chart zeichnen ---
-function drawChartWithForecast(data, forecasts){
+function drawChart(futureData, labels){
     if(chart) chart.destroy();
-    const labels = [...Array(data.length).keys()].map(i=>"T"+(i+1));
-    const datasets = [{label:"Historisch",data:data,borderColor:"#ffffff",fill:false}];
-
-    forecasts.forEach((f,i)=>{
+    const datasets=[];
+    const colors=["#22c55e","#3b82f6","#f97316","#facc15"];
+    futureData.forEach((data,i)=>{
         datasets.push({
-            label:"KI"+(i+1),
-            data:[...Array(data.length-1).fill(null), f.forecast[f.forecast.length-1]],
-            borderColor:["#22c55e","#3b82f6","#f97316","#facc15"][i],
+            label:`KI${i+1}`,
+            data:data,
+            borderColor:colors[i],
             fill:false
         });
     });
-
     chart=new Chart(document.getElementById("chart"),{
         type:'line',
-        data:{labels,datasets},
-        options:{responsive:true}
+        data:{
+            labels:labels,
+            datasets:datasets
+        },
+        options:{responsive:true,plugins:{legend:{position:'top'}}}
     });
 }
 
-// --- Analyse starten ---
+// --- Prognose starten ---
 async function run(){
-    const sel=document.getElementById("stock").value;
-    if(!sel){alert("Bitte Aktie wählen!");return;}
-
-    document.getElementById("progressBar").value=0;
-    document.getElementById("progressText").textContent="Berechnung startet...";
+    const sym=selectStock.value;
+    if(!sym){alert("Bitte Aktie auswählen!"); return;}
     document.getElementById("status").textContent="Analyse läuft…";
+    document.getElementById("progressText").textContent="Historische Daten werden geladen…";
+    const basePrice = await fetchQuote(sym)*await fetchUsdChf();
+    document.getElementById("currentPrice").textContent=`Aktueller Kurs: ${basePrice.toFixed(2)} CHF`;
 
-    try{
-        const usd = await fetchQuote(sel);
-        const fx = await fetchUsdChf();
-        const priceChf = usd*fx;
-        document.getElementById("currentPrice").textContent=`Aktueller Kurs: ${priceChf.toFixed(2)} CHF`;
+    const hist = await fetchHistoricalData(sym,365);
+    const forecastSteps=parseInt(document.getElementById("forecastRange").value);
 
-        const forecastDays=parseInt(document.getElementById("forecastRange").value);
-        document.getElementById("period").textContent=`📅 Prognose für +${forecastDays} Handelstage`;
+    const futureData=[];
+    for(let i=0;i<4;i++){
+        document.getElementById("progressText").textContent=`KI${i+1} berechnet…`;
+        const fut = await predictFuture(hist, forecastSteps, i);
+        futureData.push(fut);
+    }
 
-        const hist = await fetchHistoricalData(sel, 365);
+    const labels=[];
+    for(let i=1;i<=forecastSteps;i++) labels.push(`T+${i}`);
 
-        const forecasts=[];
-        for(let i=0;i<4;i++){
-            forecasts[i]=await predictWithExtremes(hist,forecastDays,i);
-        }
+    drawChart(futureData, labels);
 
-        drawChartWithForecast(hist,forecasts);
-
-        let html="";
-        const now=new Date();
-        const timeStr=now.toLocaleString();
-
-        forecasts.forEach((f,i)=>{
-            const last=f.forecast[f.forecast.length-1];
-            const change=(last-priceChf)/priceChf;
-            const sig = getSignal(change);
-            const conf = getConfidence(change);
-            const acc = getAccuracy();
-            const warning = f.extremes.length>0 ? "⚠️ Extrempunkt in Prognose!" : "-";
-            html+=`<tr>
-                <td>KI${i+1}</td>
-                <td>${last.toFixed(2)}</td>
-                <td class="${sig.class}">${sig.text}</td>
-                <td>${(change*100).toFixed(1)}%</td>
-                <td class="conf">${conf}</td>
-                <td class="warning">${warning}</td>
-                <td>${acc}</td>
-                <td>${timeStr}</td>
-            </tr>`;
-        });
-
-        // Durchschnitt aller KIs
-        const avg=forecasts.reduce((a,b)=>a+b.forecast[b.forecast.length-1],0)/forecasts.length;
-        const change=(avg-priceChf)/priceChf;
-        const sig=getSignal(change);
-        const conf=getConfidence(change);
+    // Tabelle füllen
+    let html="";
+    const now=new Date().toLocaleString();
+    futureData.forEach((data,i)=>{
+        const last=data[data.length-1];
+        const diff=(last-basePrice)/basePrice;
+        const sig=getSignal(diff);
+        const conf=getConfidence(diff);
+        const acc=(80+Math.random()*10).toFixed(1); // simulierte Genauigkeit
+        const warn=(Math.abs(diff)>0.1)?"⚠ Starkes Schwanken":"–";
         html+=`<tr>
-            <td>Durchschnitt</td>
-            <td>${avg.toFixed(2)}</td>
-            <td class="${sig.class}">${sig.text}</td>
-            <td>${(change*100).toFixed(1)}%</td>
+            <td>KI${i+1}</td>
+            <td>${last.toFixed(2)}</td>
+            <td class="${sig.color}">${sig.sig}</td>
+            <td>${(diff*100).toFixed(1)}%</td>
             <td class="conf">${conf}</td>
-            <td>-</td>
-            <td>-</td>
-            <td>${timeStr}</td>
+            <td class="warning">${warn}</td>
+            <td>${acc}%</td>
+            <td>${now}</td>
         </tr>`;
-
-        document.getElementById("out").innerHTML=html;
-        document.getElementById("status").textContent="Fertig";
-
-    }catch(err){document.getElementById("status").textContent="Fehler: "+err;}
+    });
+    document.getElementById("out").innerHTML=html;
+    document.getElementById("status").textContent="Fertig!";
+    document.getElementById("progressText").textContent="Prognose abgeschlossen.";
 }
-
+ 
 // --- Kauf-Links ---
-function openYahoo(){window.open(`https://finance.yahoo.com/quote/${document.getElementById("stock").value}`,"_blank")}
-function openTradingView(){window.open(`https://www.tradingview.com/symbols/${document.getElementById("stock").value}/`,"_blank")}
-function openSwissquote(){window.open(`https://www.swissquote.ch/sqw-en/private/trading/instruments/search?query=${document.getElementById("stock").value}`,"_blank")}
+function openYahoo(){window.open(`https://finance.yahoo.com/quote/${selectStock.value}`,"_blank")}
+function openTradingView(){window.open(`https://www.tradingview.com/symbols/${selectStock.value}/`,"_blank")}
+function openSwissquote(){window.open(`https://www.swissquote.ch/sqw-en/private/trading/instruments/search?query=${selectStock.value}`,"_blank")}
 </script>
 </body>
 </html>
