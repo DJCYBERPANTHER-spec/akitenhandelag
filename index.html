@@ -1,131 +1,57 @@
-<!DOCTYPE html>
-<html lang="de">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Multi-KI Aktienanalyse – Batch 20 pro Minute</title>
-
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-<style>
-body{background:#0f172a;color:#e5e7eb;font-family:Arial;padding:15px}
-h1{text-align:center}
-.subtitle{text-align:center;color:#94a3b8;font-size:0.9rem}
-.controls{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin:12px 0}
-select,button{background:#020617;color:#e5e7eb;border:1px solid #22c55e;padding:8px 12px;border-radius:6px}
-button:hover{background:#22c55e;color:#020617;cursor:pointer}
-canvas{background:#020617;border-radius:10px;margin-top:15px}
-table{width:100%;border-collapse:collapse;margin-top:15px;font-size:0.85rem}
-th,td{border:1px solid #22c55e;padding:6px;text-align:center}
-.buy{color:#22c55e;font-weight:bold}
-.sell{color:#ef4444;font-weight:bold}
-.hold{color:#facc15;font-weight:bold}
-.warning{color:#f87171;font-weight:bold}
-.conf{color:#38bdf8;font-weight:bold}
-.footer{text-align:center;font-size:0.75rem;color:#94a3b8;margin-top:12px}
-progress{width:80%;height:16px}
-.bestKI{background-color:#22c55e33;}
-#currentPrice{margin:8px 0;font-weight:bold;text-align:center;font-size:1rem}
-#buyLink{margin-top:4px;padding:6px 12px;border-radius:6px;border:1px solid #22c55e;background:#020617;color:#e5e7eb}
-#buyLink:hover{background:#22c55e;color:#020617;cursor:pointer}
-</style>
-</head>
-
-<body>
-<h1>Multi-KI Aktienanalyse – Batch 20 pro Minute</h1>
-<div class="subtitle">Automatisches Laden großer Aktienlisten mit 365 Tage Historie</div>
-
-<div class="controls">
-<select id="stock"></select>
-
-<select id="forecastRange">
-<option value="1">1 Tag</option>
-<option value="5">1 Woche</option>
-<option value="22">1 Monat</option>
-<option value="66">3 Monate</option>
-<option value="132">6 Monate</option>
-<option value="264">1 Jahr</option>
-<option value="1320">5 Jahre</option>
-</select>
-
-<button onclick="runSelected()">Analyse starten</button>
-</div>
-
-<div id="status">Bereit</div>
-<div id="currentPrice"></div>
-<div style="text-align:center">
-<button id="buyLink" onclick="window.open(getBuyLink(stock.value),'_blank')">Aktie kaufen</button>
-</div>
-
-<div style="text-align:center">
-<progress id="progressBar" value="0" max="100"></progress>
-<div id="progressText"></div>
-</div>
-
-<canvas id="chart" height="260"></canvas>
-
-<table>
-<thead>
-<tr>
-<th>KI</th>
-<th>Prognose</th>
-<th>Signal</th>
-<th>Δ %</th>
-<th>Konfidenz</th>
-<th>Warnung</th>
-<th>Backtest</th>
-<th>Aktion</th>
-<th>Stop / Ziel</th>
-</tr>
-</thead>
-<tbody id="out"></tbody>
-</table>
-
-<div class="footer">⚠️ Analyse‑Tool – keine Anlageberatung</div>
-
 <script>
 const API_KEY = "d5ohqjhr01qjast6qrjgd5ohqjhr01q"; // Finnhub API-Key
-
-// Liste der Aktien (130 Stück), Symbol + Name
-const STOCKS = [
-  {symbol:"AAPL", name:"Apple"}, {symbol:"MSFT", name:"Microsoft"}, {symbol:"AMZN", name:"Amazon"},
-  {symbol:"TSLA", name:"Tesla"}, {symbol:"GOOGL", name:"Alphabet Class A"}, {symbol:"GOOG", name:"Alphabet Class C"},
-  {symbol:"META", name:"Meta Platforms"}, {symbol:"NVDA", name:"NVIDIA"}, {symbol:"UNH", name:"UnitedHealth Group"},
-  {symbol:"V", name:"Visa"}, {symbol:"HD", name:"Home Depot"}, {symbol:"PG", name:"Procter & Gamble"},
-  {symbol:"JPM", name:"JPMorgan Chase"}, {symbol:"MA", name:"Mastercard"}, {symbol:"DIS", name:"Disney"},
-  {symbol:"BAC", name:"Bank of America"}, {symbol:"ADBE", name:"Adobe"}, {symbol:"CMCSA", name:"Comcast"},
-  {symbol:"XOM", name:"Exxon Mobil"}, {symbol:"PFE", name:"Pfizer"}, {symbol:"KO", name:"Coca-Cola"},
-  {symbol:"CSCO", name:"Cisco Systems"}, {symbol:"PEP", name:"PepsiCo"}, {symbol:"INTC", name:"Intel"},
-  {symbol:"T", name:"AT&T"}, {symbol:"VZ", name:"Verizon"}, {symbol:"MRK", name:"Merck"},
-  {symbol:"ABT", name:"Abbott Laboratories"}, {symbol:"CVX", name:"Chevron"}, {symbol:"NFLX", name:"Netflix"},
-  {symbol:"COST", name:"Costco"}, {symbol:"NKE", name:"Nike"}, {symbol:"CRM", name:"Salesforce"},
-  {symbol:"LLY", name:"Eli Lilly"}, {symbol:"ACN", name:"Accenture"}, {symbol:"QCOM", name:"Qualcomm"}
-  // ... weitere Aktien folgen im Batch
-];
-
 const BATCH_SIZE = 20;
 let currentBatch = 0;
+let validStocks = []; // Nur Aktien mit 365 Tagen Historie
 const sel = document.getElementById("stock");
 
-// Dropdown mit nur der ersten Batch füllen
-function loadDropdownBatch(batchIndex){
+async function checkHistValid(stock){
+    try{
+        const now = Math.floor(Date.now() / 1000);
+        const from = now - 365*86400;
+        const res = await fetch(`https://finnhub.io/api/v1/stock/candle?symbol=${stock.symbol}.US&resolution=D&from=${from}&to=${now}&token=${API_KEY}`);
+        const data = await res.json();
+        if(data.s==="ok" && data.c && data.c.length>=365){
+            return true;
+        } else return false;
+    }catch{return false;}
+}
+
+// Lade Batch und prüfe Historie
+async function loadDropdownBatch(batchIndex){
     sel.innerHTML = "";
     const start = batchIndex * BATCH_SIZE;
     const end = start + BATCH_SIZE;
     const batch = STOCKS.slice(start,end);
-    batch.forEach(s=>{
+
+    validStocks = [];
+    for(const s of batch){
+        const ok = await checkHistValid(s);
+        if(ok) validStocks.push(s);
+    }
+
+    // Nur gültige Aktien ins Dropdown
+    validStocks.forEach(s=>{
         const o = document.createElement("option");
         o.value = s.symbol;
         o.textContent = `${s.name} (${s.symbol})`;
         sel.appendChild(o);
     });
+
+    if(validStocks.length===0){
+        const o = document.createElement("option");
+        o.textContent = "Keine Aktie mit 365 Tagen Historie in dieser Batch";
+        o.disabled = true;
+        sel.appendChild(o);
+    }
+
     sel.selectedIndex = 0;
 }
 
-// Initial erste Batch laden
+// Initial Batch laden
 loadDropdownBatch(currentBatch);
 
-// Funktion, um nächste Batch jede Minute nachzuladen
+// Nächste Batch jede Minute laden
 function nextDropdownBatch(){
     currentBatch++;
     if(currentBatch*BATCH_SIZE < STOCKS.length){
@@ -134,12 +60,12 @@ function nextDropdownBatch(){
     }
 }
 
-// Start automatische Batch-Erweiterung
+// Starte automatische Batch-Erweiterung
 setTimeout(nextDropdownBatch, 60*1000);
 
 // Hilfsfunktionen
-function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
 function getBuyLink(sym){return `https://www.tradingview.com/symbol/${sym}.US/`;}
+function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
 </script>
 <script>
 let chart = null;
@@ -273,6 +199,10 @@ function startPriceInterval(){
    RUN ANALYSE FÜR AUSGEWÄHLTE AKTIE
 ======================= */
 async function runSelected(){
+    if(!validStocks || validStocks.length===0){
+        alert("Keine gültige Aktie mit 365 Tagen Historie ausgewählt.");
+        return;
+    }
     try{
         updateProgress(0,"Starte Analyse…");
         document.getElementById("status").textContent="Analyse läuft…";
