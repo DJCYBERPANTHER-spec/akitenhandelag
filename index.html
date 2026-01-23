@@ -152,7 +152,7 @@ function getBuyLink(sym){return `https://www.tradingview.com/symbols/${sym}/`;}
 </script>
 <script>
 /* =======================
-   HISTORIE + AKTUELLER KURS
+   HISTORIE + AKTUELLER KURS MIT FALLBACK
 ======================= */
 async function fetchHist(sym, days = 365) {
     const now = Math.floor(Date.now() / 1000);
@@ -166,7 +166,7 @@ async function fetchHist(sym, days = 365) {
             return { dates, closes };
         }
     } catch (e) {}
-    // Fallback: Fake Daten falls API nicht geht
+    // Fallback: Fake-Daten falls API nicht geht
     const arr = [], dates = [];
     let base = 400;
     for (let i = 0; i < days; i++) {
@@ -186,6 +186,27 @@ async function fetchPrice(sym) {
         if (j && j.c) return j.c;
     } catch {}
     return null;
+}
+
+async function getCurrentPriceWithFallback(sym, retries = 5) {
+    let price = null;
+    let attempts = 0;
+    while(price === null && attempts < retries){
+        price = await fetchPrice(sym);
+        if(price === null){
+            attempts++;
+            console.warn(`Aktueller Kurs konnte nicht geladen werden. Versuch ${attempts}/${retries}`);
+            await sleep(1000);
+        }
+    }
+    if(price === null){
+        const hist = await fetchHist(sym);
+        price = hist.closes[hist.closes.length-1];
+        document.getElementById("currentPrice").textContent = `Aktueller Kurs ${sym}: ${price.toFixed(2)} USD (Fallback historisch)`;
+    } else {
+        document.getElementById("currentPrice").textContent = `Aktueller Kurs ${sym}: ${price.toFixed(2)} USD`;
+    }
+    return price;
 }
 
 /* =======================
@@ -283,21 +304,16 @@ function markBestKI(){
 }
 
 /* =======================
-   AKTUELLER KURS
+   LIVE-AKTUELLER KURS
 ======================= */
 function startPriceInterval(){
     if(priceInterval) clearInterval(priceInterval);
-    updateCurrentPrice(sel.value);
-    priceInterval=setInterval(()=>updateCurrentPrice(sel.value),5000);
-}
-async function updateCurrentPrice(sym){
-    const price=await fetchPrice(sym);
-    if(price) document.getElementById("currentPrice").textContent=`Aktueller Kurs ${sym}: ${price.toFixed(2)} USD`;
-    return price;
+    getCurrentPriceWithFallback(sel.value); // initial
+    priceInterval=setInterval(()=>getCurrentPriceWithFallback(sel.value),5000);
 }
 
 /* =======================
-   RUN
+   RUN ANALYSE
 ======================= */
 async function run(){
     try{
@@ -312,11 +328,7 @@ async function run(){
         await sleep(150);
 
         updateProgress(25,"Lade aktuellen Kurs…");
-        let price=null;
-        while(price===null){
-            price = await updateCurrentPrice(sym);
-            if(price===null) await sleep(500);
-        }
+        const price = await getCurrentPriceWithFallback(sym);
 
         const futs=[];
         for(let i=0;i<4;i++){
