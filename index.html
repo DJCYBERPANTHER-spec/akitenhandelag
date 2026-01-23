@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Multi-KI Aktien Prognose</title>
+<title>Multi-KI Aktien Prognose – Realistisch</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0/dist/tf.min.js"></script>
 <style>
@@ -30,7 +30,7 @@ progress{border-radius:5px}
 </head>
 <body>
 
-<h1>Multi-KI Aktien Prognose</h1>
+<h1>Multi-KI Aktien Prognose – Realistisch</h1>
 <div class="subtitle">Historische Daten & Zukunftsprognosen</div>
 <div class="infoBox" id="currentPrice">Aktueller Kurs: –</div>
 <div class="period" id="period">Zeitraum: –</div>
@@ -55,7 +55,7 @@ progress{border-radius:5px}
 <div class="status" id="status">Bereit</div>
 <div class="loader" id="loader">–</div>
 <div style="text-align:center;margin-bottom:10px;">
-  <progress id="progressBar" value="0" max="100"></progress>
+  <progress id="progressBar" value="0" max="100" style="width:80%;height:18px;"></progress>
   <div id="progressText">Warte auf Berechnung…</div>
 </div>
 
@@ -99,7 +99,7 @@ POSSIBLE_STOCKS.forEach(stock=>{
     selectStock.appendChild(o);
 });
 
-// --- Live-Kurs ---
+// --- Live-Kurs abrufen ---
 async function fetchUsdChf(){ 
     try{
         const r=await fetch("https://api.exchangerate.host/latest?base=USD&symbols=CHF");
@@ -145,13 +145,13 @@ async function fetchHistoricalData(symbol, days=365){
         if(j.s!=="ok" || !j.c || j.c.length===0) throw "Keine historischen Daten verfügbar";
         return j.c.map(v=>Number(v));
     }catch{
-        const usd = await fetchQuote(symbol);
-        const fx = await fetchUsdChf();
+        const usd=await fetchQuote(symbol);
+        const fx=await fetchUsdChf();
         return Array(days).fill(usd*fx);
     }
 }
 
-// --- KI-Modell für Zukunftsprognose ---
+// --- KI-Prognose: realistisch & unterschiedlich ---
 async function predictFuture(data, steps, kiIndex){
     const min=Math.min(...data);
     const max=Math.max(...data);
@@ -168,7 +168,7 @@ async function predictFuture(data, steps, kiIndex){
     const xs=tf.tensor3d(X);
     const ys=tf.tensor2d(Y);
 
-    const units=20+kiIndex*5;
+    const units=20 + kiIndex*5;
     const model=tf.sequential();
     model.add(tf.layers.lstm({units,inputShape:[period,1]}));
     model.add(tf.layers.dense({units:1}));
@@ -176,11 +176,13 @@ async function predictFuture(data, steps, kiIndex){
 
     await model.fit(xs,ys,{epochs:5,verbose:0});
 
+    // --- Unterschiedliche Zukunftswerte pro KI ---
     let lastWindow=norm.slice(-period).map(v=>[v]);
     const future=[];
     for(let i=0;i<steps;i++){
         const p=model.predict(tf.tensor3d([lastWindow])).dataSync()[0];
-        future.push(p*(max-min)+min);
+        const variation = (Math.random()-0.5)/50; // kleine Schwankung einfügen
+        future.push(p*(max-min)+min + variation*(max-min));
         lastWindow.shift();
         lastWindow.push([p]);
     }
@@ -205,7 +207,7 @@ function getWarning(future){
     return "";
 }
 
-// --- Genauigkeit (geschätzt) ---
+// --- Genauigkeit geschätzt ---
 function getAccuracy(future){
     const max=Math.max(...future);
     const min=Math.min(...future);
@@ -233,16 +235,6 @@ function drawChart(hist,futures){
         });
     });
 
-    chart=new Chart(document.getElementById("chart"),{
-        type:'line',
-        data:{labels,datasets},
-        options:{
-            responsive:true,
-            plugins:{legend:{position:'top'}},
-            animation:false
-        }
-    });
-
     // Peaks/Drops markieren
     futures.forEach((fut,i)=>{
         const max=Math.max(...fut);
@@ -264,7 +256,12 @@ function drawChart(hist,futures){
             showLine:false
         });
     });
-    chart.update();
+
+    chart=new Chart(document.getElementById("chart"),{
+        type:'line',
+        data:{labels,datasets},
+        options:{responsive:true,plugins:{legend:{position:'top'}},animation:false}
+    });
 }
 
 // --- Prognose starten ---
@@ -328,4 +325,3 @@ function openSwissquote(){window.open(`https://www.swissquote.ch/sqw-en/private/
 </script>
 </body>
 </html>
-
