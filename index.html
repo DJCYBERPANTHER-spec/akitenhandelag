@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Multi-KI Aktien Prognose – Realistisch</title>
+<title>Multi-KI Aktien Prognose – Peaks/Drops</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0/dist/tf.min.js"></script>
 <style>
@@ -30,7 +30,7 @@ progress{border-radius:5px}
 </head>
 <body>
 
-<h1>Multi-KI Aktien Prognose – Realistisch</h1>
+<h1>Multi-KI Aktien Prognose – Peaks/Drops</h1>
 <div class="subtitle">Historische Daten & Zukunftsprognosen</div>
 <div class="infoBox" id="currentPrice">Aktueller Kurs: –</div>
 <div class="period" id="period">Zeitraum: –</div>
@@ -75,7 +75,7 @@ const API_KEY="d5ohqjhr01qjast6qrjgd5ohqjhr01qjast6qrk0";
 let chart=null;
 let liveInterval=null;
 
-// --- Feste Aktienliste ---
+// --- Aktienliste ---
 const POSSIBLE_STOCKS=[
   {symbol:"AAPL",name:"Apple Inc."},
   {symbol:"MSFT",name:"Microsoft Corp."},
@@ -214,7 +214,7 @@ function getAccuracy(future){
     return (80 + Math.min(10,(1-(max-min)/min)*10)).toFixed(1)+"%";
 }
 
-// --- Chart zeichnen inkl. Peaks/Drops ---
+// --- Peaks/Drops im Chart markieren ---
 function drawChart(hist,futures){
     if(chart) chart.destroy();
     const labels=[];
