@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Multi-KI Aktienanalyse – S&P 500 + Frühwarnungen</title>
+<title>Multi-KI Aktienanalyse – 130 Aktien</title>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
@@ -33,7 +33,7 @@ progress{width:80%;height:16px}
 
 <body>
 
-<h1>Multi-KI Aktienanalyse – S&P 500</h1>
+<h1>Multi-KI Aktienanalyse – 130 Aktien</h1>
 <div class="subtitle">365 Tage Historie · Prognosen auf ausgewählte Aktie · Frühwarnsystem</div>
 
 <div class="controls">
@@ -90,84 +90,116 @@ let chart = null;
 let priceInterval = null;
 
 /* =======================
-   AUTOMATISCHE S&P 500-LISTE
+   FESTE 130 AKTIEN
 ======================= */
-let STOCKS = [];
-async function loadSP500() {
-    try {
-        const res = await fetch("https://datahub.io/core/s-and-p-500-companies/r/constituents.json");
-        const data = await res.json();
-        STOCKS = data.map(d => ({symbol: d.Symbol, name: d.Name}));
-        const sel = document.getElementById("stock");
-        STOCKS.forEach(s => {
-            const o = document.createElement("option");
-            o.value = s.symbol;
-            o.textContent = `${s.name} (${s.symbol})`;
-            sel.appendChild(o);
-        });
-    } catch(e) {
-        console.error("Fehler beim Laden der S&P 500 Liste", e);
-    }
-}
-loadSP500();
+const sel = document.getElementById("stock");
+const STOCKS = [
+  {symbol:"AAPL", name:"Apple"}, {symbol:"MSFT", name:"Microsoft"}, {symbol:"AMZN", name:"Amazon"},
+  {symbol:"TSLA", name:"Tesla"}, {symbol:"GOOGL", name:"Alphabet"}, {symbol:"GOOG", name:"Alphabet Class C"},
+  {symbol:"META", name:"Meta Platforms"}, {symbol:"BRK.B", name:"Berkshire Hathaway"}, {symbol:"NVDA", name:"NVIDIA"},
+  {symbol:"UNH", name:"UnitedHealth"}, {symbol:"V", name:"Visa"}, {symbol:"PG", name:"Procter & Gamble"},
+  {symbol:"LLY", name:"Eli Lilly"}, {symbol:"MA", name:"Mastercard"}, {symbol:"HD", name:"Home Depot"},
+  {symbol:"BAC", name:"Bank of America"}, {symbol:"XOM", name:"Exxon Mobil"}, {symbol:"JPM", name:"JP Morgan"},
+  {symbol:"KO", name:"Coca-Cola"}, {symbol:"DIS", name:"Disney"}, {symbol:"ADBE", name:"Adobe"},
+  {symbol:"NFLX", name:"Netflix"}, {symbol:"CMCSA", name:"Comcast"}, {symbol:"PFE", name:"Pfizer"},
+  {symbol:"PEP", name:"PepsiCo"}, {symbol:"ABBV", name:"AbbVie"}, {symbol:"INTC", name:"Intel"},
+  {symbol:"CSCO", name:"Cisco"}, {symbol:"T", name:"AT&T"}, {symbol:"WMT", name:"Walmart"},
+  {symbol:"CRM", name:"Salesforce"}, {symbol:"ABT", name:"Abbott"}, {symbol:"ACN", name:"Accenture"},
+  {symbol:"AVGO", name:"Broadcom"}, {symbol:"COST", name:"Costco"}, {symbol:"CVX", name:"Chevron"},
+  {symbol:"NKE", name:"Nike"}, {symbol:"ORCL", name:"Oracle"}, {symbol:"TXN", name:"Texas Instruments"},
+  {symbol:"MCD", name:"McDonald's"}, {symbol:"QCOM", name:"Qualcomm"}, {symbol:"NEE", name:"NextEra Energy"},
+  {symbol:"DHR", name:"Danaher"}, {symbol:"MDT", name:"Medtronic"}, {symbol:"BMY", name:"Bristol-Myers Squibb"},
+  {symbol:"LOW", name:"Lowe's"}, {symbol:"AMGN", name:"Amgen"}, {symbol:"HON", name:"Honeywell"},
+  {symbol:"SBUX", name:"Starbucks"}, {symbol:"LIN", name:"Linde"}, {symbol:"UNP", name:"Union Pacific"},
+  {symbol:"AMAT", name:"Applied Materials"}, {symbol:"RTX", name:"Raytheon"}, {symbol:"MMM", name:"3M"},
+  {symbol:"GE", name:"General Electric"}, {symbol:"AXP", name:"American Express"}, {symbol:"UPS", name:"UPS"},
+  {symbol:"PLD", name:"Prologis"}, {symbol:"BKNG", name:"Booking Holdings"}, {symbol:"SPGI", name:"S&P Global"},
+  {symbol:"SCHW", name:"Charles Schwab"}, {symbol:"BLK", name:"BlackRock"}, {symbol:"TMO", name:"Thermo Fisher"},
+  {symbol:"GILD", name:"Gilead"}, {symbol:"ANTM", name:"Anthem"}, {symbol:"MS", name:"Morgan Stanley"},
+  {symbol:"DUK", name:"Duke Energy"}, {symbol:"PYPL", name:"PayPal"}, {symbol:"ISRG", name:"Intuitive Surgical"},
+  {symbol:"ADP", name:"ADP"}, {symbol:"BDX", name:"Becton Dickinson"}, {symbol:"CVS", name:"CVS Health"},
+  {symbol:"ZTS", name:"Zoetis"}, {symbol:"MO", name:"Altria"}, {symbol:"LMT", name:"Lockheed Martin"},
+  {symbol:"CCI", name:"Crown Castle"}, {symbol:"EL", name:"Estée Lauder"}, {symbol:"COP", name:"ConocoPhillips"},
+  {symbol:"SYK", name:"Stryker"}, {symbol:"C", name:"Citigroup"}, {symbol:"PNC", name:"PNC Financial"},
+  {symbol:"TMUS", name:"T-Mobile"}, {symbol:"GS", name:"Goldman Sachs"}, {symbol:"USB", name:"US Bank"},
+  {symbol:"TGT", name:"Target"}, {symbol:"CHTR", name:"Charter Communications"}, {symbol:"SO", name:"Southern Co."},
+  {symbol:"CI", name:"Cigna"}, {symbol:"CB", name:"Chubb"}, {symbol:"AON", name:"Aon"}, {symbol:"MMC", name:"Marsh McLennan"},
+  {symbol:"DE", name:"Deere & Co."}, {symbol:"ES", name:"Eversource"}, {symbol:"EMR", name:"Emerson Electric"},
+  {symbol:"ATVI", name:"Activision"}, {symbol:"EW", name:"Edwards Lifesciences"}, {symbol:"KMB", name:"Kimberly-Clark"},
+  {symbol:"SLB", name:"Schlumberger"}, {symbol:"ETN", name:"Eaton"}, {symbol:"HUM", name:"Humana"}, {symbol:"GM", name:"General Motors"},
+  {symbol:"F", name:"Ford"}, {symbol:"FDX", name:"FedEx"}, {symbol:"ICE", name:"Intercontinental Exchange"}, {symbol:"PNW", name:"Pinnacle West"},
+  {symbol:"ADSK", name:"Autodesk"}, {symbol:"DLR", name:"Digital Realty"}, {symbol:"APD", name:"Air Products"}, {symbol:"ZBH", name:"Zimmer Biomet"},
+  {symbol:"ETR", name:"Entergy"}, {symbol:"HCA", name:"HCA Healthcare"}, {symbol:"CL", name:"Colgate-Palmolive"}, {symbol:"MAR", name:"Marriott"},
+  {symbol:"PGR", name:"Progressive"}, {symbol:"ALL", name:"Allstate"}, {symbol:"STZ", name:"Constellation Brands"},
+  {symbol:"AIG", name:"AIG"}, {symbol:"LRCX", name:"Lam Research"}, {symbol:"MSI", name:"Motorola Solutions"},
+  {symbol:"REGN", name:"Regeneron"}, {symbol:"ROP", name:"Roper Technologies"}, {symbol:"AEP", name:"American Electric Power"},
+  {symbol:"MCO", name:"Moody's"}, {symbol:"MHK", name:"Mohawk Industries"}, {symbol:"SHW", name:"Sherwin-Williams"},
+  {symbol:"ILMN", name:"Illumina"}, {symbol:"VRTX", name:"Vertex Pharmaceuticals"}, {symbol:"KHC", name:"Kraft Heinz"},
+  {symbol:"KR", name:"Kroger"}, {symbol:"HSY", name:"Hershey"}, {symbol:"PNR", name:"Pentair"}, {symbol:"WBA", name:"Walgreens"},
+  {symbol:"CTAS", name:"Cintas"}, {symbol:"ECL", name:"Ecolab"}, {symbol:"FIS", name:"Fidelity National Information Services"},
+  {symbol:"IQV", name:"IQVIA"}, {symbol:"SRE", name:"Sempra Energy"}, {symbol:"WMB", name:"Williams Companies"}, {symbol:"OXY", name:"Occidental Petroleum"},
+  {symbol:"AMLX", name:"AmerisourceBergen"}
+];
+
+// Optionen ins Select einfügen
+STOCKS.forEach(s => {
+    const o = document.createElement("option");
+    o.value = s.symbol;
+    o.textContent = `${s.name} (${s.symbol})`;
+    sel.appendChild(o);
+});
+sel.selectedIndex = 0;
 
 /* =======================
    HILFSFUNKTIONEN
 ======================= */
-function updateProgress(p,text){
- document.getElementById("progressBar").value=p;
- document.getElementById("progressText").textContent=text;
-}
+function updateProgress(p,text){document.getElementById("progressBar").value=p;document.getElementById("progressText").textContent=text;}
 function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
 function getBuyLink(sym){return `https://www.tradingview.com/symbols/${sym}/`;}
-
+</script>
+<script>
 /* =======================
-   Finanzkrisen
+   FINANZKRISEN & FRÜHWARNUNGEN
 ======================= */
 const financialCrises = [
     {start: "2007-10-01", end: "2009-03-01", name: "Finanzkrise 2008"},
     {start: "2010-04-01", end: "2012-06-30", name: "Euro-Schuldenkrise"},
     {start: "2020-02-01", end: "2020-04-30", name: "COVID-19 Crash"},
-    {start: "2022-01-20", end: "2022-12-31", name: "Ukraine / Marktvolatilität"},
+    {start: "2022-01-20", end: "2022-12-31", name: "Ukraine / Marktvolatilität"}
 ];
 
 const crisisConditions = [
     {name:"Finanzkrise 2008", maxVol:0.07, minTrend:-0.1, maxDailyDrop:-0.05},
     {name:"Euro-Schuldenkrise", maxVol:0.06, minTrend:-0.08, maxDailyDrop:-0.04},
     {name:"COVID-19 Crash", maxVol:0.08, minTrend:-0.12, maxDailyDrop:-0.07},
-    {name:"Ukraine / Marktvolatilität 2022", maxVol:0.06, minTrend:-0.08, maxDailyDrop:-0.05},
+    {name:"Ukraine / Marktvolatilität 2022", maxVol:0.06, minTrend:-0.08, maxDailyDrop:-0.05}
 ];
-</script>
-<script>
+
 /* =======================
-   DATENABRUF
+   HISTORIE + AKTUELLER KURS
 ======================= */
-async function fetchHist(sym, days = 365){
-    const now = Math.floor(Date.now() / 1000);
-    const from = now - days * 86400;
-    try {
+async function fetchHist(sym, days=365){
+    const now = Math.floor(Date.now()/1000);
+    const from = now - days*86400;
+    try{
         const res = await fetch(`https://finnhub.io/api/v1/stock/candle?symbol=${sym}&resolution=D&from=${from}&to=${now}&token=${API_KEY}`);
         const data = await res.json();
-        if(data.s === "ok" && data.c && data.c.length >= 60){
-            const dates = data.t.map(ts => new Date(ts*1000).toISOString().split("T")[0]);
-            const closes = data.c.map(v => Number(v));
+        if(data.s==="ok" && data.c && data.c.length>=60){
+            const dates = data.t.map(ts=>new Date(ts*1000).toISOString().split("T")[0]);
+            const closes = data.c.map(v=>Number(v));
             return {dates, closes};
         }
-    } catch(e){
-        console.warn("API Fehler, nutze Fallback", e);
-    }
-    // Fallback-Historie (kleine Simulation, falls API fehlschlägt)
-    const arr = [];
-    const dates = [];
+    }catch(e){}
+    // Fallback: kleine Simulation
+    const arr=[], dates=[];
     let base = 400;
     for(let i=0;i<days;i++){
-        base *= 1 + 0.002*Math.sin(i/5);
+        base *= 1+0.002*Math.sin(i/5);
         arr.push(base);
-        const d = new Date();
-        d.setDate(d.getDate()-days+i);
+        const d = new Date(); d.setDate(d.getDate()-days+i);
         dates.push(d.toISOString().split("T")[0]);
     }
-    return {dates, closes: arr};
+    return {dates, closes:arr};
 }
 
 async function fetchPrice(sym){
@@ -180,7 +212,7 @@ async function fetchPrice(sym){
 }
 
 /* =======================
-   ANALYSE-FUNKTIONEN
+   ANALYSE / TREND / VOLATILITÄT
 ======================= */
 function trend(h){const s=h.slice(-20).reduce((a,b)=>a+b,0)/20;const l=h.slice(-100).reduce((a,b)=>a+b,0)/100;return (s-l)/l;}
 function volatility(h){const avg=h.reduce((a,b)=>a+b,0)/h.length;return Math.sqrt(h.reduce((a,b)=>a+Math.pow(b-avg,2),0)/h.length)/avg;}
@@ -188,43 +220,40 @@ function backtest(h){let e=0;const n=Math.min(60,h.length-1);for(let i=h.length-
 function calcConfidence(hist){let conf=0.5+0.3*(parseFloat(backtest(hist))/100)+0.2*(1-volatility(hist));return conf>1?1:conf;}
 
 /* =======================
-   WARNUNGEN inkl. Frühwarnung
+   WARNUNGEN
 ======================= */
 function calcWarningForecast(dates,h,future=null){
-    const vol = volatility(h);
-    const tr  = trend(h);
-    const last = future!==null ? future : h[h.length-1];
-    const prev = h[h.length-2]||last;
-    const delta = (last-prev)/prev;
+    const vol=volatility(h);
+    const tr=trend(h);
+    const last=future!==null?future:h[h.length-1];
+    const prev=h[h.length-2]||last;
+    const delta=(last-prev)/prev;
 
-    // Normale Warnungen
     if(vol>0.06) return "⚠️ Hohe Volatilität";
     if(delta<-0.05) return "⚠️ Starker Kursabfall";
     if(delta>0.05) return "⚠️ Starker Anstieg";
     if(tr<-0.15) return "⚠️ Abwärtstrend";
     if(tr>0.15) return "⚠️ Aufwärtstrend";
 
-    // Frühwarnungen gegen historische Krisenbedingungen
     for(let c of crisisConditions){
         if(vol>=c.maxVol*0.7 && tr<=c.minTrend*0.7 && delta<=c.maxDailyDrop*0.7){
             return `⚠️ Frühwarnung: Bedingungen ähnlich ${c.name}`;
         }
     }
 
-    // Finanzkrisen aktiv prüfen
-    const lastDate = dates[dates.length-1];
+    const lastDate=dates[dates.length-1];
     for(let crisis of financialCrises){
-        const start = new Date(crisis.start);
-        const end = new Date(crisis.end);
-        const d = new Date(lastDate);
+        const start=new Date(crisis.start);
+        const end=new Date(crisis.end);
+        const d=new Date(lastDate);
         if(d>=start && d<=end) return `⚠️ Finanzkrise: ${crisis.name}`;
     }
 
-    return ""; // keine Warnung
+    return "";
 }
 
 /* =======================
-   DECISION / RISK
+   ENTSCHEIDUNG / RISK
 ======================= */
 function decision(curr,fut,h){
     const t=trend(h),v=volatility(h),bt=parseFloat(backtest(h))/100;
@@ -256,7 +285,7 @@ function forecast(hist,days,idx,currentPrice){
 /* =======================
    CHART
 ======================= */
-function draw(hist, futs){
+function draw(hist,futs){
     if(chart) chart.destroy();
     const labels=[];
     for(let i=hist.length;i>0;i--) labels.push("-"+i+"d");
@@ -356,6 +385,5 @@ async function run(){
     }
 }
 </script>
-
 </body>
 </html>
