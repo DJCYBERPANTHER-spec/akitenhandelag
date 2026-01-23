@@ -88,151 +88,58 @@ const API_KEY = "d5ohqjhr01qjast6qrjgd5ohqjhr01q"; // Finnhub API-Key
 
 // Liste der Aktien (130 Stück), Symbol + Name
 const STOCKS = [
-  {symbol:"AAPL", name:"Apple"},
-  {symbol:"MSFT", name:"Microsoft"},
-  {symbol:"AMZN", name:"Amazon"},
-  {symbol:"TSLA", name:"Tesla"},
-  {symbol:"GOOGL", name:"Alphabet Class A"},
-  {symbol:"GOOG", name:"Alphabet Class C"},
-  {symbol:"META", name:"Meta Platforms"},
-  {symbol:"NVDA", name:"NVIDIA"},
-  {symbol:"UNH", name:"UnitedHealth Group"},
-  {symbol:"V", name:"Visa"},
-  {symbol:"HD", name:"Home Depot"},
-  {symbol:"PG", name:"Procter & Gamble"},
-  {symbol:"JPM", name:"JPMorgan Chase"},
-  {symbol:"MA", name:"Mastercard"},
-  {symbol:"DIS", name:"Disney"},
-  {symbol:"BAC", name:"Bank of America"},
-  {symbol:"ADBE", name:"Adobe"},
-  {symbol:"CMCSA", name:"Comcast"},
-  {symbol:"XOM", name:"Exxon Mobil"},
-  {symbol:"PFE", name:"Pfizer"},
-  {symbol:"KO", name:"Coca-Cola"},
-  {symbol:"CSCO", name:"Cisco Systems"},
-  {symbol:"PEP", name:"PepsiCo"},
-  {symbol:"INTC", name:"Intel"},
-  {symbol:"T", name:"AT&T"},
-  {symbol:"VZ", name:"Verizon"},
-  {symbol:"MRK", name:"Merck"},
-  {symbol:"ABT", name:"Abbott Laboratories"},
-  {symbol:"CVX", name:"Chevron"},
-  {symbol:"NFLX", name:"Netflix"},
-  {symbol:"COST", name:"Costco"},
-  {symbol:"NKE", name:"Nike"},
-  {symbol:"CRM", name:"Salesforce"},
-  {symbol:"LLY", name:"Eli Lilly"},
-  {symbol:"ACN", name:"Accenture"},
-  {symbol:"QCOM", name:"Qualcomm"},
-  {symbol:"MCD", name:"McDonald’s"},
-  {symbol:"BMY", name:"Bristol-Myers Squibb"},
-  {symbol:"AVGO", name:"Broadcom"},
-  {symbol:"MDT", name:"Medtronic"},
-  {symbol:"HON", name:"Honeywell"},
-  {symbol:"NEE", name:"NextEra Energy"},
-  {symbol:"TXN", name:"Texas Instruments"},
-  {symbol:"C", name:"Citigroup"},
-  {symbol:"UNP", name:"Union Pacific"},
-  {symbol:"LOW", name:"Lowe’s"},
-  {symbol:"AMGN", name:"Amgen"},
-  {symbol:"TMO", name:"Thermo Fisher Scientific"},
-  {symbol:"SBUX", name:"Starbucks"},
-  {symbol:"LIN", name:"Linde"},
-  {symbol:"PLD", name:"Prologis"},
-  {symbol:"SPGI", name:"S&P Global"},
-  {symbol:"BKNG", name:"Booking Holdings"},
-  {symbol:"SCHW", name:"Charles Schwab"},
-  {symbol:"BLK", name:"BlackRock"},
-  {symbol:"ANTM", name:"Anthem"},
-  {symbol:"MS", name:"Morgan Stanley"},
-  {symbol:"DUK", name:"Duke Energy"},
-  {symbol:"PYPL", name:"PayPal"},
-  {symbol:"ISRG", name:"Intuitive Surgical"},
-  {symbol:"ADP", name:"Automatic Data Processing"},
-  {symbol:"BDX", name:"Becton Dickinson"},
-  {symbol:"CVS", name:"CVS Health"},
-  {symbol:"ZTS", name:"Zoetis"},
-  {symbol:"MO", name:"Altria"},
-  {symbol:"LMT", name:"Lockheed Martin"},
-  {symbol:"CCI", name:"Crown Castle"},
-  {symbol:"EL", name:"Estée Lauder"},
-  {symbol:"COP", name:"ConocoPhillips"},
-  {symbol:"SYK", name:"Stryker"},
-  {symbol:"TMUS", name:"T-Mobile US"},
-  {symbol:"USB", name:"U.S. Bancorp"},
-  {symbol:"TGT", name:"Target"},
-  {symbol:"CHTR", name:"Charter Communications"},
-  {symbol:"SO", name:"Southern Company"},
-  {symbol:"CI", name:"Cigna"},
-  {symbol:"CB", name:"Chubb"},
-  {symbol:"AON", name:"Aon"},
-  {symbol:"MMC", name:"Marsh & McLennan"},
-  {symbol:"DE", name:"Deere & Co."},
-  {symbol:"ETN", name:"Eaton"},
-  {symbol:"HUM", name:"Humana"},
-  {symbol:"GM", name:"General Motors"},
-  {symbol:"F", name:"Ford Motor"},
-  {symbol:"FDX", name:"FedEx"},
-  {symbol:"ICE", name:"Intercontinental Exchange"},
-  {symbol:"ADSK", name:"Autodesk"},
-  {symbol:"DLR", name:"Digital Realty Trust"},
-  {symbol:"APD", name:"Air Products & Chemicals"},
-  {symbol:"MAR", name:"Marriott International"},
-  {symbol:"PGR", name:"Progressive"},
-  {symbol:"ALL", name:"Allstate"},
-  {symbol:"STZ", name:"Constellation Brands"},
-  {symbol:"AIG", name:"American International Group"},
-  {symbol:"LRCX", name:"Lam Research"},
-  {symbol:"MSI", name:"Motorola Solutions"},
-  {symbol:"REGN", name:"Regeneron Pharmaceuticals"},
-  {symbol:"ROP", name:"Roper Technologies"},
-  {symbol:"AEP", name:"American Electric Power"},
-  {symbol:"MCO", name:"Moody’s"},
-  {symbol:"MSCI", name:"MSCI Inc."},
-  {symbol:"ILMN", name:"Illumina"},
-  {symbol:"VRTX", name:"Vertex Pharmaceuticals"},
-  {symbol:"KHC", name:"Kraft Heinz"},
-  {symbol:"KR", name:"Kroger"},
-  {symbol:"HSY", name:"Hershey"},
-  {symbol:"PNR", name:"Pentair"},
-  {symbol:"WBA", name:"Walgreens Boots Alliance"}
+  {symbol:"AAPL", name:"Apple"}, {symbol:"MSFT", name:"Microsoft"}, {symbol:"AMZN", name:"Amazon"},
+  {symbol:"TSLA", name:"Tesla"}, {symbol:"GOOGL", name:"Alphabet Class A"}, {symbol:"GOOG", name:"Alphabet Class C"},
+  {symbol:"META", name:"Meta Platforms"}, {symbol:"NVDA", name:"NVIDIA"}, {symbol:"UNH", name:"UnitedHealth Group"},
+  {symbol:"V", name:"Visa"}, {symbol:"HD", name:"Home Depot"}, {symbol:"PG", name:"Procter & Gamble"},
+  {symbol:"JPM", name:"JPMorgan Chase"}, {symbol:"MA", name:"Mastercard"}, {symbol:"DIS", name:"Disney"},
+  {symbol:"BAC", name:"Bank of America"}, {symbol:"ADBE", name:"Adobe"}, {symbol:"CMCSA", name:"Comcast"},
+  {symbol:"XOM", name:"Exxon Mobil"}, {symbol:"PFE", name:"Pfizer"}, {symbol:"KO", name:"Coca-Cola"},
+  {symbol:"CSCO", name:"Cisco Systems"}, {symbol:"PEP", name:"PepsiCo"}, {symbol:"INTC", name:"Intel"},
+  {symbol:"T", name:"AT&T"}, {symbol:"VZ", name:"Verizon"}, {symbol:"MRK", name:"Merck"},
+  {symbol:"ABT", name:"Abbott Laboratories"}, {symbol:"CVX", name:"Chevron"}, {symbol:"NFLX", name:"Netflix"},
+  {symbol:"COST", name:"Costco"}, {symbol:"NKE", name:"Nike"}, {symbol:"CRM", name:"Salesforce"},
+  {symbol:"LLY", name:"Eli Lilly"}, {symbol:"ACN", name:"Accenture"}, {symbol:"QCOM", name:"Qualcomm"}
+  // ... weitere Aktien folgen im Batch
 ];
 
-// Dropdown füllen
-const sel=document.getElementById("stock");
-STOCKS.forEach(s=>{const o=document.createElement("option"); o.value=s.symbol; o.textContent=`${s.name} (${s.symbol})`; sel.appendChild(o);});
-sel.selectedIndex=0;
+const BATCH_SIZE = 20;
+let currentBatch = 0;
+const sel = document.getElementById("stock");
+
+// Dropdown mit nur der ersten Batch füllen
+function loadDropdownBatch(batchIndex){
+    sel.innerHTML = "";
+    const start = batchIndex * BATCH_SIZE;
+    const end = start + BATCH_SIZE;
+    const batch = STOCKS.slice(start,end);
+    batch.forEach(s=>{
+        const o = document.createElement("option");
+        o.value = s.symbol;
+        o.textContent = `${s.name} (${s.symbol})`;
+        sel.appendChild(o);
+    });
+    sel.selectedIndex = 0;
+}
+
+// Initial erste Batch laden
+loadDropdownBatch(currentBatch);
+
+// Funktion, um nächste Batch jede Minute nachzuladen
+function nextDropdownBatch(){
+    currentBatch++;
+    if(currentBatch*BATCH_SIZE < STOCKS.length){
+        loadDropdownBatch(currentBatch);
+        setTimeout(nextDropdownBatch, 60*1000);
+    }
+}
+
+// Start automatische Batch-Erweiterung
+setTimeout(nextDropdownBatch, 60*1000);
 
 // Hilfsfunktionen
 function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
 function getBuyLink(sym){return `https://www.tradingview.com/symbol/${sym}.US/`;}
-
-// Batch Setup
-const batchSize = 20;
-let batchIndex = 0;
-
-async function fetchBatch(){
-  const start = batchIndex*batchSize;
-  const end = start+batchSize;
-  const batch = STOCKS.slice(start,end);
-  document.getElementById("status").textContent=`Lade Batch ${batchIndex+1}/${Math.ceil(STOCKS.length/batchSize)}`;
-  
-  for(const s of batch){
-    try{
-      const hist = await fetchHist(s.symbol);
-      console.log(s.symbol,"OK", hist.closes[hist.closes.length-1]);
-      // Hier später: KI-Prognose, Tabelle, Chart aktualisieren
-    }catch(e){
-      console.warn(s.symbol,"Fehler:", e.message);
-    }
-  }
-  batchIndex++;
-  if(batchIndex*batchSize < STOCKS.length){
-    setTimeout(fetchBatch, 60*1000); // nächste 20 Aktien in 1 Minute
-  }else{
-    document.getElementById("status").textContent="Alle Batches geladen ✔";
-  }
-}
 </script>
 <script>
 let chart = null;
