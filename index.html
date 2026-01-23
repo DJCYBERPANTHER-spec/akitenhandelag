@@ -2,181 +2,225 @@
 <html lang="de">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Multi-KI Aktien Analyse – Zufällige Auswahl</title>
+<title>KI Aktien Prüfer (Finnhub)</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0/dist/tf.min.js"></script>
 
 <style>
-body{background:#0f172a;color:#e5e7eb;font-family:Arial,sans-serif;margin:0;padding:15px}
-h1{text-align:center;font-size:1.5rem}
-.subtitle{text-align:center;color:#94a3b8;font-size:0.9rem}
-.infoBox{text-align:center;margin:8px;font-size:0.9rem;font-weight:bold}
-.controls{display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin:12px 0}
-select,button{background:#020617;color:#e5e7eb;border:1px solid #22c55e;padding:8px 12px;border-radius:6px;font-size:0.85rem}
-button:hover{background:#22c55e;color:#020617;cursor:pointer}
-.status{text-align:center;margin:10px;font-weight:bold;font-size:0.9rem}
-canvas{max-width:100%;margin:18px auto;display:block;background:#020617;border-radius:10px}
-table{width:100%;border-collapse:collapse;margin-top:10px;font-size:0.85rem}
-th,td{border:1px solid #22c55e;padding:6px;text-align:center}
-.buy{color:#22c55e;font-weight:bold}
-.sell{color:#ef4444;font-weight:bold}
-.hold{color:#facc15;font-weight:bold}
-.conf{color:#38bdf8;font-weight:bold}
-.footer{text-align:center;margin-top:14px;font-size:0.7rem;color:#94a3b8}
-.loader{margin-top:6px;font-size:0.85rem;color:#a8dadc}
-progress{border-radius:5px}
+body{
+  background:#0f172a;
+  color:#e5e7eb;
+  font-family:Arial,sans-serif;
+  padding:20px;
+}
+h1{text-align:center}
+select,button{
+  padding:10px;
+  margin:6px;
+  background:#020617;
+  color:#fff;
+  border:1px solid #22c55e;
+  border-radius:6px;
+}
+button:hover{background:#22c55e;color:#000;cursor:pointer}
+#loader{color:#38bdf8;margin-top:10px}
+.card{
+  background:#020617;
+  padding:12px;
+  border-radius:8px;
+  margin-top:12px;
+}
+.good{color:#22c55e}
+.mid{color:#facc15}
+.bad{color:#ef4444}
 </style>
 </head>
+
 <body>
 
-<h1>Multi-KI Aktien Analyse</h1>
-<div class="subtitle">15 zufällige Aktien mit ≥100 Handelstagen Historie</div>
-
-<div class="infoBox" id="currentPrice">Aktueller Kurs: –</div>
-<div class="infoBox" id="period">Zeitraum: –</div>
-
-<div class="controls">
-  <select id="stock"><option value="">Bitte Aktie wählen…</option></select>
-  <select id="timeRange">
-    <option value="20">1 Monat</option>
-    <option value="40">2 Monate</option>
-    <option value="120">6 Monate</option>
-    <option value="240">1 Jahr</option>
-  </select>
-  <button onclick="run()">Analyse starten</button>
-  <button onclick="randomizeStocks()">Neue Auswahl</button>
-  <button onclick="openYahoo()">Yahoo</button>
-  <button onclick="openTradingView()">TradingView</button>
-</div>
-
-<div class="status" id="status">Bereit</div>
-<div class="loader" id="loader">–</div>
+<h1>🧠 KI Aktien-Prüfer</h1>
+<p style="text-align:center">Echte Daten • Echte Bewertung • Keine Spielerei</p>
 
 <div style="text-align:center">
-  <progress id="progressBar" value="0" max="100" style="width:80%;height:18px;"></progress>
-  <div id="progressText">Warte…</div>
+  <select id="stock">
+    <option>Lade Aktien…</option>
+  </select>
+  <br>
+  <button onclick="loadStocks()">🔄 Neu scannen</button>
+  <button onclick="runAnalysis()">📊 Analyse starten</button>
 </div>
 
-<canvas id="chart" height="280"></canvas>
+<div id="loader" style="text-align:center">–</div>
 
-<table>
-<thead>
-<tr><th>KI</th><th>Prognose CHF</th><th>Signal</th><th>Δ</th><th>Konfidenz</th><th>Zeit</th></tr>
-</thead>
-<tbody id="out"></tbody>
-</table>
+<div id="result" class="card" style="display:none"></div>
 
-<div class="footer">Lern-Tool – keine Anlageberatung</div>
+<canvas id="chart" height="260"></canvas>
 
 <script>
-const API_KEY="d5ohqjhr01qjast6qrjgd5ohqjhr01qjast6qrk0"; // Hier eigenen Finnhub API-Key einsetzen
-let chart=null;
+/* =============================
+   API
+============================= */
+const API_KEY = "DEIN_FINNHUB_API_KEY";
 
-const POSSIBLE_STOCKS=[
- {symbol:"AAPL",name:"Apple Inc."},{symbol:"MSFT",name:"Microsoft Corp."},{symbol:"NVDA",name:"NVIDIA Corp."},
- {symbol:"AMZN",name:"Amazon.com Inc."},{symbol:"GOOGL",name:"Alphabet Inc."},{symbol:"TSLA",name:"Tesla Inc."},
- {symbol:"META",name:"Meta Platforms"},{symbol:"JNJ",name:"Johnson & Johnson"},{symbol:"KO",name:"Coca-Cola Co."},
- {symbol:"PEP",name:"PepsiCo Inc."},{symbol:"PFE",name:"Pfizer Inc."},{symbol:"NESN.SW",name:"Nestlé AG"},
- {symbol:"NVS",name:"Novartis AG"},{symbol:"ROG.SW",name:"Roche Holding AG"},{symbol:"SAP.DE",name:"SAP SE"},
- {symbol:"ORCL",name:"Oracle Corp."},{symbol:"IBM",name:"IBM Corp."},{symbol:"CSCO",name:"Cisco Systems"},
- {symbol:"ADBE",name:"Adobe Inc."},{symbol:"BABA",name:"Alibaba Group"}
+/* =============================
+   Aktien Pool (stabil)
+============================= */
+const STOCK_POOL = [
+"AAPL","MSFT","GOOGL","AMZN","META","NVDA","TSLA","JPM",
+"V","MA","KO","PEP","WMT","DIS","INTC","ORCL","CSCO",
+"IBM","ADBE","NFLX"
 ];
 
-const selectStock=document.getElementById("stock");
+/* =============================
+   DOM
+============================= */
+const selectStock = document.getElementById("stock");
+const loader = document.getElementById("loader");
+const resultBox = document.getElementById("result");
+let chart=null;
 
-function shuffleArray(arr){return arr.sort(()=>Math.random()-0.5);}
-function pickRandomStocks(allStocks,count){return shuffleArray([...allStocks]).slice(0,count);}
+/* =============================
+   Helfer
+============================= */
+const shuffle = a => a.sort(()=>Math.random()-0.5);
 
-// Lade zufällige gültige Aktien
-async function randomizeStocks() {
-  selectStock.innerHTML = "<option value=''>Bitte Aktie wählen…</option>";
-  const loader = document.getElementById("loader");
-  loader.textContent = "Lade zufällige Aktien…";
+/* =============================
+   Historische Daten (≥100)
+============================= */
+async function fetchHistory(symbol){
+  const now = Math.floor(Date.now()/1000);
+  const from = now - 150*86400;
 
-  let validStocks = [];
-  const shuffled = shuffleArray([...POSSIBLE_STOCKS]);
+  const r = await fetch(
+    `https://finnhub.io/api/v1/stock/candle?symbol=${symbol}&resolution=D&from=${from}&to=${now}&token=${API_KEY}`
+  );
+  const j = await r.json();
 
-  for (let i=0;i<shuffled.length && validStocks.length<15;i++){
-    const s = shuffled[i];
+  if(j.s==="ok" && j.c.length>=100) return j.c;
+  throw "Keine Daten";
+}
+
+/* =============================
+   Aktien laden
+============================= */
+async function loadStocks(){
+  selectStock.innerHTML="<option>Suche Aktien…</option>";
+  loader.textContent="🔍 Prüfe Finnhub Daten…";
+  selectStock.innerHTML="<option value=''>Aktie wählen</option>";
+
+  let found=0;
+  for(const s of shuffle([...STOCK_POOL])){
+    loader.textContent=`Prüfe ${s}…`;
     try{
-      const profile = await fetch(`https://finnhub.io/api/v1/stock/profile2?symbol=${s.symbol}&token=${API_KEY}`).then(r=>r.json());
-      if(!profile?.name) continue;
-
-      const now = Math.floor(Date.now()/1000);
-      const from = now - 100*24*60*60;
-      const hist = await fetch(`https://finnhub.io/api/v1/stock/candle?symbol=${s.symbol}&resolution=D&from=${from}&to=${now}&token=${API_KEY}`).then(r=>r.json());
-      if(hist.s !== "ok" || !hist.c || hist.c.length < 100) continue;
-
-      const opt = document.createElement("option");
-      opt.value = s.symbol;
-      opt.textContent = `${profile.name} (${s.symbol})`;
-      selectStock.appendChild(opt);
-      validStocks.push(s);
-    } catch(e){ continue; }
+      await fetchHistory(s);
+      const o=document.createElement("option");
+      o.value=s; o.textContent=s;
+      selectStock.appendChild(o);
+      found++;
+      if(found>=10) break;
+    }catch{}
   }
-
-  loader.textContent = validStocks.length > 0 ? "Fertig! Bitte Aktie auswählen." : "Keine gültigen Aktien gefunden.";
+  loader.textContent=found
+    ? `✅ ${found} Aktien verfügbar`
+    : "❌ Keine gefunden (API-Limit?)";
 }
 
-// Kurse
-async function fetchUsdChf(){try{const r=await fetch("https://api.exchangerate.host/latest?base=USD&symbols=CHF");return (await r.json()).rates.CHF||0.93;}catch{return 0.93;}}
-async function fetchQuote(sym){const r=await fetch(`https://finnhub.io/api/v1/quote?symbol=${sym}&token=${API_KEY}`);const j=await r.json();if(!j?.c)throw"Kein Kurs";return j.c;}
-async function fetchHistoricalData(symbol,days){const now=Math.floor(Date.now()/1000);const from=now-days*86400;const r=await fetch(`https://finnhub.io/api/v1/stock/candle?symbol=${symbol}&resolution=D&from=${from}&to=${now}&token=${API_KEY}`);const j=await r.json();if(j.s!=="ok"||j.c.length<100)throw"Zu wenig Historie";return j.c;}
+/* =============================
+   ECHTE KI-PRÜFUNG
+============================= */
+function aiCheck(prices){
+  const mean=a=>a.reduce((x,y)=>x+y)/a.length;
+  const std=a=>{
+    const m=mean(a);
+    return Math.sqrt(mean(a.map(x=>(x-m)**2)));
+  };
+  const EMA=(a,p)=>{
+    const k=2/(p+1); let e=a[0];
+    for(let i=1;i<a.length;i++) e=a[i]*k+e*(1-k);
+    return e;
+  };
 
-// KI Prognose
-async function predict(data,period,idx){
- const noisy=data.map(v=>v*(1+(Math.random()-0.5)/100));
- const min=Math.min(...noisy), max=Math.max(...noisy);
- const norm=noisy.map(v=>(v-min)/(max-min||1));
- let X=[],Y=[];
- for(let i=0;i<norm.length-period;i++){X.push(norm.slice(i,i+period).map(v=>[v]));Y.push([norm[i+period]]);}
- if(!X.length)return data.at(-1);
- const m=tf.sequential();
- m.add(tf.layers.lstm({units:12+idx*2,inputShape:[period,1]}));
- m.add(tf.layers.dense({units:1}));
- m.compile({optimizer:"adam",loss:"meanSquaredError"});
- await m.fit(tf.tensor3d(X),tf.tensor2d(Y),{epochs:5,verbose:0});
- return m.predict(tf.tensor3d([X.at(-1)])).dataSync()[0]*(max-min)+min;
+  const last=prices.at(-1);
+  const perf30=(last-prices.at(-30))/prices.at(-30)*100;
+  const perf90=(last-prices.at(-90))/prices.at(-90)*100;
+  const vol=std(prices.slice(-30));
+  const ema20=EMA(prices.slice(-60),20);
+  const ema50=EMA(prices.slice(-60),50);
+
+  let score=50;
+  if(ema20>ema50) score+=15;
+  if(last>ema20) score+=10;
+  if(perf30>0) score+=10;
+  if(perf90>5) score+=10;
+  if(vol<mean(prices)*0.03) score+=10;
+  if(vol>mean(prices)*0.07) score-=15;
+
+  score=Math.max(0,Math.min(100,score));
+
+  const verdict =
+    score>=80?"🟢 Investierbar":
+    score>=60?"🟡 Beobachten":
+    score>=40?"🟠 Schwach":"🔴 Meiden";
+
+  return {score,verdict,perf30,perf90,vol};
 }
 
-// Analyse starten
-async function run(){
- const sym=selectStock.value;
- if(!sym){alert("Bitte wählen!");return;}
- document.getElementById("status").textContent="Analysiere…";
- try{
-   const usd=await fetchQuote(sym);
-   const fx=await fetchUsdChf();
-   const price=usd*fx;
-   const base=parseInt(document.getElementById("timeRange").value);
-   const hist=await fetchHistoricalData(sym,base*2);
-   const preds=[];
-   for(let i=0;i<4;i++) preds.push(await predict(hist,base,i));
+/* =============================
+   Analyse starten
+============================= */
+async function runAnalysis(){
+  const sym=selectStock.value;
+  if(!sym) return alert("Bitte Aktie wählen");
 
-   if(chart) chart.destroy();
-   chart=new Chart(document.getElementById("chart"),{
-     type:'line',
-     data:{labels:hist.map((_,i)=>i+1), datasets:[{label:sym,data:hist,borderColor:"#22c55e"}]}
-   });
+  loader.textContent="📈 Lade Daten…";
+  resultBox.style.display="none";
 
-   let html="";
-   preds.forEach((p,i)=>{
-     const diff=(p-price)/price;
-     const sig=diff>0.05?"KAUFEN":diff<-0.05?"VERKAUFEN":"HALTEN";
-     html+=`<tr><td>KI${i+1}</td><td>${(p*fx).toFixed(2)}</td><td>${sig}</td><td>${(diff*100).toFixed(1)}%</td><td>${Math.abs(diff)>0.1?"Hoch":"Mittel"}</td><td>${new Date().toLocaleString()}</td></tr>`;
-   });
-   document.getElementById("out").innerHTML=html;
-   document.getElementById("status").textContent="Fertig";
- }catch(e){document.getElementById("status").textContent="Fehler: "+e;}
+  try{
+    const prices=await fetchHistory(sym);
+    const ai=aiCheck(prices);
+
+    resultBox.innerHTML=`
+      <b>Aktie:</b> ${sym}<br>
+      <b>KI-Score:</b> ${ai.score}/100<br>
+      <b>Status:</b> ${ai.verdict}<br>
+      30T Performance: ${ai.perf30.toFixed(2)}%<br>
+      90T Performance: ${ai.perf90.toFixed(2)}%<br>
+      Risiko (Volatilität): ${ai.vol.toFixed(2)}
+    `;
+    resultBox.style.display="block";
+
+    drawChart(prices);
+    loader.textContent="✅ Analyse abgeschlossen";
+  }catch{
+    loader.textContent="❌ Fehler bei Analyse";
+  }
 }
 
-// Kauf-Links
-function openYahoo(){window.open(`https://finance.yahoo.com/quote/${selectStock.value}`);}
-function openTradingView(){window.open(`https://www.tradingview.com/symbols/${selectStock.value}/`);}
+/* =============================
+   Chart
+============================= */
+function drawChart(data){
+  if(chart) chart.destroy();
+  chart=new Chart(document.getElementById("chart"),{
+    type:"line",
+    data:{
+      labels:data.map((_,i)=>i),
+      datasets:[{
+        label:"Kurs",
+        data:data,
+        borderColor:"#38bdf8",
+        fill:false
+      }]
+    },
+    options:{responsive:true}
+  });
+}
 
-randomizeStocks(); // beim Laden direkt starten
+/* =============================
+   Start
+============================= */
+loadStocks();
 </script>
 
 </body>
