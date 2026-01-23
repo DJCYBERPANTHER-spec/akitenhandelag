@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Multi-KI Aktienanalyse – Auto-Batch</title>
+<title>Multi-KI Aktienanalyse – Auto-Batch 20/Min</title>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
@@ -112,7 +112,7 @@ async function checkHistValid(stock){
     }catch{return false;}
 }
 
-// Fügt nächste 20 gültige Aktien hinzu
+// Fügt nächste 20 gültige Aktien hinzu (Batch)
 async function loadNext20Batch(){
     const start = currentBatch * BATCH_SIZE;
     const end = start + BATCH_SIZE;
@@ -120,30 +120,58 @@ async function loadNext20Batch(){
     let newValidStocks = [];
     for(const s of batch){
         const ok = await checkHistValid(s);
-        if(ok) newValidStocks.push(s);
-    }
-
-    // Neue gültige Aktien ins Dropdown
-    newValidStocks.forEach(s=>{
-        if(!validStocks.find(v=>v.symbol===s.symbol)){
+        if(ok && !validStocks.find(v=>v.symbol===s.symbol)){
+            newValidStocks.push(s);
             validStocks.push(s);
             const o = document.createElement("option");
             o.value = s.symbol;
             o.textContent = `${s.name} (${s.symbol})`;
             sel.appendChild(o);
         }
-    });
-
+    }
     currentBatch++;
     if(currentBatch*BATCH_SIZE < STOCKS.length){
         setTimeout(loadNext20Batch, 60*1000); // nächste Batch in 1 Minute
     }
 }
 
-// Initial starten
-loadNext20Batch();
+// =====================
+// Initial-Füllung – direkt 20 gültige Aktien laden
+// =====================
+async function loadInitialValidStocks(){
+    validStocks = [];
+    sel.innerHTML = "";
+    while(validStocks.length < BATCH_SIZE && currentBatch * BATCH_SIZE < STOCKS.length){
+        const start = currentBatch * BATCH_SIZE;
+        const end = start + BATCH_SIZE;
+        const batch = STOCKS.slice(start,end);
+        for(const s of batch){
+            const ok = await checkHistValid(s);
+            if(ok && !validStocks.find(v=>v.symbol===s.symbol)){
+                validStocks.push(s);
+                const o = document.createElement("option");
+                o.value = s.symbol;
+                o.textContent = `${s.name} (${s.symbol})`;
+                sel.appendChild(o);
+            }
+        }
+        currentBatch++;
+    }
+    if(validStocks.length === 0){
+        const o = document.createElement("option");
+        o.textContent = "Keine Aktie mit 365 Tagen Historie verfügbar";
+        o.disabled = true;
+        sel.appendChild(o);
+    }
+    sel.selectedIndex = 0;
 
-// Hilfsfunktionen
+    // Danach automatische 20er Batches jede Minute laden
+    setTimeout(loadNext20Batch, 60*1000);
+}
+
+// Initial starten
+loadInitialValidStocks();
+
 function getBuyLink(sym){return `https://www.tradingview.com/symbol/${sym}.US/`;}
 function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
 </script>
