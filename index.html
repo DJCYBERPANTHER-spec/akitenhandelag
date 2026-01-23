@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Multi-KI Aktienanalyse – Batch 20 pro Minute</title>
+<title>Multi-KI Aktienanalyse – Auto-Batch</title>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
@@ -32,11 +32,11 @@ progress{width:80%;height:16px}
 </head>
 
 <body>
-<h1>Multi-KI Aktienanalyse – Batch 20 pro Minute</h1>
-<div class="subtitle">Automatisches Laden großer Aktienlisten mit 365 Tage Historie</div>
+<h1>Multi-KI Aktienanalyse – Auto-Batch 20/Min</h1>
+<div class="subtitle">Nur Aktien mit 365-Tage-Historie werden geladen</div>
 
 <div class="controls">
-<select id="stock"></select>
+<select id="stock" size="6" style="min-width:250px"></select>
 
 <select id="forecastRange">
 <option value="1">1 Tag</option>
@@ -84,80 +84,64 @@ progress{width:80%;height:16px}
 <div class="footer">⚠️ Analyse‑Tool – keine Anlageberatung</div>
 
 <script>
-const API_KEY = "d5ohqjhr01qjast6qrjgd5ohqjhr01q"; // Finnhub API-Key
+const API_KEY = "d5ohqjhr01qjast6qrjgd5ohqjhr01q";
 const BATCH_SIZE = 20;
 let currentBatch = 0;
 let validStocks = [];
 const sel = document.getElementById("stock");
 
-// Beispiel: Aktienliste (Symbol + Name) – du kannst auf 130 erweitern
+// Beispiel-Aktienliste – auf 130+ erweiterbar
 const STOCKS = [
 {symbol:"AAPL",name:"Apple"},{symbol:"MSFT",name:"Microsoft"},{symbol:"AMZN",name:"Amazon"},
-{symbol:"TSLA",name:"Tesla"},{symbol:"GOOGL",name:"Alphabet Class A"},{symbol:"GOOG",name:"Alphabet Class C"},
-{symbol:"META",name:"Meta Platforms"},{symbol:"NVDA",name:"NVIDIA"},{symbol:"UNH",name:"UnitedHealth Group"},
+{symbol:"TSLA",name:"Tesla"},{symbol:"GOOGL",name:"Alphabet A"},{symbol:"GOOG",name:"Alphabet C"},
+{symbol:"META",name:"Meta"},{symbol:"NVDA",name:"NVIDIA"},{symbol:"UNH",name:"UnitedHealth"},
 {symbol:"V",name:"Visa"},{symbol:"HD",name:"Home Depot"},{symbol:"PG",name:"Procter & Gamble"},
 {symbol:"JPM",name:"JPMorgan Chase"},{symbol:"MA",name:"Mastercard"},{symbol:"DIS",name:"Disney"},
 {symbol:"BAC",name:"Bank of America"},{symbol:"ADBE",name:"Adobe"},{symbol:"CMCSA",name:"Comcast"},
 {symbol:"XOM",name:"Exxon Mobil"},{symbol:"PFE",name:"Pfizer"}
 ];
 
+// Prüft ob Aktie 365-Tage-Historie hat
 async function checkHistValid(stock){
     try{
-        const now = Math.floor(Date.now() / 1000);
+        const now = Math.floor(Date.now()/1000);
         const from = now - 365*86400;
         const res = await fetch(`https://finnhub.io/api/v1/stock/candle?symbol=${stock.symbol}.US&resolution=D&from=${from}&to=${now}&token=${API_KEY}`);
         const data = await res.json();
-        if(data.s==="ok" && data.c && data.c.length>=365){
-            return true;
-        } else return false;
+        return (data.s==="ok" && data.c && data.c.length>=365);
     }catch{return false;}
 }
 
-// Lade Batch und prüfe Historie
-async function loadDropdownBatch(batchIndex){
-    sel.innerHTML = "";
-    const start = batchIndex * BATCH_SIZE;
+// Fügt nächste 20 gültige Aktien hinzu
+async function loadNext20Batch(){
+    const start = currentBatch * BATCH_SIZE;
     const end = start + BATCH_SIZE;
-    const batch = STOCKS.slice(start,end);
-
-    validStocks = [];
+    const batch = STOCKS.slice(start, end);
+    let newValidStocks = [];
     for(const s of batch){
         const ok = await checkHistValid(s);
-        if(ok) validStocks.push(s);
+        if(ok) newValidStocks.push(s);
     }
 
-    // Nur gültige Aktien ins Dropdown
-    validStocks.forEach(s=>{
-        const o = document.createElement("option");
-        o.value = s.symbol;
-        o.textContent = `${s.name} (${s.symbol})`;
-        sel.appendChild(o);
+    // Neue gültige Aktien ins Dropdown
+    newValidStocks.forEach(s=>{
+        if(!validStocks.find(v=>v.symbol===s.symbol)){
+            validStocks.push(s);
+            const o = document.createElement("option");
+            o.value = s.symbol;
+            o.textContent = `${s.name} (${s.symbol})`;
+            sel.appendChild(o);
+        }
     });
 
-    if(validStocks.length===0){
-        const o = document.createElement("option");
-        o.textContent = "Keine Aktie mit 365 Tagen Historie in dieser Batch";
-        o.disabled = true;
-        sel.appendChild(o);
-    }
-
-    sel.selectedIndex = 0;
-}
-
-// Initial Batch laden
-loadDropdownBatch(currentBatch);
-
-// Nächste Batch jede Minute laden
-function nextDropdownBatch(){
     currentBatch++;
     if(currentBatch*BATCH_SIZE < STOCKS.length){
-        loadDropdownBatch(currentBatch);
-        setTimeout(nextDropdownBatch, 60*1000);
+        setTimeout(loadNext20Batch, 60*1000); // nächste Batch in 1 Minute
     }
 }
 
-// Starte automatische Batch-Erweiterung
-setTimeout(nextDropdownBatch, 60*1000);
+// Initial starten
+loadNext20Batch();
 
 // Hilfsfunktionen
 function getBuyLink(sym){return `https://www.tradingview.com/symbol/${sym}.US/`;}
