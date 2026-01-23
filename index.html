@@ -160,7 +160,7 @@ async function fetchHist(sym, days = 365) {
     try {
         const res = await fetch(`https://finnhub.io/api/v1/stock/candle?symbol=${sym}&resolution=D&from=${from}&to=${now}&token=${API_KEY}`);
         const data = await res.json();
-        if (data.s === "ok" && data.c && data.c.length >= 60) {
+        if (data.s === "ok" && data.c && data.c.length >= 30) {
             const dates = data.t.map(ts => new Date(ts * 1000).toISOString().split("T")[0]);
             const closes = data.c.map(v => Number(v));
             return { dates, closes };
@@ -207,6 +207,37 @@ async function getCurrentPriceWithFallback(sym, retries = 5) {
         document.getElementById("currentPrice").textContent = `Aktueller Kurs ${sym}: ${price.toFixed(2)} USD`;
     }
     return price;
+}
+
+/* =======================
+   KI-PROGNOSE-LOGIK (4 verschiedene Strategien)
+======================= */
+function forecastKIs(hist, days, currentPrice){
+    const futs=[];
+    // KI1: lineare Trendfortsetzung
+    let slope = (hist[hist.length-1]-hist[0])/hist.length;
+    let arr1=[]; let p=currentPrice;
+    for(let i=0;i<days;i++){p+=slope; arr1.push(p);} futs.push(arr1);
+
+    // KI2: gleitender Durchschnitt 20 Tage
+    let arr2=[]; p=currentPrice;
+    const avg20 = hist.slice(-20).reduce((a,b)=>a+b,0)/20;
+    for(let i=0;i<days;i++){p = p*0.8 + avg20*0.2; arr2.push(p);} futs.push(arr2);
+
+    // KI3: exponentielle Glättung EMA 0.1
+    let arr3=[]; p=currentPrice;
+    const alpha=0.1;
+    let ema=hist[hist.length-1];
+    for(let i=0;i<days;i++){ema=alpha*ema+(1-alpha)*p; p=ema; arr3.push(p);} futs.push(arr3);
+
+    // KI4: volatilitätsgewichtete historische Änderung
+    let arr4=[]; p=currentPrice;
+    const changes=[]; for(let i=1;i<hist.length;i++) changes.push((hist[i]-hist[i-1])/hist[i-1]);
+    const avgChange=changes.reduce((a,b)=>a+b,0)/changes.length;
+    const vol=Math.sqrt(changes.reduce((a,b)=>a+Math.pow(b-avgChange,2),0)/changes.length);
+    for(let i=0;i<days;i++){p*=(1+avgChange*(1+vol*0.5)); arr4.push(p);} futs.push(arr4);
+
+    return futs;
 }
 
 /* =======================
@@ -262,33 +293,15 @@ function decision(curr,fut,h){
 function risk(curr,h){const v=volatility(h)*curr;return {sl:(curr-2*v).toFixed(2),tp:(curr+3*v).toFixed(2)};}
 
 /* =======================
-   FORECAST DATENBASIERT (keine Simulation)
-======================= */
-function forecast(hist, days, currentPrice){
-    const result = [];
-    const histChange = [];
-    for(let i=1;i<hist.length;i++) histChange.push((hist[i]-hist[i-1])/hist[i-1]);
-    const avgChange = histChange.reduce((a,b)=>a+b,0)/histChange.length;
-
-    let price = currentPrice;
-    for(let i=0;i<days;i++){
-        price *= 1 + avgChange;
-        result.push(price);
-    }
-    return result;
-}
-
-/* =======================
    CHART
 ======================= */
-function draw(hist,futs){
+function draw(histObj,futs){
     if(chart) chart.destroy();
-    const labels=[];
-    for(let i=hist.length;i>0;i--) labels.push("-"+i+"d");
-    for(let i=1;i<=futs[0].length;i++) labels.push("+"+i+"d");
-    const datasets=[{label:"Historie (365 Tage)",data:hist,borderColor:"#3b82f6",fill:false}];
+    const labels = [...histObj.dates];
+    futs.forEach(f=>{f.forEach((v,i)=>{if(!labels.includes("+"+(i+1)+"d")) labels.push("+"+(i+1)+"d")});});
+    const datasets=[{label:"Historie (365 Tage)",data:histObj.closes,borderColor:"#3b82f6",fill:false}];
     const colors=["#22c55e","#facc15","#f97316","#38bdf8"];
-    futs.forEach((f,i)=>datasets.push({label:"KI "+(i+1),data:[...Array(hist.length).fill(null),...f],borderColor:colors[i],fill:false,pointRadius:2}));
+    futs.forEach((f,i)=>datasets.push({label:"KI "+(i+1),data:[...Array(histObj.closes.length).fill(null),...f],borderColor:colors[i],fill:false,pointRadius:2}));
     chart=new Chart(document.getElementById("chart"),{type:"line",data:{labels,datasets},options:{animation:false,responsive:true}});
 }
 
@@ -330,18 +343,13 @@ async function run(){
         updateProgress(25,"Lade aktuellen Kurs…");
         const price = await getCurrentPriceWithFallback(sym);
 
-        const futs=[];
-        for(let i=0;i<4;i++){
-            updateProgress(35+i*15,`KI ${i+1} berechnet Prognose…`);
-            const f=forecast(histObj.closes,days,price);
-            futs.push(f);
-            await sleep(50);
-        }
+        updateProgress(40,"Berechne Prognosen…");
+        const futs=forecastKIs(histObj.closes,days,price);
 
-        updateProgress(85,"Erstelle Diagramm…");
-        draw(histObj.closes,futs);
+        updateProgress(70,"Erstelle Diagramm…");
+        draw(histObj,futs);
 
-        updateProgress(92,"Erstelle Tabelle…");
+        updateProgress(85,"Erstelle Tabelle…");
         let html="";
         futs.forEach((f,i)=>{
             const last=f[f.length-1];
