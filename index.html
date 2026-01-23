@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Multi-KI Aktien Prognose mit Extrempunkten</title>
+<title>Multi-KI Aktien Prognose – Peaks & Drops</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0/dist/tf.min.js"></script>
 <style>
@@ -31,7 +31,7 @@ progress{border-radius:5px}
 <body>
 
 <h1>Multi-KI Aktien Prognose – Peaks & Drops</h1>
-<div class="subtitle">Historische Daten & KI-Zukunftsprognosen</div>
+<div class="subtitle">Historische Daten & Zukunftsprognosen</div>
 <div class="infoBox" id="currentPrice">Aktueller Kurs: –</div>
 <div class="period" id="period">Zeitraum: –</div>
 
@@ -221,7 +221,6 @@ function drawChart(hist,futures){
         labels.push(i<hist.length?`T-${hist.length-i}`:`T+${i-hist.length+1}`);
     }
 
-    // Datensätze: Historie + 4 KIs
     const datasets=[{label:"Historie",data:hist,borderColor:"#3b82f6",fill:false}];
     const colors=["#22c55e","#facc15","#f97316","#38bdf8"];
     futures.forEach((fut,i)=>{
@@ -239,9 +238,7 @@ function drawChart(hist,futures){
         data:{labels,datasets},
         options:{
             responsive:true,
-            plugins:{
-                legend:{position:'top'}
-            },
+            plugins:{legend:{position:'top'}},
             animation:false
         }
     });
@@ -250,8 +247,6 @@ function drawChart(hist,futures){
     futures.forEach((fut,i)=>{
         const max=Math.max(...fut);
         const min=Math.min(...fut);
-        const maxIndex=fut.indexOf(max)+hist.length;
-        const minIndex=fut.indexOf(min)+hist.length;
         chart.data.datasets.push({
             label:`KI${i+1} Peak`,
             data: Array(hist.length).fill(null).concat(fut.map(v=>v===max?v:null)),
