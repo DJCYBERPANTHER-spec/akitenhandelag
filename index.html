@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Multi-KI Aktienanalyse – Deterministisch</title>
+<title>Multi-KI Aktienanalyse – Realistisch & Deterministisch</title>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
@@ -34,7 +34,7 @@ progress{width:80%;height:16px}
 <body>
 
 <h1>Multi-KI Aktienanalyse</h1>
-<div class="subtitle">Deterministische Prognosen · Echtzeitkurs · Kauf-/Verkaufsignale · Beste KI markiert</div>
+<div class="subtitle">Realistische Prognosen vom aktuellen Kurs + Historie · Beste KI markiert</div>
 
 <div class="controls">
 <select id="stock"></select>
@@ -89,7 +89,6 @@ const API_KEY = "d5ohqjhr01qjast6qrjgd5ohqjhr01qjast6qrk0";
 let chart = null;
 let priceInterval = null;
 
-// Aktienliste
 const STOCKS = [
  {symbol:"AAPL",name:"Apple"},
  {symbol:"MSFT",name:"Microsoft"},
@@ -122,21 +121,17 @@ function getBuyLink(sym){return `https://www.tradingview.com/symbols/${sym}/`;}
 async function fetchHist(sym, days = 365){
     const now = Math.floor(Date.now()/1000);
     const from = now - days * 86400;
-
     try{
         const r = await fetch(
             `https://finnhub.io/api/v1/stock/candle?symbol=${sym}&resolution=D&from=${from}&to=${now}&token=${API_KEY}`
         );
         const j = await r.json();
-
         if(j.s === "ok" && j.c && j.c.length >= 60){
             return j.c.map(v => Number(v)).filter(v => v > 0);
         }
     }catch(e){
         console.warn("API-Fehler, nutze Fallback", e);
     }
-
-    // Fallback: künstliche Historie
     return generateFallbackHistory(days);
 }
 
@@ -144,7 +139,7 @@ function generateFallbackHistory(days){
     let base = 100;
     const arr = [];
     for(let i=0;i<days;i++){
-        base *= 1 + 0.002*(Math.sin(i/5)); // deterministisch
+        base *= 1 + 0.002*(Math.sin(i/5));
         arr.push(base);
     }
     return arr;
@@ -224,14 +219,19 @@ function risk(curr,h){
 /* =======================
    DETERMINISTISCHE KI-PROGNOSE
 ======================= */
-function forecast(hist, days, idx){
-    let price = hist[hist.length-1];
-    const t = trend(hist); // deterministisch
+function forecast(hist, days, idx, currentPrice){
+    let price = currentPrice;      
+    const t = trend(hist);         
+    const vol = volatility(hist);  
+    const decay = 0.95;            
+    const histMax = Math.max(...hist);
+    const histMin = Math.min(...hist);
     const result = [];
 
     for(let i=0;i<days;i++){
-        const factor = t*(1+idx*0.05); // leichte Variation pro KI
-        price *= 1 + factor/Math.sqrt(days);
+        const factor = t*(1+idx*0.05) * Math.pow(decay, i/30);
+        const histEffect = ((histMax - price)/(histMax - histMin)) * 0.005;
+        price *= 1 + factor + histEffect;
         result.push(price);
     }
     return result;
@@ -328,7 +328,7 @@ async function run(){
         const futs=[];
         for(let i=0;i<4;i++){
             updateProgress(35+i*15,`KI ${i+1} berechnet Prognose…`);
-            const f=forecast(hist,days,i);
+            const f=forecast(hist,days,i,price); // **vom aktuellen Kurs + Historie**
             futs.push(f);
             await sleep(100);
         }
