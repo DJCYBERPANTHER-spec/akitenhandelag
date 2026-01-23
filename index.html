@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Multi-KI Aktienanalyse – Historie & Finanzkrisen</title>
+<title>Multi-KI Aktienanalyse – Historie & Frühwarnsystem</title>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
@@ -34,7 +34,7 @@ progress{width:80%;height:16px}
 <body>
 
 <h1>Multi-KI Aktienanalyse</h1>
-<div class="subtitle">365 Tage Historie · Dynamische Prognosen · Finanzkrisen-Warnungen</div>
+<div class="subtitle">365 Tage Historie · Dynamische Prognosen · Frühwarnsystem Finanzkrisen</div>
 
 <div class="controls">
 <select id="stock"></select>
@@ -85,7 +85,7 @@ progress{width:80%;height:16px}
 <div class="footer">⚠️ Analyse-Tool – keine Anlageberatung</div>
 
 <script>
-const API_KEY = "d5ohqjhr01qjast6qrjgd5ohqjhr01qjast6qrk0";
+const API_KEY = "d5ohqjhr01qjast6qrjgd5ohqjhr01q";
 let chart = null;
 let priceInterval = null;
 
@@ -123,6 +123,16 @@ const financialCrises = [
     {start: "2020-02-01", end: "2020-04-30", name: "COVID-19 Crash"},
     {start: "2022-01-20", end: "2022-12-31", name: "Ukraine / Marktvolatilität"},
 ];
+
+/* =======================
+   Krisen-Bedingungen für Frühwarnungen
+======================= */
+const crisisConditions = [
+    {name:"Finanzkrise 2008", maxVol:0.07, minTrend:-0.1, maxDailyDrop:-0.05},
+    {name:"Euro-Schuldenkrise", maxVol:0.06, minTrend:-0.08, maxDailyDrop:-0.04},
+    {name:"COVID-19 Crash", maxVol:0.08, minTrend:-0.12, maxDailyDrop:-0.07},
+    {name:"Ukraine / Marktvolatilität 2022", maxVol:0.06, minTrend:-0.08, maxDailyDrop:-0.05},
+];
 </script>
 <script>
 /* =======================
@@ -135,7 +145,6 @@ async function fetchHist(sym, days = 365){
         const res = await fetch(`https://finnhub.io/api/v1/stock/candle?symbol=${sym}&resolution=D&from=${from}&to=${now}&token=${API_KEY}`);
         const data = await res.json();
         if(data.s === "ok" && data.c && data.c.length >= 60){
-            // Historie als Array von {date, close}
             const dates = data.t.map(ts => new Date(ts*1000).toISOString().split("T")[0]);
             const closes = data.c.map(v => Number(v));
             return {dates, closes};
@@ -175,29 +184,39 @@ function backtest(h){let e=0;const n=Math.min(60,h.length-1);for(let i=h.length-
 function calcConfidence(hist){let conf=0.5+0.3*(parseFloat(backtest(hist))/100)+0.2*(1-volatility(hist));return conf>1?1:conf;}
 
 /* =======================
-   WARNUNGEN (inkl. Finanzkrisen)
+   WARNUNGEN inkl. Frühwarnung
 ======================= */
-function calcWarning(dates,h){
-    const vol=volatility(h);
-    const tr=trend(h);
-    const last=h[h.length-1];
-    const prev=h[h.length-2]||last;
-    const delta=(last-prev)/prev;
+function calcWarningForecast(dates,h,future=null){
+    const vol = volatility(h);
+    const tr  = trend(h);
+    const last = future!==null ? future : h[h.length-1];
+    const prev = h[h.length-2]||last;
+    const delta = (last-prev)/prev;
 
+    // Normale Warnungen
     if(vol>0.06) return "⚠️ Hohe Volatilität";
     if(delta<-0.05) return "⚠️ Starker Kursabfall";
     if(delta>0.05) return "⚠️ Starker Anstieg";
     if(tr<-0.15) return "⚠️ Abwärtstrend";
     if(tr>0.15) return "⚠️ Aufwärtstrend";
 
-    const lastDate = dates[dates.length-1];
-    for(let c of financialCrises){
-        const start=new Date(c.start);
-        const end=new Date(c.end);
-        const d=new Date(lastDate);
-        if(d>=start && d<=end) return `⚠️ Finanzkrise: ${c.name}`;
+    // Frühwarnungen gegen historische Krisenbedingungen
+    for(let c of crisisConditions){
+        if(vol>=c.maxVol*0.7 && tr<=c.minTrend*0.7 && delta<=c.maxDailyDrop*0.7){
+            return `⚠️ Frühwarnung: Bedingungen ähnlich ${c.name}`;
+        }
     }
-    return "";
+
+    // Finanzkrisen aktiv prüfen
+    const lastDate = dates[dates.length-1];
+    for(let crisis of financialCrises){
+        const start = new Date(crisis.start);
+        const end = new Date(crisis.end);
+        const d = new Date(lastDate);
+        if(d>=start && d<=end) return `⚠️ Finanzkrise: ${crisis.name}`;
+    }
+
+    return ""; // keine Warnung
 }
 
 /* =======================
@@ -305,7 +324,7 @@ async function run(){
             const dec=decision(price,last,histObj.closes);
             const r=risk(price,histObj.closes);
             const conf=(calcConfidence(histObj.closes)*100).toFixed(0);
-            const warn=calcWarning(histObj.dates,histObj.closes);
+            const warn=calcWarningForecast(histObj.dates,histObj.closes,last);
 
             html+=`<tr>
                 <td>KI${i+1}</td>
