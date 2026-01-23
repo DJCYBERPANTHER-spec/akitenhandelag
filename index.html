@@ -152,7 +152,52 @@ function getBuyLink(sym){return `https://www.tradingview.com/symbols/${sym}/`;}
 </script>
 <script>
 /* =======================
-   FINANZKRISEN & FRÜHWARNUNGEN
+   HISTORIE + AKTUELLER KURS
+======================= */
+async function fetchHist(sym, days = 365) {
+    const now = Math.floor(Date.now() / 1000);
+    const from = now - days * 86400;
+    try {
+        const res = await fetch(`https://finnhub.io/api/v1/stock/candle?symbol=${sym}&resolution=D&from=${from}&to=${now}&token=${API_KEY}`);
+        const data = await res.json();
+        if (data.s === "ok" && data.c && data.c.length >= 60) {
+            const dates = data.t.map(ts => new Date(ts * 1000).toISOString().split("T")[0]);
+            const closes = data.c.map(v => Number(v));
+            return { dates, closes };
+        }
+    } catch (e) {}
+    // Fallback: Fake Daten falls API nicht geht
+    const arr = [], dates = [];
+    let base = 400;
+    for (let i = 0; i < days; i++) {
+        base *= 1 + 0.001 * Math.sin(i / 5);
+        arr.push(base);
+        const d = new Date();
+        d.setDate(d.getDate() - days + i);
+        dates.push(d.toISOString().split("T")[0]);
+    }
+    return { dates, closes: arr };
+}
+
+async function fetchPrice(sym) {
+    try {
+        const r = await fetch(`https://finnhub.io/api/v1/quote?symbol=${sym}&token=${API_KEY}`);
+        const j = await r.json();
+        if (j && j.c) return j.c;
+    } catch {}
+    return null;
+}
+
+/* =======================
+   TREND, VOLATILITÄT, BACKTEST
+======================= */
+function trend(h) { return (h.slice(-20).reduce((a,b)=>a+b,0)/20 - h.slice(-100).reduce((a,b)=>a+b,0)/100)/h.slice(-100).reduce((a,b)=>a+b,0)/100; }
+function volatility(h) { const avg = h.reduce((a,b)=>a+b,0)/h.length; return Math.sqrt(h.reduce((a,b)=>a+Math.pow(b-avg,2),0)/h.length)/avg; }
+function backtest(h) { let e = 0; const n = Math.min(60, h.length-1); for(let i = h.length-n; i<h.length-1;i++){ const p=h[i]*(1+trend(h.slice(0,i))); e+=Math.min(Math.abs((p-h[i+1])/h[i+1]),1);} return Math.max(0,((1-e/n)*100)).toFixed(1)+"%"; }
+function calcConfidence(hist){return Math.min(1,0.5+0.3*(parseFloat(backtest(hist))/100)+0.2*(1-volatility(hist)))*100;}
+
+/* =======================
+   WARNUNGEN
 ======================= */
 const financialCrises=[
 {start:"2007-10-01",end:"2009-03-01",name:"Finanzkrise 2008"},
@@ -160,65 +205,13 @@ const financialCrises=[
 {start:"2020-02-01",end:"2020-04-30",name:"COVID-19 Crash"},
 {start:"2022-01-20",end:"2022-12-31",name:"Ukraine / Marktvolatilität"}
 ];
-const crisisConditions=[
-{name:"Finanzkrise 2008",maxVol:0.07,minTrend:-0.1,maxDailyDrop:-0.05},
-{name:"Euro-Schuldenkrise",maxVol:0.06,minTrend:-0.08,maxDailyDrop:-0.04},
-{name:"COVID-19 Crash",maxVol:0.08,minTrend:-0.12,maxDailyDrop:-0.07},
-{name:"Ukraine / Marktvolatilität 2022",maxVol:0.06,minTrend:-0.08,maxDailyDrop:-0.05}
-];
 
-/* =======================
-   HISTORIE + AKTUELLER KURS
-======================= */
-async function fetchHist(sym,days=365){
-    const now=Math.floor(Date.now()/1000);
-    const from=now-days*86400;
-    try{
-        const res=await fetch(`https://finnhub.io/api/v1/stock/candle?symbol=${sym}&resolution=D&from=${from}&to=${now}&token=${API_KEY}`);
-        const data=await res.json();
-        if(data.s==="ok"&&data.c&&data.c.length>=60){
-            const dates=data.t.map(ts=>new Date(ts*1000).toISOString().split("T")[0]);
-            const closes=data.c.map(v=>Number(v));
-            return {dates,closes};
-        }
-    }catch(e){}
-    const arr=[],dates=[];
-    let base=400;
-    for(let i=0;i<days;i++){
-        base*=1+0.002*Math.sin(i/5);
-        arr.push(base);
-        const d=new Date(); d.setDate(d.getDate()-days+i);
-        dates.push(d.toISOString().split("T")[0]);
-    }
-    return {dates,closes:arr};
-}
-
-async function fetchPrice(sym){
-    try{
-        const r=await fetch(`https://finnhub.io/api/v1/quote?symbol=${sym}&token=${API_KEY}`);
-        const j=await r.json();
-        if(j&&j.c) return j.c;
-    }catch{}
-    return null;
-}
-
-/* =======================
-   ANALYSE / TREND / VOLATILITÄT
-======================= */
-function trend(h){const s=h.slice(-20).reduce((a,b)=>a+b,0)/20;const l=h.slice(-100).reduce((a,b)=>a+b,0)/100;return (s-l)/l;}
-function volatility(h){const avg=h.reduce((a,b)=>a+b,0)/h.length;return Math.sqrt(h.reduce((a,b)=>a+Math.pow(b-avg,2),0)/h.length)/avg;}
-function backtest(h){let e=0;const n=Math.min(60,h.length-1);for(let i=h.length-n;i<h.length-1;i++){const p=h[i]*(1+trend(h.slice(0,i)));e+=Math.min(Math.abs((p-h[i+1])/h[i+1]),1);}return Math.max(0,((1-e/n)*100)).toFixed(1)+"%";}
-function calcConfidence(hist){let conf=0.5+0.3*(parseFloat(backtest(hist))/100)+0.2*(1-volatility(hist));return conf>1?1:conf;}
-
-/* =======================
-   WARNUNGEN
-======================= */
 function calcWarningForecast(dates,h,future=null){
-    const vol=volatility(h);
-    const tr=trend(h);
-    const last=future!==null?future:h[h.length-1];
-    const prev=h[h.length-2]||last;
-    const delta=(last-prev)/prev;
+    const vol = volatility(h);
+    const tr = trend(h);
+    const last = future!==null?future:h[h.length-1];
+    const prev = h[h.length-2]||last;
+    const delta = (last-prev)/prev;
 
     if(vol>0.06) return "⚠️ Hohe Volatilität";
     if(delta<-0.05) return "⚠️ Starker Kursabfall";
@@ -226,17 +219,9 @@ function calcWarningForecast(dates,h,future=null){
     if(tr<-0.15) return "⚠️ Abwärtstrend";
     if(tr>0.15) return "⚠️ Aufwärtstrend";
 
-    for(let c of crisisConditions){
-        if(vol>=c.maxVol*0.7 && tr<=c.minTrend*0.7 && delta<=c.maxDailyDrop*0.7){
-            return `⚠️ Frühwarnung: Bedingungen ähnlich ${c.name}`;
-        }
-    }
-
-    const lastDate=dates[dates.length-1];
+    const lastDate = dates[dates.length-1];
     for(let crisis of financialCrises){
-        const start=new Date(crisis.start);
-        const end=new Date(crisis.end);
-        const d=new Date(lastDate);
+        const start=new Date(crisis.start), end=new Date(crisis.end), d=new Date(lastDate);
         if(d>=start && d<=end) return `⚠️ Finanzkrise: ${crisis.name}`;
     }
 
@@ -247,7 +232,7 @@ function calcWarningForecast(dates,h,future=null){
    ENTSCHEIDUNG / STOP & ZIEL
 ======================= */
 function decision(curr,fut,h){
-    const t=trend(h),v=volatility(h),bt=parseFloat(backtest(h))/100;
+    const t=trend(h), v=volatility(h), bt=parseFloat(backtest(h))/100;
     if(v>0.06||bt<0.5) return ["🟡 WARTEN","Volatilität oder schlechte Historie"];
     if(fut>curr*1.03 && t>0) return ["🟢 KAUFEN","Aufwärtstrend bestätigt"];
     if(fut<curr*0.97 && t<0) return ["🔴 VERKAUFEN","Abwärtstrend bestätigt"];
@@ -256,18 +241,17 @@ function decision(curr,fut,h){
 function risk(curr,h){const v=volatility(h)*curr;return {sl:(curr-2*v).toFixed(2),tp:(curr+3*v).toFixed(2)};}
 
 /* =======================
-   FORECAST
+   FORECAST DATENBASIERT (keine Simulation)
 ======================= */
-function forecast(hist,days,idx,currentPrice){
-    let price=currentPrice;
-    const t=trend(hist),vol=volatility(hist),decay=0.95;
-    const histMax=Math.max(...hist),histMin=Math.min(...hist);
-    const result=[];
+function forecast(hist, days, currentPrice){
+    const result = [];
+    const histChange = [];
+    for(let i=1;i<hist.length;i++) histChange.push((hist[i]-hist[i-1])/hist[i-1]);
+    const avgChange = histChange.reduce((a,b)=>a+b,0)/histChange.length;
+
+    let price = currentPrice;
     for(let i=0;i<days;i++){
-        const factor=t*(1+idx*0.05)*Math.pow(decay,i/30);
-        const randEffect=(Math.random()-0.5)*vol*0.5;
-        price*=(1+factor+randEffect);
-        price=Math.max(histMin*0.8,Math.min(histMax*1.2,price));
+        price *= 1 + avgChange;
         result.push(price);
     }
     return result;
@@ -328,19 +312,18 @@ async function run(){
         await sleep(150);
 
         updateProgress(25,"Lade aktuellen Kurs…");
-        // WARTE, BIS AKTUELLER KURS VORLIEGT
         let price=null;
         while(price===null){
-            price=await fetchPrice(sym);
+            price = await updateCurrentPrice(sym);
             if(price===null) await sleep(500);
         }
 
         const futs=[];
         for(let i=0;i<4;i++){
             updateProgress(35+i*15,`KI ${i+1} berechnet Prognose…`);
-            const f=forecast(histObj.closes,days,i,price);
+            const f=forecast(histObj.closes,days,price);
             futs.push(f);
-            await sleep(100);
+            await sleep(50);
         }
 
         updateProgress(85,"Erstelle Diagramm…");
@@ -352,13 +335,13 @@ async function run(){
             const last=f[f.length-1];
             const dec=decision(price,last,histObj.closes);
             const r=risk(price,histObj.closes);
-            const conf=(calcConfidence(histObj.closes)*100).toFixed(0);
+            const conf=calcConfidence(histObj.closes).toFixed(0);
             const warn=calcWarningForecast(histObj.dates,histObj.closes,last);
 
             html+=`<tr>
                 <td>KI${i+1}</td>
                 <td>${last.toFixed(2)}</td>
-                <td class="${last>price?'buy':'sell'}">${last>price?'↑':'↓'}</td>
+                <td class="${last>price?'buy':last<price?'sell':'hold'}">${last>price?'↑':last<price?'↓':'→'}</td>
                 <td>${((last-price)/price*100).toFixed(2)}%</td>
                 <td class="conf">${conf}%</td>
                 <td class="warning">${warn}</td>
