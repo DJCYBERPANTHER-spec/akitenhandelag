@@ -80,20 +80,11 @@ const POSSIBLE_STOCKS=[
   {symbol:"CSCO",name:"Cisco Systems"},{symbol:"IBM",name:"IBM Corp."},{symbol:"QCOM",name:"Qualcomm Inc."},
   {symbol:"SAP.DE",name:"SAP SE"},{symbol:"BAYN.DE",name:"Bayer AG"},{symbol:"VOW3.DE",name:"Volkswagen AG"},
   {symbol:"SIE.DE",name:"Siemens AG"},{symbol:"DIS",name:"The Walt Disney Co."},{symbol:"KO",name:"Coca-Cola Co."},
-  {symbol:"PEP",name:"PepsiCo Inc."},{symbol:"JNJ",name:"Johnson & Johnson"},{symbol:"PFE",name:"Pfizer Inc."},
-  {symbol:"MRK",name:"Merck & Co."},{symbol:"LVMH.PA",name:"LVMH Moët Hennessy SE"},{symbol:"ROG.SW",name:"Roche Holding AG"},
-  {symbol:"ASML.AS",name:"ASML Holding NV"},{symbol:"AD.AS",name:"Adyen NV"},{symbol:"HEIA.AS",name:"Heineken NV"},
-  {symbol:"VZ",name:"Verizon"},{symbol:"T",name:"AT&T Inc."},{symbol:"PM",name:"Philip Morris Intl"},
-  {symbol:"MO",name:"Altria Group"},{symbol:"SPOT",name:"Spotify Technology"},{symbol:"UBER",name:"Uber Technologies"},
-  {symbol:"SNOW",name:"Snowflake Inc."},{symbol:"BABA",name:"Alibaba Group"},{symbol:"JD",name:"JD.com Inc."},
-  {symbol:"TCEHY",name:"Tencent Holdings"},{symbol:"SHOP",name:"Shopify Inc."},{symbol:"CRM",name:"Salesforce.com"},
-  {symbol:"TWTR",name:"Twitter Inc."},{symbol:"NKE",name:"Nike Inc."},{symbol:"DISCK",name:"Discovery Inc."},
-  {symbol:"SBUX",name:"Starbucks Corp."},{symbol:"BA",name:"Boeing Co."}
+  {symbol:"PEP",name:"PepsiCo Inc."},{symbol:"JNJ",name:"Johnson & Johnson"},{symbol:"PFE",name:"Pfizer Inc."}
 ];
 
-const selectStock=document.getElementById("stock");
-
 // --- Dropdown laden ---
+const selectStock=document.getElementById("stock");
 function loadDropdown(){
   selectStock.innerHTML="<option value=''>Aktie wählen</option>";
   POSSIBLE_STOCKS.forEach(s=>{
@@ -107,55 +98,105 @@ loadDropdown();
 
 // --- Live-Kurs abrufen ---
 async function fetchUsdChf(){ 
-    try{ const r=await fetch("https://api.exchangerate.host/latest?base=USD&symbols=CHF"); const j=await r.json(); return Number(j?.rates?.CHF)||0.93;}catch{return 0.93;}
+  try{ 
+    const r=await fetch("https://api.exchangerate.host/latest?base=USD&symbols=CHF"); 
+    const j=await r.json(); 
+    return Number(j?.rates?.CHF)||0.93;
+  }catch{return 0.93;}
 }
-async function fetchQuote(sym){ const r=await fetch(`https://finnhub.io/api/v1/quote?symbol=${sym}&token=${API_KEY}`); const j=await r.json(); if(!j || j.c===undefined) throw "Keine Kursdaten"; return Number(j.c);}
-async function startLivePrice(symbol){ const currentDiv=document.getElementById("currentPrice"); async function updatePrice(){ try{const usd=await fetchQuote(symbol);const fx=await fetchUsdChf();currentDiv.textContent=`Aktueller Kurs: ${(usd*fx).toFixed(2)} CHF`;}catch(err){currentDiv.textContent=`Fehler: ${err}`;} } await updatePrice(); if(liveInterval) clearInterval(liveInterval); liveInterval=setInterval(updatePrice,5000);}
-selectStock.addEventListener("change",e=>{ const sym=e.target.value; if(sym) startLivePrice(sym); });
+
+async function fetchQuote(sym){ 
+  const r=await fetch(`https://finnhub.io/api/v1/quote?symbol=${sym}&token=${API_KEY}`); 
+  const j=await r.json(); 
+  if(!j || j.c===undefined) throw "Keine Kursdaten verfügbar"; 
+  return Number(j.c);
+}
+
+async function startLivePrice(symbol){ 
+  const currentDiv=document.getElementById("currentPrice"); 
+  async function updatePrice(){ 
+    try{
+      const usd=await fetchQuote(symbol);
+      const fx=await fetchUsdChf();
+      currentDiv.textContent=`Aktueller Kurs: ${(usd*fx).toFixed(2)} CHF`;
+    }catch(err){currentDiv.textContent=`Fehler: ${err}`;}
+  } 
+  await updatePrice(); 
+  if(liveInterval) clearInterval(liveInterval); 
+  liveInterval=setInterval(updatePrice,5000);
+}
+
+selectStock.addEventListener("change",e=>{
+  const sym=e.target.value; 
+  if(sym) startLivePrice(sym);
+});
 
 // --- Historische Daten ≥30 Tage ---
 async function fetchHistoricalData(symbol, period){
-    const now=Math.floor(Date.now()/1000);
-    const start=now - Math.max(period*2,100)*24*60*60;
-    try{
-        const r = await fetch(`https://finnhub.io/api/v1/stock/candle?symbol=${symbol}&resolution=D&from=${start}&to=${now}&token=${API_KEY}`);
-        const j = await r.json();
-        if(j.s !== "ok" || !j.c || j.c.length<30) throw "Keine ausreichende Historie";
-        return j.c.map(v=>Number(v));
-    }catch{
-        const usd = await fetchQuote(symbol);
-        const fx = await fetchUsdChf();
-        const priceChf = usd*fx;
-        return Array(Math.max(period,30)).fill(priceChf);
-    }
+  const now=Math.floor(Date.now()/1000);
+  const start=now - Math.max(period*2,30)*24*60*60;
+  try{
+    const r = await fetch(`https://finnhub.io/api/v1/stock/candle?symbol=${symbol}&resolution=D&from=${start}&to=${now}&token=${API_KEY}`);
+    const j = await r.json();
+    if(j.s !== "ok" || !j.c || j.c.length<30) throw "Keine ausreichende Historie";
+    return j.c.map(v=>Number(v));
+  }catch{
+    const usd = await fetchQuote(symbol);
+    const fx = await fetchUsdChf();
+    const priceChf = usd*fx;
+    return Array(Math.max(period,30)).fill(priceChf);
+  }
 }
-
-// --- KI Prognosen (LSTM) ---
+</script>
+<script>
+// --- KI-Prognose mit Variation ---
 async function predictModelVaried(data, basePeriod, label, kiIndex){
     const loaderText=document.getElementById("progressText");
     const progressBar=document.getElementById("progressBar");
+
     const period = basePeriod + kiIndex*2;
     const noisyData = data.map(v => v*(1 + (Math.random()-0.5)/100));
-    const min=Math.min(...noisyData), max=Math.max(...noisyData);
+
+    const min=Math.min(...noisyData);
+    const max=Math.max(...noisyData);
     const norm=noisyData.map(v=>(v-min)/(max-min||1));
+
     let X=[],Y=[];
-    for(let i=0;i<norm.length-period;i++){ X.push(norm.slice(i,i+period).map(v=>[v])); Y.push([norm[i+period]]);}
+    for(let i=0;i<norm.length-period;i++){
+        X.push(norm.slice(i,i+period).map(v=>[v]));
+        Y.push([norm[i+period]]);
+    }
+
     if(X.length===0 || Y.length===0) return data[data.length-1];
-    const xs=tf.tensor3d(X); const ys=tf.tensor2d(Y);
-    const units = 12 + kiIndex*2; const model=tf.sequential();
+
+    const xs=tf.tensor3d(X);
+    const ys=tf.tensor2d(Y);
+
+    const units = 12 + kiIndex*2;
+    const model=tf.sequential();
     model.add(tf.layers.lstm({units, inputShape:[period,1]}));
     model.add(tf.layers.dense({units:1}));
     model.compile({optimizer:"adam",loss:"meanSquaredError"});
+
     const epochs=5;
-    await model.fit(xs,ys,{epochs,verbose:0,callbacks:{onEpochEnd:(epoch)=>{ const totalProgress=((kiIndex+(epoch+1)/epochs)/4)*100; progressBar.value=totalProgress; loaderText.textContent=`${label} – Epoch ${epoch+1}/${epochs} (${totalProgress.toFixed(1)}%)`;}}});
+    await model.fit(xs,ys,{epochs,verbose:0,callbacks:{
+        onEpochEnd:(epoch,logs)=>{
+            const totalProgress=((kiIndex+(epoch+1)/epochs)/4)*100;
+            progressBar.value=totalProgress;
+            loaderText.textContent=`${label} – Epoch ${epoch+1}/${epochs} (${totalProgress.toFixed(1)}%)`;
+        }
+    }});
+
     const p=model.predict(tf.tensor3d([X.at(-1)])).dataSync()[0];
     return p*(max-min)+min;
 }
 
-// --- Konfidenz ---
-function getConfidence(diff){return Math.abs(diff)>0.1?"Hoch":Math.abs(diff)>0.05?"Mittel":"Niedrig";}
+// --- Konfidenz bestimmen ---
+function getConfidence(diff){
+    return Math.abs(diff)>0.1?"Hoch":Math.abs(diff)>0.05?"Mittel":"Niedrig";
+}
 
-// --- Chart ---
+// --- Chart zeichnen ---
 function drawChartWithConfidence(data,prognosen){
     if(chart) chart.destroy();
     const avg=prognosen.reduce((a,b)=>a+b,0)/prognosen.length;
@@ -178,31 +219,69 @@ function drawChartWithConfidence(data,prognosen){
 // --- Analyse starten ---
 async function run(){
     const sel=document.getElementById("stock").value;
-    if(!sel){alert("Bitte Aktie auswählen!");return;}
+    if(!sel){alert("Bitte eine gültige Aktie auswählen!");return;}
+    
     document.getElementById("progressBar").value = 0;
     document.getElementById("progressText").textContent = "Berechnung startet...";
     document.getElementById("status").textContent="Analyse läuft…";
+
     try{
-        const usd=await fetchQuote(sel); const fx=await fetchUsdChf(); const priceChf=usd*fx;
+        const usd=await fetchQuote(sel);
+        const fx=await fetchUsdChf();
+        const priceChf=usd*fx;
         document.getElementById("currentPrice").textContent=`Aktueller Kurs: ${priceChf.toFixed(2)} CHF`;
+
         const basePeriod=parseInt(document.getElementById("timeRange").value);
         document.getElementById("period").textContent=`📅 KI-Prognose für +${basePeriod} Handelstage`;
+
         const hist=await fetchHistoricalData(sel, basePeriod*2);
-        const prognosen=[]; for(let i=0;i<4;i++){ try{ prognosen[i] = await predictModelVaried(hist, basePeriod, `KI${i+1}`, i);}catch(e){ prognosen[i] = priceChf;} }
+
+        const prognosen=[];
+        for(let i=0;i<4;i++){
+            try{
+                prognosen[i] = await predictModelVaried(hist, basePeriod, `KI${i+1}`, i);
+            }catch(e){
+                prognosen[i] = priceChf;
+            }
+        }
+
         drawChartWithConfidence(hist,prognosen);
-        let html=""; const now=new Date(); const timeStr=now.toLocaleString();
-        prognosen.forEach((p,i)=>{ const diff=(p-priceChf)/priceChf; const sig=diff>0.05?"KAUFEN":diff<-0.05?"VERKAUFEN":"HALTEN"; html+=`<tr><td>KI${i+1}</td><td>${p.toFixed(2)}</td><td class="${sig.toLowerCase()}">${sig}</td><td>${(diff*100).toFixed(1)}%</td><td class="conf">${getConfidence(diff)}</td><td>${timeStr}</td></tr>`; });
-        const avg=prognosen.reduce((a,b)=>a+b,0)/prognosen.length; const diff=(avg-priceChf)/priceChf; const sig=diff>0.05?"KAUFEN":diff<-0.05?"VERKAUFEN":"HALTEN";
+
+        let html="";
+        const now=new Date();
+        const timeStr=now.toLocaleString();
+        prognosen.forEach((p,i)=>{
+            const diff=(p-priceChf)/priceChf;
+            const sig=diff>0.05?"KAUFEN":diff<-0.05?"VERKAUFEN":"HALTEN";
+            html+=`<tr><td>KI${i+1}</td><td>${p.toFixed(2)}</td><td class="${sig.toLowerCase()}">${sig}</td><td>${(diff*100).toFixed(1)}%</td><td class="conf">${getConfidence(diff)}</td><td>${timeStr}</td></tr>`;
+        });
+
+        const avg=prognosen.reduce((a,b)=>a+b,0)/prognosen.length;
+        const diff=(avg-priceChf)/priceChf;
+        const sig=diff>0.05?"KAUFEN":diff<-0.05?"VERKAUFEN":"HALTEN";
         html+=`<tr><td>Durchschnitt</td><td>${avg.toFixed(2)}</td><td class="${sig.toLowerCase()}">${sig}</td><td>${(diff*100).toFixed(1)}%</td><td class="conf">${getConfidence(diff)}</td><td>${timeStr}</td></tr>`;
+
         document.getElementById("out").innerHTML=html;
         document.getElementById("status").textContent="Fertig";
-    }catch(err){document.getElementById("status").textContent="Fehler: "+err;}
+
+    }catch(err){
+        document.getElementById("status").textContent="Fehler: "+err;
+    }
 }
 
 // --- Kauf-Links ---
-function openYahoo(){window.open(`https://finance.yahoo.com/quote/${document.getElementById("stock").value}`,"_blank")}
-function openTradingView(){window.open(`https://www.tradingview.com/symbols/${document.getElementById("stock").value}/`,"_blank")}
-function openSwissquote(){window.open(`https://www.swissquote.ch/sqw-en/private/trading/instruments/search?query=${document.getElementById("stock").value}`,"_blank")}
+function openYahoo(){
+    const sym=document.getElementById("stock").value;
+    if(sym) window.open(`https://finance.yahoo.com/quote/${sym}`,"_blank");
+}
+function openTradingView(){
+    const sym=document.getElementById("stock").value;
+    if(sym) window.open(`https://www.tradingview.com/symbols/${sym}/`,"_blank");
+}
+function openSwissquote(){
+    const sym=document.getElementById("stock").value;
+    if(sym) window.open(`https://www.swissquote.ch/sqw-en/private/trading/instruments/search?query=${sym}`,"_blank");
+}
 </script>
 </body>
 </html>
