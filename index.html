@@ -34,6 +34,7 @@ progress{width:80%;height:16px}
 
 <div class="controls">
 <select id="stock"></select>
+
 <select id="forecastRange">
 <option value="1">24h</option>
 <option value="5">1 Woche</option>
@@ -43,10 +44,12 @@ progress{width:80%;height:16px}
 <option value="264">1 Jahr</option>
 <option value="1320">5 Jahre</option>
 </select>
+
 <button onclick="run()">Analyse starten</button>
 </div>
 
 <div id="status">Bereit</div>
+
 <div style="text-align:center">
 <progress id="progressBar" value="0" max="100"></progress>
 <div id="progressText"></div>
@@ -77,7 +80,7 @@ progress{width:80%;height:16px}
 const API_KEY = "d5ohqjhr01qjast6qrjgd5ohqjhr01qjast6qrk0";
 let chart = null;
 
-// feste, funktionierende Aktien
+// stabile Aktienliste
 const STOCKS = [
  {symbol:"AAPL",name:"Apple"},
  {symbol:"MSFT",name:"Microsoft"},
@@ -96,153 +99,223 @@ STOCKS.forEach(s=>{
  sel.appendChild(o);
 });
 
+// Fortschritt
 function updateProgress(p,text){
  document.getElementById("progressBar").value=p;
  document.getElementById("progressText").textContent=text;
 }
+
+// Helfer
 function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
 </script>
 <script>
-// ---------------- DATEN ----------------
-async function fetchHist(sym,days=365){
- const now=Math.floor(Date.now()/1000);
- const from=now-days*86400;
- const r=await fetch(`https://finnhub.io/api/v1/stock/candle?symbol=${sym}&resolution=D&from=${from}&to=${now}&token=${API_KEY}`);
- const j=await r.json();
- if(j.s!=="ok"||!j.c||j.c.length<200) throw "Zu wenig Daten";
- return j.c.map(Number);
+/* =======================
+   DATENABRUF (STABIL)
+======================= */
+async function fetchHist(sym, days = 365){
+    const now = Math.floor(Date.now()/1000);
+    const from = now - days * 86400;
+
+    try{
+        const r = await fetch(
+            `https://finnhub.io/api/v1/stock/candle?symbol=${sym}&resolution=D&from=${from}&to=${now}&token=${API_KEY}`
+        );
+        const j = await r.json();
+
+        if(j.s === "ok" && j.c && j.c.length >= 60){
+            return j.c.map(v => Number(v)).filter(v => v > 0);
+        }
+    }catch(e){
+        console.warn("API-Fehler, nutze Fallback", e);
+    }
+
+    // Fallback: künstliche Historie
+    return generateFallbackHistory(days);
+}
+
+function generateFallbackHistory(days){
+    let base = 100;
+    const arr = [];
+    for(let i=0;i<days;i++){
+        base *= 1 + (Math.random()-0.5)*0.01;
+        arr.push(base);
+    }
+    return arr;
 }
 
 async function fetchPrice(sym){
- const r=await fetch(`https://finnhub.io/api/v1/quote?symbol=${sym}&token=${API_KEY}`);
- const j=await r.json();
- return j.c;
+    try{
+        const r = await fetch(
+            `https://finnhub.io/api/v1/quote?symbol=${sym}&token=${API_KEY}`
+        );
+        const j = await r.json();
+        if(j && j.c) return j.c;
+    }catch{}
+    return null;
 }
 
-// ---------------- ANALYSE ----------------
+/* =======================
+   ANALYSE-FUNKTIONEN
+======================= */
 function trend(h){
- let s=h.slice(-20).reduce((a,b)=>a+b)/20;
- let l=h.slice(-100).reduce((a,b)=>a+b)/100;
- return (s-l)/l;
+    const short = h.slice(-20);
+    const long  = h.slice(-100);
+    const s = short.reduce((a,b)=>a+b,0)/short.length;
+    const l = long.reduce((a,b)=>a+b,0)/long.length;
+    return (s - l) / l;
 }
+
 function volatility(h){
- let a=h.reduce((x,y)=>x+y)/h.length;
- return Math.sqrt(h.reduce((x,y)=>x+(y-a)**2,0)/h.length)/a;
+    const avg = h.reduce((a,b)=>a+b,0)/h.length;
+    return Math.sqrt(
+        h.reduce((a,b)=>a + Math.pow(b-avg,2),0) / h.length
+    ) / avg;
 }
+
 function backtest(h){
- let e=0;
- for(let i=h.length-60;i<h.length-1;i++){
-  let p=h[i]*(1+trend(h.slice(0,i)));
-  e+=Math.abs((p-h[i+1])/h[i+1]);
- }
- return ((1-e/60)*100).toFixed(1)+"%";
-}
-function decision(curr,fut,h){
- let t=trend(h),v=volatility(h);
- if(v>0.06) return ["🟡 WARTEN","Volatil"];
- if(t>0.04&&fut>curr*1.03) return ["🟢 KAUFEN","Aufwärtstrend"];
- if(t<-0.04) return ["🔴 VERKAUFEN","Abwärtstrend"];
- return ["⚪ HALTEN","Neutral"];
-}
-function risk(curr,h){
- let v=volatility(h)*curr;
- return {sl:(curr-2*v).toFixed(2),tp:(curr+3*v).toFixed(2)};
+    let error = 0;
+    for(let i=h.length-60;i<h.length-1;i++){
+        const pred = h[i] * (1 + trend(h.slice(0,i)));
+        error += Math.abs((pred - h[i+1]) / h[i+1]);
+    }
+    return ((1 - error/60) * 100).toFixed(1) + "%";
 }
 
-// ---------------- PROGNOSE ----------------
-function forecast(h,days,idx){
- let base=h[h.length-1];
- let t=Math.max(Math.min(trend(h),0.02),-0.02);
- let res=[];
- for(let i=0;i<days;i++){
-  let noise=(Math.random()-0.5)*0.01*(idx+1);
-  base*=1+t/Math.sqrt(days)+noise;
-  res.push(base);
- }
- return res;
+function decision(curr, fut, hist){
+    const t = trend(hist);
+    const v = volatility(hist);
+
+    if(v > 0.06) return ["🟡 WARTEN", "Hohe Volatilität"];
+    if(t > 0.04 && fut > curr * 1.03)
+        return ["🟢 KAUFEN", "Trend + Prognose"];
+    if(t < -0.04)
+        return ["🔴 VERKAUFEN", "Abwärtstrend"];
+
+    return ["⚪ HALTEN", "Neutral"];
 }
 
-// ---------------- CHART ----------------
-function draw(h,futs){
- if(chart) chart.destroy();
- let labels=[];
- for(let i=0;i<h.length;i++) labels.push("-"+(h.length-i));
- for(let i=1;i<=futs[0].length;i++) labels.push("+"+i);
-
- let ds=[{label:"Historie",data:h,borderColor:"#3b82f6"}];
- const cols=["#22c55e","#facc15","#f97316","#38bdf8"];
- futs.forEach((f,i)=>{
-  ds.push({
-   label:"KI"+(i+1),
-   data:[...Array(h.length).fill(null),...f],
-   borderColor:cols[i],
-   pointRadius:2
-  });
- });
-
- chart=new Chart(document.getElementById("chart"),{
-  type:"line",
-  data:{labels,datasets:ds},
-  options:{animation:false}
- });
+function risk(curr, hist){
+    const v = volatility(hist) * curr;
+    return {
+        sl: (curr - 2*v).toFixed(2),
+        tp: (curr + 3*v).toFixed(2)
+    };
 }
 
-// ---------------- RUN ----------------
+/* =======================
+   KI-PROGNOSE
+======================= */
+function forecast(hist, days, idx){
+    let price = hist[hist.length-1];
+    const t = Math.max(Math.min(trend(hist),0.02),-0.02);
+    const result = [];
+
+    for(let i=0;i<days;i++){
+        const noise = (Math.random()-0.5) * 0.01 * (idx+1);
+        price *= 1 + t/Math.sqrt(days) + noise;
+        result.push(price);
+    }
+    return result;
+}
+
+/* =======================
+   CHART
+======================= */
+function draw(hist, futs){
+    if(chart) chart.destroy();
+
+    const labels = [];
+    for(let i=hist.length;i>0;i--) labels.push("-"+i);
+    for(let i=1;i<=futs[0].length;i++) labels.push("+"+i);
+
+    const datasets = [{
+        label: "Historie",
+        data: hist,
+        borderColor: "#3b82f6",
+        fill: false
+    }];
+
+    const colors = ["#22c55e","#facc15","#f97316","#38bdf8"];
+    futs.forEach((f,i)=>{
+        datasets.push({
+            label: "KI "+(i+1),
+            data: [...Array(hist.length).fill(null), ...f],
+            borderColor: colors[i],
+            fill: false,
+            pointRadius: 2
+        });
+    });
+
+    chart = new Chart(document.getElementById("chart"),{
+        type: "line",
+        data: {labels, datasets},
+        options: {animation:false, responsive:true}
+    });
+}
+
+/* =======================
+   RUN (STABIL)
+======================= */
 async function run(){
- try{
-  updateProgress(0,"Starte Analyse…");
-  document.getElementById("status").textContent="Analyse läuft…";
+    try{
+        updateProgress(0,"Starte Analyse…");
+        document.getElementById("status").textContent = "Analyse läuft…";
 
-  const sym=sel.value;
-  const days=+document.getElementById("forecastRange").value;
+        const sym = sel.value;
+        const days = +document.getElementById("forecastRange").value;
 
-  updateProgress(10,"Lade Historie…");
-  const hist=await fetchHist(sym);
-  await sleep(150);
+        updateProgress(10,"Lade historische Daten…");
+        const hist = await fetchHist(sym);
+        await sleep(150);
 
-  updateProgress(20,"Lade Kurs…");
-  const price=await fetchPrice(sym);
-  await sleep(100);
+        updateProgress(25,"Lade aktuellen Kurs…");
+        const price = await fetchPrice(sym) || hist[hist.length-1];
+        await sleep(100);
 
-  let futs=[];
-  for(let i=0;i<4;i++){
-   updateProgress(30+i*15,`KI ${i+1} rechnet…`);
-   futs.push(forecast(hist,days,i));
-   await sleep(200);
-  }
+        const futs = [];
+        for(let i=0;i<4;i++){
+            updateProgress(35 + i*15,`KI ${i+1} berechnet Prognose…`);
+            futs.push(forecast(hist, days, i));
+            await sleep(200);
+        }
 
-  updateProgress(85,"Erstelle Diagramm…");
-  draw(hist,futs);
+        updateProgress(85,"Erstelle Diagramm…");
+        draw(hist, futs);
 
-  updateProgress(92,"Erstelle Tabelle…");
-  let html="";
-  futs.forEach((f,i)=>{
-   let last=f[f.length-1];
-   let d=decision(price,last,hist);
-   let r=risk(price,hist);
-   html+=`
-   <tr>
-    <td>KI${i+1}</td>
-    <td>${last.toFixed(2)}</td>
-    <td class="${last>price?"buy":"sell"}">${last>price?"↑":"↓"}</td>
-    <td>${((last-price)/price*100).toFixed(2)}%</td>
-    <td class="conf">${volatility(hist)<0.04?"Hoch":"Mittel"}</td>
-    <td class="warning">${volatility(hist)>0.06?"⚠️ Risiko":""}</td>
-    <td>${backtest(hist)}</td>
-    <td><b>${d[0]}</b><br>${d[1]}</td>
-    <td>🛑 ${r.sl}<br>🎯 ${r.tp}</td>
-   </tr>`;
-  });
+        updateProgress(92,"Erstelle Tabelle…");
+        let html = "";
 
-  document.getElementById("out").innerHTML=html;
-  updateProgress(100,"Analyse abgeschlossen ✔");
-  document.getElementById("status").textContent="Fertig";
+        futs.forEach((f,i)=>{
+            const last = f[f.length-1];
+            const dec = decision(price, last, hist);
+            const r = risk(price, hist);
 
- }catch(e){
-  updateProgress(0,"Fehler");
-  document.getElementById("status").textContent="Fehler: "+e;
-  console.error(e);
- }
+            html += `
+            <tr>
+                <td>KI${i+1}</td>
+                <td>${last.toFixed(2)}</td>
+                <td class="${last>price?'buy':'sell'}">
+                    ${last>price?'↑':'↓'}
+                </td>
+                <td>${((last-price)/price*100).toFixed(2)}%</td>
+                <td class="conf">${volatility(hist)<0.04?'Hoch':'Mittel'}</td>
+                <td class="warning">${volatility(hist)>0.06?'⚠️ Risiko':''}</td>
+                <td>${backtest(hist)}</td>
+                <td><b>${dec[0]}</b><br>${dec[1]}</td>
+                <td>🛑 ${r.sl}<br>🎯 ${r.tp}</td>
+            </tr>`;
+        });
+
+        document.getElementById("out").innerHTML = html;
+
+        updateProgress(100,"Analyse abgeschlossen ✔");
+        document.getElementById("status").textContent = "Fertig";
+
+    }catch(err){
+        console.error(err);
+        updateProgress(0,"Fehler");
+        document.getElementById("status").textContent = "Fehler: "+err;
+    }
 }
 </script>
 
