@@ -3,319 +3,227 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Multi-KI Aktien Prognose</title>
+<title>Multi-KI Aktienanalyse – Kauf & Verkauf</title>
+
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0/dist/tf.min.js"></script>
+
 <style>
-body{background:#0f172a;color:#e5e7eb;font-family:Arial,sans-serif;margin:0;padding:15px}
-h1{text-align:center;font-size:1.5rem}
-.subtitle{text-align:center;color:#94a3b8;font-size:0.9rem}
-.infoBox{text-align:center;margin:8px;font-size:0.9rem;font-weight:bold}
-.controls{display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin:12px 0}
-select,button{background:#020617;color:#e5e7eb;border:1px solid #22c55e;padding:8px 12px;border-radius:6px;font-size:0.85rem}
-button:hover{background:#22c55e;color:#020617;cursor:pointer}
-.status{text-align:center;margin:10px;font-weight:bold;font-size:0.9rem}
-canvas{max-width:100%;margin:18px auto;display:block;background:#020617;border-radius:10px}
-table{width:100%;border-collapse:collapse;margin-top:10px;font-size:0.85rem}
+body{background:#0f172a;color:#e5e7eb;font-family:Arial;margin:0;padding:15px}
+h1{text-align:center}
+.subtitle{text-align:center;color:#94a3b8}
+.controls{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin:12px 0}
+select,button{background:#020617;color:#e5e7eb;border:1px solid #22c55e;padding:8px 12px;border-radius:6px}
+button:hover{background:#22c55e;color:#020617}
+canvas{background:#020617;border-radius:10px;margin-top:15px}
+table{width:100%;border-collapse:collapse;margin-top:15px;font-size:0.85rem}
 th,td{border:1px solid #22c55e;padding:6px;text-align:center}
 .buy{color:#22c55e;font-weight:bold}
 .sell{color:#ef4444;font-weight:bold}
 .hold{color:#facc15;font-weight:bold}
-.conf{color:#38bdf8;font-weight:bold}
 .warning{color:#f87171;font-weight:bold}
-.footer{text-align:center;margin-top:14px;font-size:0.7rem;color:#94a3b8}
-.loader{margin-top:6px;font-size:0.85rem;color:#a8dadc}
-progress{border-radius:5px}
+.conf{color:#38bdf8;font-weight:bold}
+.footer{text-align:center;color:#94a3b8;font-size:0.75rem;margin-top:12px}
+progress{width:80%;height:16px}
 </style>
 </head>
+
 <body>
 
-<h1>Multi-KI Aktien Prognose</h1>
-<div class="subtitle">Historische Daten & Zukunftsprognosen</div>
-<div class="infoBox" id="currentPrice">Aktueller Kurs: –</div>
-<div class="period" id="period">Zeitraum: –</div>
+<h1>Multi-KI Aktienanalyse</h1>
+<div class="subtitle">Kauf- & Verkaufszeitpunkte aus echten Daten</div>
 
 <div class="controls">
-  <select id="stock"></select>
-  <select id="forecastRange">
-    <option value="1">24 Stunden</option>
-    <option value="5">1 Woche</option>
-    <option value="22">1 Monat</option>
-    <option value="66">3 Monate</option>
-    <option value="132">6 Monate</option>
-    <option value="264">1 Jahr</option>
-    <option value="1320">5 Jahre</option>
-  </select>
-  <button onclick="run()">Prognose starten</button>
-  <button onclick="openYahoo()">Yahoo</button>
-  <button onclick="openTradingView()">TradingView</button>
-  <button onclick="openSwissquote()">Swissquote</button>
+<select id="stock"></select>
+<select id="forecastRange">
+<option value="1">24h</option>
+<option value="5">1 Woche</option>
+<option value="22">1 Monat</option>
+<option value="66">3 Monate</option>
+<option value="132">6 Monate</option>
+<option value="264">1 Jahr</option>
+<option value="1320">5 Jahre</option>
+</select>
+<button onclick="run()">Analyse starten</button>
 </div>
 
-<div class="status" id="status">Bereit</div>
-<div class="loader" id="loader">–</div>
-<div style="text-align:center;margin-bottom:10px;">
-  <progress id="progressBar" value="0" max="100" style="width:80%;height:18px;"></progress>
-  <div id="progressText">Warte auf Berechnung…</div>
+<div id="status">Bereit</div>
+<div style="text-align:center">
+<progress id="progressBar" value="0" max="100"></progress>
+<div id="progressText"></div>
 </div>
 
-<canvas id="chart" height="280"></canvas>
+<canvas id="chart" height="260"></canvas>
 
 <table>
 <thead>
-<tr><th>KI-Modell</th><th>Prognose (CHF)</th><th>Signal</th><th>Δ</th><th>Konfidenz</th><th>Warnung</th><th>Genauigkeit</th><th>Datum/Uhrzeit</th></tr>
+<tr>
+<th>KI</th>
+<th>Prognose</th>
+<th>Signal</th>
+<th>Δ</th>
+<th>Konfidenz</th>
+<th>Warnung</th>
+<th>Genauigkeit</th>
+<th>Aktion jetzt</th>
+<th>Stop / Ziel</th>
+</tr>
 </thead>
 <tbody id="out"></tbody>
 </table>
 
-<div class="footer">@ Lern-Tool – keine Anlageberatung</div>
+<div class="footer">⚠️ Lern- & Analyse-Tool – keine Anlageberatung</div>
 
 <script>
 const API_KEY="d5ohqjhr01qjast6qrjgd5ohqjhr01qjast6qrk0";
 let chart=null;
-let liveInterval=null;
 
-// --- Aktienliste ---
-const POSSIBLE_STOCKS=[
-  {symbol:"AAPL",name:"Apple Inc."},
-  {symbol:"MSFT",name:"Microsoft Corp."},
-  {symbol:"NVDA",name:"NVIDIA Corp."},
-  {symbol:"AMZN",name:"Amazon.com Inc."},
-  {symbol:"GOOGL",name:"Alphabet Inc."},
-  {symbol:"TSLA",name:"Tesla Inc."},
-  {symbol:"META",name:"Meta Platforms"},
-  {symbol:"ROG.SW",name:"Roche Holding AG"},
-  {symbol:"NESN.SW",name:"Nestlé AG"},
-  {symbol:"SAP.DE",name:"SAP SE"},
-  {symbol:"ORCL",name:"Oracle Corp."},
-  {symbol:"CSCO",name:"Cisco Systems"}
+// ---------------- Aktienliste ----------------
+const STOCKS=[
+{symbol:"AAPL",name:"Apple"},
+{symbol:"MSFT",name:"Microsoft"},
+{symbol:"NVDA",name:"NVIDIA"},
+{symbol:"AMZN",name:"Amazon"},
+{symbol:"GOOGL",name:"Alphabet"},
+{symbol:"TSLA",name:"Tesla"},
+{symbol:"META",name:"Meta"}
 ];
-
-const selectStock=document.getElementById("stock");
-POSSIBLE_STOCKS.forEach(stock=>{
-    const o=document.createElement("option");
-    o.value=stock.symbol;
-    o.textContent=`${stock.name} (${stock.symbol})`;
-    selectStock.appendChild(o);
+const stockSel=document.getElementById("stock");
+STOCKS.forEach(s=>{
+let o=document.createElement("option");
+o.value=s.symbol;
+o.textContent=s.name+" ("+s.symbol+")";
+stockSel.appendChild(o);
 });
 
-// --- Live-Kurs abrufen ---
-async function fetchUsdChf(){ 
-    try{
-        const r=await fetch("https://api.exchangerate.host/latest?base=USD&symbols=CHF");
-        const j=await r.json();
-        return Number(j?.rates?.CHF)||0.93;
-    }catch{return 0.93;}
+// ---------------- Daten ----------------
+async function fetchHist(sym,days=365){
+const now=Math.floor(Date.now()/1000);
+const from=now-days*86400;
+const r=await fetch(`https://finnhub.io/api/v1/stock/candle?symbol=${sym}&resolution=D&from=${from}&to=${now}&token=${API_KEY}`);
+const j=await r.json();
+if(j.s!=="ok") throw "Keine Daten";
+return j.c.map(Number);
 }
 
-async function fetchQuote(sym){
-    const r=await fetch(`https://finnhub.io/api/v1/quote?symbol=${sym}&token=${API_KEY}`);
-    const j=await r.json();
-    if(!j || j.c===undefined) throw "Keine Kursdaten verfügbar";
-    return Number(j.c);
+async function fetchPrice(sym){
+const r=await fetch(`https://finnhub.io/api/v1/quote?symbol=${sym}&token=${API_KEY}`);
+const j=await r.json();
+return j.c;
 }
 
-async function startLivePrice(symbol){
-    const currentDiv=document.getElementById("currentPrice");
-    async function updatePrice(){
-        try{
-            const usd=await fetchQuote(symbol);
-            const fx=await fetchUsdChf();
-            currentDiv.textContent=`Aktueller Kurs: ${(usd*fx).toFixed(2)} CHF`;
-        }catch(err){currentDiv.textContent=`Fehler beim Abrufen: ${err}`;}
-    }
-    await updatePrice();
-    if(liveInterval) clearInterval(liveInterval);
-    liveInterval=setInterval(updatePrice,5000);
+// ---------------- Analyse-Logik ----------------
+function trend(hist){
+let a=hist.slice(-20).reduce((x,y)=>x+y)/20;
+let b=hist.slice(-100).reduce((x,y)=>x+y)/100;
+return (a-b)/b;
 }
 
-selectStock.addEventListener("change",e=>{
-    const sym=e.target.value;
-    if(sym) startLivePrice(sym);
+function volatility(hist){
+let avg=hist.reduce((a,b)=>a+b)/hist.length;
+return Math.sqrt(hist.reduce((a,b)=>a+(b-avg)**2,0)/hist.length)/avg;
+}
+
+function backtest(hist){
+let err=0;
+for(let i=hist.length-50;i<hist.length-1;i++){
+let pred=hist[i]*(1+trend(hist.slice(0,i)));
+err+=Math.abs((pred-hist[i+1])/hist[i+1]);
+}
+return ((1-err/50)*100).toFixed(1)+"%";
+}
+
+function decision(curr,fut,hist){
+let t=trend(hist), v=volatility(hist);
+if(t>0.05 && fut>curr && v<0.03) return ["🟢 KAUFEN","Jetzt"];
+if(t<-0.04) return ["🔴 VERKAUFEN","Jetzt"];
+if(v>0.05) return ["🟡 WARTEN","Hohe Schwankung"];
+return ["⚪ HALTEN","Kein Signal"];
+}
+
+function risk(curr,hist){
+let v=volatility(hist)*curr;
+return {
+sl:(curr-2*v).toFixed(2),
+tp:(curr+3*v).toFixed(2)
+};
+}
+
+// ---------------- Prognose ----------------
+function forecast(hist,days,idx){
+let t=trend(hist)*(1+idx*0.2);
+let base=hist[hist.length-1];
+let res=[];
+for(let i=0;i<days;i++){
+base*=1+t/Math.sqrt(days);
+res.push(base);
+}
+return res;
+}
+
+// ---------------- Chart ----------------
+function draw(hist,futs){
+if(chart) chart.destroy();
+let labels=[];
+for(let i=0;i<hist.length;i++) labels.push("-"+(hist.length-i));
+for(let i=1;i<=futs[0].length;i++) labels.push("+"+i);
+
+let ds=[{label:"Historie",data:hist,borderColor:"#3b82f6"}];
+const cols=["#22c55e","#facc15","#f97316","#38bdf8"];
+futs.forEach((f,i)=>{
+ds.push({
+label:"KI"+(i+1),
+data:[...Array(hist.length).fill(null),...f],
+borderColor:cols[i],
+pointRadius:2
 });
-</script>
-<script>
-// --- Historische Daten abrufen (365 Tage) ---
-async function fetchHistoricalData(symbol, days=365){
-    const now=Math.floor(Date.now()/1000);
-    const start=now - days*24*60*60;
-    try{
-        const r=await fetch(`https://finnhub.io/api/v1/stock/candle?symbol=${symbol}&resolution=D&from=${start}&to=${now}&token=${API_KEY}`);
-        const j=await r.json();
-        if(j.s!=="ok" || !j.c || j.c.length===0) throw "Keine historischen Daten verfügbar";
-        return j.c.map(v=>Number(v));
-    }catch{
-        const usd=await fetchQuote(symbol);
-        const fx=await fetchUsdChf();
-        return Array(days).fill(usd*fx);
-    }
+});
+
+chart=new Chart(document.getElementById("chart"),{
+type:"line",
+data:{labels,datasets:ds},
+options:{animation:false}
+});
 }
 
-// --- KI-Prognose: realistisch & unterschiedlich ---
-async function predictFuture(data, steps, kiIndex){
-    const min=Math.min(...data);
-    const max=Math.max(...data);
-    const norm=data.map(v=>(v-min)/(max-min||1));
-
-    const period=Math.min(60,norm.length);
-    let X=[],Y=[];
-    for(let i=0;i<norm.length-period;i++){
-        X.push(norm.slice(i,i+period).map(v=>[v]));
-        Y.push([norm[i+period]]);
-    }
-    if(X.length===0) return Array(steps).fill(data[data.length-1]);
-
-    const xs=tf.tensor3d(X);
-    const ys=tf.tensor2d(Y);
-
-    const units=20 + kiIndex*5;
-    const model=tf.sequential();
-    model.add(tf.layers.lstm({units,inputShape:[period,1]}));
-    model.add(tf.layers.dense({units:1}));
-    model.compile({optimizer:"adam",loss:"meanSquaredError"});
-
-    await model.fit(xs,ys,{epochs:5,verbose:0});
-
-    let lastWindow=norm.slice(-period).map(v=>[v]);
-    const future=[];
-    for(let i=0;i<steps;i++){
-        const p=model.predict(tf.tensor3d([lastWindow])).dataSync()[0];
-        const variation = (Math.random()-0.5)/50; // kleine Schwankung einfügen
-        future.push(p*(max-min)+min + variation*(max-min));
-        lastWindow.shift();
-        lastWindow.push([p]);
-    }
-    return future;
-}
-
-// --- Signal & Ampel ---
-function getSignal(current,last){
-    const diff=(last-current)/current;
-    if(diff>0.05) return {sig:"KAUFEN",cls:"buy"};
-    if(diff<-0.05) return {sig:"VERKAUFEN",cls:"sell"};
-    return {sig:"HALTEN",cls:"hold"};
-}
-
-// --- Warnung anhand starker Schwankungen ---
-function getWarning(future){
-    const max=Math.max(...future);
-    const min=Math.min(...future);
-    const diff=(max-min)/min;
-    if(diff>0.15) return "⚠️ Hohe Schwankung";
-    if(diff>0.08) return "⚠️ Mittel";
-    return "";
-}
-
-// --- Genauigkeit geschätzt ---
-function getAccuracy(future){
-    const max=Math.max(...future);
-    const min=Math.min(...future);
-    return (80 + Math.min(10,(1-(max-min)/min)*10)).toFixed(1)+"%";
-}
-
-// --- Peaks/Drops im Chart markieren ---
-function drawChart(hist,futures){
-    if(chart) chart.destroy();
-
-    const labels=[];
-    const totalLength = hist.length + futures[0].length;
-    for(let i=0;i<totalLength;i++){
-        labels.push(i<hist.length?`T-${hist.length-i}`:`T+${i-hist.length+1}`);
-    }
-
-    const datasets=[{label:"Historie", data:hist.map(v=>Number(v)), borderColor:"#3b82f6", fill:false}];
-    const colors=["#22c55e","#facc15","#f97316","#38bdf8"];
-
-    futures.forEach((fut,i)=>{
-        const safeFut=fut.map(v=>v!==undefined?v:null);
-        datasets.push({
-            label:`KI${i+1}`,
-            data:[...Array(hist.length).fill(null), ...safeFut],
-            borderColor:colors[i],
-            fill:false,
-            pointRadius:2
-        });
-    });
-
-    chart=new Chart(document.getElementById("chart"),{
-        type:'line',
-        data:{labels,datasets},
-        options:{responsive:true,plugins:{legend:{position:'top'}},animation:false}
-    });
-
-    // Peaks/Drops hinzufügen
-    futures.forEach((fut,i)=>{
-        const max=Math.max(...fut);
-        const min=Math.min(...fut);
-        const peakData = Array(hist.length).fill(null).concat(fut.map(v=>v===max?v:null));
-        const dropData = Array(hist.length).fill(null).concat(fut.map(v=>v===min?v:null));
-
-        chart.data.datasets.push({label:`KI${i+1} Peak`, data:peakData, borderColor:colors[i], pointStyle:'triangle', pointRadius:6, showLine:false});
-        chart.data.datasets.push({label:`KI${i+1} Drop`, data:dropData, borderColor:colors[i], pointStyle:'rectRot', pointRadius:6, showLine:false});
-    });
-
-    chart.update();
-}
-
-// --- Prognose starten ---
+// ---------------- RUN ----------------
 async function run(){
-    const sel=document.getElementById("stock").value;
-    if(!sel){alert("Bitte Aktie auswählen!");return;}
-    const steps=parseInt(document.getElementById("forecastRange").value);
+document.getElementById("status").textContent="Analyse läuft…";
+let sym=stockSel.value;
+let days=+document.getElementById("forecastRange").value;
+let hist=await fetchHist(sym);
+let price=await fetchPrice(sym);
 
-    document.getElementById("progressBar").value=0;
-    document.getElementById("progressText").textContent="Berechnung startet…";
-    document.getElementById("status").textContent="Analyse läuft…";
-
-    try{
-        const hist=await fetchHistoricalData(sel,365);
-        const usd=await fetchQuote(sel);
-        const fx=await fetchUsdChf();
-        const priceChf=usd*fx;
-        document.getElementById("currentPrice").textContent=`Aktueller Kurs: ${priceChf.toFixed(2)} CHF`;
-        document.getElementById("period").textContent=`Historische Daten: 365 Tage | Prognose: ${steps} Tage`;
-
-        const futures=[];
-        for(let i=0;i<4;i++){
-            document.getElementById("progressText").textContent=`KI${i+1} berechnet…`;
-            const fut=await predictFuture(hist,steps,i);
-            futures.push(fut);
-            document.getElementById("progressBar").value=((i+1)/4)*100;
-        }
-
-        drawChart(hist,futures);
-
-        let html="";
-        const now=new Date();
-        const timeStr=now.toLocaleString();
-        futures.forEach((fut,i)=>{
-            const last=fut[fut.length-1];
-            const {sig,cls}=getSignal(priceChf,last);
-            html+=`<tr>
-                <td>KI${i+1}</td>
-                <td>${last.toFixed(2)}</td>
-                <td class="${cls}">${sig}</td>
-                <td>${((last-priceChf)/priceChf*100).toFixed(1)}%</td>
-                <td class="conf">${getAccuracy(fut)}</td>
-                <td class="warning">${getWarning(fut)}</td>
-                <td>${getAccuracy(fut)}</td>
-                <td>${timeStr}</td>
-            </tr>`;
-        });
-        document.getElementById("out").innerHTML=html;
-        document.getElementById("status").textContent="Fertig!";
-        document.getElementById("progressText").textContent="Berechnung abgeschlossen";
-        document.getElementById("progressBar").value=100;
-    }catch(err){
-        document.getElementById("status").textContent="Fehler: "+err;
-    }
+let futs=[];
+for(let i=0;i<4;i++){
+document.getElementById("progressBar").value=(i+1)*25;
+futs.push(forecast(hist,days,i));
 }
 
-// --- Kauf-Links ---
-function openYahoo(){window.open(`https://finance.yahoo.com/quote/${document.getElementById("stock").value}`,"_blank")}
-function openTradingView(){window.open(`https://www.tradingview.com/symbols/${document.getElementById("stock").value}/`,"_blank")}
-function openSwissquote(){window.open(`https://www.swissquote.ch/sqw-en/private/trading/instruments/search?query=${document.getElementById("stock").value}`,"_blank")}
+draw(hist,futs);
+
+let html="";
+futs.forEach((f,i)=>{
+let last=f[f.length-1];
+let d=decision(price,last,hist);
+let r=risk(price,hist);
+html+=`
+<tr>
+<td>KI${i+1}</td>
+<td>${last.toFixed(2)}</td>
+<td>${last>price?"<span class='buy'>↑</span>":"<span class='sell'>↓</span>"}</td>
+<td>${((last-price)/price*100).toFixed(2)}%</td>
+<td class="conf">${volatility(hist)<0.03?"Hoch":"Mittel"}</td>
+<td class="warning">${volatility(hist)>0.05?"⚠️ Risiko":""}</td>
+<td>${backtest(hist)}</td>
+<td><b>${d[0]}</b><br>${d[1]}</td>
+<td>🛑 ${r.sl}<br>🎯 ${r.tp}</td>
+</tr>`;
+});
+document.getElementById("out").innerHTML=html;
+document.getElementById("status").textContent="Fertig";
+}
 </script>
+
 </body>
 </html>
-
