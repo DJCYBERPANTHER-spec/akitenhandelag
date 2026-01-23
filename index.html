@@ -2,146 +2,110 @@
 <html lang="de">
 <head>
 <meta charset="UTF-8">
-<title>KI Aktien Analyse – Finnhub</title>
+<title>KI Aktien Analyse – Lokal</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
-body{
-  background:#0f172a;
-  color:#e5e7eb;
-  font-family:Arial,sans-serif;
-  padding:20px;
-}
+body{background:#0f172a;color:#e5e7eb;font-family:Arial;padding:20px}
 h1{text-align:center}
 select,button{
-  padding:10px;
-  margin:6px;
-  background:#020617;
-  color:#fff;
-  border:1px solid #22c55e;
-  border-radius:6px;
+  padding:10px;margin:6px;
+  background:#020617;color:#fff;
+  border:1px solid #22c55e;border-radius:6px
 }
 button:hover{background:#22c55e;color:#000;cursor:pointer}
 #loader{text-align:center;color:#38bdf8;margin-top:10px}
-.card{
-  background:#020617;
-  padding:14px;
-  border-radius:8px;
-  margin-top:12px;
-}
-.good{color:#22c55e}
-.mid{color:#facc15}
-.bad{color:#ef4444}
+.card{background:#020617;padding:14px;border-radius:8px;margin-top:12px}
 canvas{margin-top:20px}
 </style>
 </head>
 
 <body>
 
-<h1>Aktien Analyse</h1>
-<p style="text-align:center">Echte Daten • Quant-Logik • Lern-Tool</p>
+<h1>🧠 KI Aktien Analyse (lokale Liste)</h1>
+<p style="text-align:center">Nur gespeicherte Aktien • echte Historie • Quant-Logik</p>
 
 <div style="text-align:center">
-  <select id="stock">
-    <option>Lade Aktien…</option>
-  </select><br>
-  <button onclick="loadStocks()">🔄 Neu laden</button>
-  <button onclick="runAnalysis()">📊 Analyse starten</button>
+  <select id="stock"></select><br>
+  <button onclick="loadStocks()">🔄 Neu prüfen</button>
+  <button onclick="runAnalysis()">📊 Analyse</button>
 </div>
 
 <div id="loader">–</div>
 <div id="result" class="card" style="display:none"></div>
-
 <canvas id="chart" height="260"></canvas>
 
 <script>
-/* ============================
-   API
-============================ */
+/* ================= API ================= */
 const API_KEY = "d5ohqjhr01qjast6qrjgd5ohqjhr01qjast6qrk0";
 
-/* ============================
-   Aktien Pool (stabil)
-============================ */
-const STOCK_POOL = [
-"AAPL","MSFT","GOOGL","AMZN","META","NVDA","TSLA","JPM",
-"V","MA","KO","PEP","WMT","DIS","INTC","ORCL","CSCO",
-"IBM","ADBE","NFLX"
+/* ================= FESTE AKTIEN ================= */
+const STOCKS = [
+ {symbol:"AAPL",name:"Apple"},
+ {symbol:"MSFT",name:"Microsoft"},
+ {symbol:"GOOGL",name:"Alphabet"},
+ {symbol:"AMZN",name:"Amazon"},
+ {symbol:"META",name:"Meta"},
+ {symbol:"NVDA",name:"NVIDIA"},
+ {symbol:"TSLA",name:"Tesla"},
+ {symbol:"JPM",name:"JPMorgan"},
+ {symbol:"V",name:"Visa"},
+ {symbol:"MA",name:"Mastercard"},
+ {symbol:"KO",name:"Coca-Cola"},
+ {symbol:"PEP",name:"Pepsi"},
+ {symbol:"WMT",name:"Walmart"},
+ {symbol:"DIS",name:"Disney"},
+ {symbol:"INTC",name:"Intel"},
+ {symbol:"ORCL",name:"Oracle"},
+ {symbol:"CSCO",name:"Cisco"},
+ {symbol:"IBM",name:"IBM"},
+ {symbol:"ADBE",name:"Adobe"},
+ {symbol:"NFLX",name:"Netflix"}
 ];
 
-/* ============================
-   DOM
-============================ */
-const selectStock = document.getElementById("stock");
-const loader = document.getElementById("loader");
-const resultBox = document.getElementById("result");
-let chart = null;
+/* ================= DOM ================= */
+const selectStock=document.getElementById("stock");
+const loader=document.getElementById("loader");
+const resultBox=document.getElementById("result");
+let chart=null;
 
-/* ============================
-   Utils
-============================ */
-const shuffle = a => a.sort(()=>Math.random()-0.5);
-
-/* ============================
-   Historische Daten ≥100 Tage
-============================ */
+/* ================= HISTORIE ================= */
 async function fetchHistory(symbol){
-  const now = Math.floor(Date.now()/1000);
-  const from = now - 160*86400;
-
-  const r = await fetch(
-    `https://finnhub.io/api/v1/stock/candle?symbol=${symbol}&resolution=D&from=${from}&to=${now}&token=${API_KEY}`
-  );
-  const j = await r.json();
-
+  const now=Math.floor(Date.now()/1000);
+  const from=now-160*86400;
+  const r=await fetch(`https://finnhub.io/api/v1/stock/candle?symbol=${symbol}&resolution=D&from=${from}&to=${now}&token=${API_KEY}`);
+  const j=await r.json();
   if(j.s==="ok" && j.c.length>=100) return j.c;
-  throw "Keine Historie";
+  throw "Keine Daten";
 }
 
-/* ============================
-   Aktien laden
-============================ */
+/* ================= AKTIEN LADEN ================= */
 async function loadStocks(){
-  selectStock.innerHTML="<option>Suche Aktien…</option>";
-  loader.textContent="🔍 Prüfe Finnhub Historie…";
+  selectStock.innerHTML="<option>Prüfe Aktien…</option>";
+  loader.textContent="🔍 Prüfe lokale Aktienliste…";
   selectStock.innerHTML="<option value=''>Aktie wählen</option>";
 
-  let found = 0;
-
-  for(const s of shuffle([...STOCK_POOL])){
-    loader.textContent=`Prüfe ${s}…`;
+  let found=0;
+  for(const s of STOCKS){
+    loader.textContent=`Prüfe ${s.symbol}…`;
     try{
-      await fetchHistory(s);
+      await fetchHistory(s.symbol);
       const o=document.createElement("option");
-      o.value=s;
-      o.textContent=s;
+      o.value=s.symbol;
+      o.textContent=`${s.name} (${s.symbol})`;
       selectStock.appendChild(o);
       found++;
-      if(found>=10) break;
     }catch{}
   }
-
-  loader.textContent = found
-    ? `✅ ${found} Aktien verfügbar`
-    : "❌ Keine Aktien gefunden (API-Limit?)";
+  loader.textContent=`✅ ${found} Aktien verfügbar`;
 }
 
-/* ============================
-   ECHTE KI / Quant-Analyse
-============================ */
+/* ================= KI-CHECK ================= */
 function aiCheck(prices){
   const mean=a=>a.reduce((x,y)=>x+y)/a.length;
-  const std=a=>{
-    const m=mean(a);
-    return Math.sqrt(mean(a.map(x=>(x-m)**2)));
-  };
-  const EMA=(a,p)=>{
-    const k=2/(p+1); let e=a[0];
-    for(let i=1;i<a.length;i++) e=a[i]*k+e*(1-k);
-    return e;
-  };
+  const std=a=>Math.sqrt(mean(a.map(x=>(x-mean(a))**2)));
+  const EMA=(a,p)=>{let k=2/(p+1),e=a[0];for(let i=1;i<a.length;i++)e=a[i]*k+e*(1-k);return e};
 
   const last=prices.at(-1);
   const perf30=(last-prices.at(-30))/prices.at(-30)*100;
@@ -159,69 +123,45 @@ function aiCheck(prices){
   if(vol>mean(prices)*0.07) score-=15;
 
   score=Math.max(0,Math.min(100,score));
-
-  const verdict =
-    score>=80?"🟢 Investierbar":
-    score>=60?"🟡 Beobachten":
-    score>=40?"🟠 Schwach":"🔴 Meiden";
-
-  return {score,verdict,perf30,perf90,vol};
+  const verdict=score>=80?"🟢 Investierbar":score>=60?"🟡 Beobachten":score>=40?"🟠 Schwach":"🔴 Meiden";
+  return{score,verdict,perf30,perf90,vol};
 }
 
-/* ============================
-   Analyse starten
-============================ */
+/* ================= ANALYSE ================= */
 async function runAnalysis(){
-  const sym = selectStock.value;
-  if(!sym) return alert("Bitte Aktie wählen");
+  const sym=selectStock.value;
+  if(!sym) return alert("Aktie wählen");
 
-  loader.textContent="📈 Analyse läuft…";
+  loader.textContent="📊 Analyse läuft…";
   resultBox.style.display="none";
 
-  try{
-    const prices = await fetchHistory(sym);
-    const ai = aiCheck(prices);
+  const prices=await fetchHistory(sym);
+  const ai=aiCheck(prices);
 
-    resultBox.innerHTML = `
-      <b>Aktie:</b> ${sym}<br>
-      <b>KI-Score:</b> ${ai.score}/100<br>
-      <b>Status:</b> ${ai.verdict}<br><br>
-      30T Performance: ${ai.perf30.toFixed(2)}%<br>
-      90T Performance: ${ai.perf90.toFixed(2)}%<br>
-      Risiko (Volatilität): ${ai.vol.toFixed(2)}
-    `;
-    resultBox.style.display="block";
-
-    drawChart(prices);
-    loader.textContent="✅ Analyse abgeschlossen";
-  }catch{
-    loader.textContent="❌ Analyse fehlgeschlagen";
-  }
+  resultBox.innerHTML=`
+    <b>${sym}</b><br>
+    KI-Score: ${ai.score}/100<br>
+    Status: ${ai.verdict}<br><br>
+    30T: ${ai.perf30.toFixed(2)}%<br>
+    90T: ${ai.perf90.toFixed(2)}%<br>
+    Risiko: ${ai.vol.toFixed(2)}
+  `;
+  resultBox.style.display="block";
+  drawChart(prices);
+  loader.textContent="✅ Fertig";
 }
 
-/* ============================
-   Chart
-============================ */
+/* ================= CHART ================= */
 function drawChart(data){
   if(chart) chart.destroy();
-  chart = new Chart(document.getElementById("chart"),{
+  chart=new Chart(document.getElementById("chart"),{
     type:"line",
-    data:{
-      labels:data.map((_,i)=>i),
-      datasets:[{
-        label:"Kurs",
-        data:data,
-        borderColor:"#38bdf8",
-        fill:false
-      }]
-    },
+    data:{labels:data.map((_,i)=>i),datasets:[{label:"Kurs",data,borderColor:"#38bdf8",fill:false}]},
     options:{responsive:true}
   });
 }
 
-/* ============================
-   Start
-============================ */
+/* ================= START ================= */
 loadStocks();
 </script>
 
