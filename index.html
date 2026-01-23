@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Multi-KI Aktien Analyse Live – Schnell</title>
+<title>Multi-KI Aktien Analyse Live – Dynamisch</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0/dist/tf.min.js"></script>
 <style>
@@ -22,6 +22,7 @@ th,td{border:1px solid #22c55e;padding:6px;text-align:center}
 .sell{color:#ef4444;font-weight:bold}
 .hold{color:#facc15;font-weight:bold}
 .conf{color:#38bdf8;font-weight:bold}
+.alert{color:#f43f5e;font-weight:bold}
 .footer{text-align:center;margin-top:14px;font-size:0.7rem;color:#94a3b8}
 .loader{margin-top:6px;font-size:0.85rem;color:#a8dadc}
 progress{border-radius:5px}
@@ -29,7 +30,7 @@ progress{border-radius:5px}
 </head>
 <body>
 
-<h1>Multi-KI Aktien Analyse – Schnell</h1>
+<h1>Multi-KI Aktien Analyse Live – Dynamisch</h1>
 <div class="subtitle">Live-Daten & KI-Prognosen (CHF)</div>
 <div class="infoBox" id="currentPrice">Aktueller Kurs: –</div>
 <div class="period" id="period">Zeitraum: –</div>
@@ -59,7 +60,7 @@ progress{border-radius:5px}
 
 <table>
 <thead>
-<tr><th>KI-Modell</th><th>Prognose (CHF)</th><th>Signal</th><th>Δ</th><th>Konfidenz</th><th>Datum/Uhrzeit</th></tr>
+<tr><th>KI-Modell</th><th>Prognose (CHF)</th><th>Signal</th><th>Δ</th><th>Konfidenz</th><th>Warnung</th><th>Datum/Uhrzeit</th></tr>
 </thead>
 <tbody id="out"></tbody>
 </table>
@@ -71,7 +72,7 @@ const API_KEY="d5ohqjhr01qjast6qrjgd5ohqjhr01qjast6qrk0";
 let chart=null;
 let liveInterval=null;
 
-// --- Vorgeprüfte Aktien mit mindestens 30 Tagen Historie ---
+// --- Vorgeprüfte Aktien mit 30+ Tagen Historie ---
 const VALID_STOCKS=[
   {symbol:"AAPL",name:"Apple Inc."},
   {symbol:"MSFT",name:"Microsoft Corp."},
@@ -137,8 +138,8 @@ selectStock.addEventListener("change",e=>{
 <script>
 // --- Historische Daten abrufen ---
 async function fetchHistoricalData(symbol, period){
-    const now=Math.floor(Date.now()/1000);
-    const start=now - period*24*60*60;
+    const now = Math.floor(Date.now()/1000);
+    const start = now - period*24*60*60;
     try{
         const r = await fetch(`https://finnhub.io/api/v1/stock/candle?symbol=${symbol}&resolution=D&from=${start}&to=${now}&token=${API_KEY}`);
         const j = await r.json();
@@ -152,7 +153,7 @@ async function fetchHistoricalData(symbol, period){
     }
 }
 
-// --- KI-Prognose mit Variation und Trendvorhersage ---
+// --- KI-Prognose mit stärkerer Vorhersage für massive Anstiege ---
 async function predictModelVaried(data, basePeriod, label, kiIndex){
     const loaderText=document.getElementById("progressText");
     const progressBar=document.getElementById("progressBar");
@@ -194,11 +195,11 @@ async function predictModelVaried(data, basePeriod, label, kiIndex){
     return p*(max-min)+min;
 }
 
-// --- Ampelsystem und Warnungen ---
+// --- Ampelsystem + Warnungen ---
 function getSignal(diff){
-    if(diff>0.08) return {sig:"KAUFEN",class:"buy",alert:"Massiver Anstieg möglich!"};
-    if(diff>0.05) return {sig:"KAUFEN",class:"buy",alert:"Steigender Trend"};
-    if(diff<-0.05) return {sig:"VERKAUFEN",class:"sell",alert:"Rückgang möglich"};
+    if(diff>0.1) return {sig:"KAUFEN",class:"buy",alert:"Massiver Anstieg wahrscheinlich!"};
+    if(diff>0.05) return {sig:"KAUFEN",class:"buy",alert:"Aufwärtstrend"};
+    if(diff<-0.05) return {sig:"VERKAUFEN",class:"sell",alert:"Abwärtstrend möglich"};
     return {sig:"HALTEN",class:"hold",alert:"Keine Auffälligkeit"};
 }
 
@@ -209,11 +210,11 @@ function getConfidence(diff){
 // --- Chart zeichnen ---
 function drawChartWithConfidence(data,prognosen){
     if(chart) chart.destroy();
-    const avg=prognosen.reduce((a,b)=>a+b,0)/prognosen.length;
-    chart=new Chart(document.getElementById("chart"),{
+    const avg = prognosen.reduce((a,b)=>a+b,0)/prognosen.length;
+    chart = new Chart(document.getElementById("chart"),{
         type:'line',
         data:{
-            labels:data.map((_,i)=>`T${i+1}`),
+            labels: data.map((_,i)=>`T${i+1}`),
             datasets:[
                 {label:"KI1",data:[...Array(data.length-1).fill(null), prognosen[0]], borderColor:"#22c55e",fill:false},
                 {label:"KI2",data:[...Array(data.length-1).fill(null), prognosen[1]], borderColor:"#3b82f6",fill:false},
@@ -226,25 +227,25 @@ function drawChartWithConfidence(data,prognosen){
     });
 }
 
-// --- Analyse starten ---
+// --- Analyse starten + dynamische Ampel/Warnungen ---
 async function run(){
-    const sel=document.getElementById("stock").value;
-    if(!sel){alert("Bitte eine gültige Aktie auswählen!");return;}
-    
+    const sel = document.getElementById("stock").value;
+    if(!sel){alert("Bitte eine gültige Aktie auswählen!"); return;}
+
     document.getElementById("progressBar").value = 0;
     document.getElementById("progressText").textContent = "Berechnung startet...";
-    document.getElementById("status").textContent="Analyse läuft…";
+    document.getElementById("status").textContent = "Analyse läuft…";
 
     try{
-        const usd=await fetchQuote(sel);
-        const fx=await fetchUsdChf();
-        const priceChf=usd*fx;
-        document.getElementById("currentPrice").textContent=`Aktueller Kurs: ${priceChf.toFixed(2)} CHF`;
+        const usd = await fetchQuote(sel);
+        const fx = await fetchUsdChf();
+        const priceChf = usd*fx;
+        document.getElementById("currentPrice").textContent = `Aktueller Kurs: ${priceChf.toFixed(2)} CHF`;
 
-        const basePeriod=parseInt(document.getElementById("timeRange").value);
-        document.getElementById("period").textContent=`📅 KI-Prognose für +${basePeriod} Handelstage`;
+        const basePeriod = parseInt(document.getElementById("timeRange").value);
+        document.getElementById("period").textContent = `📅 KI-Prognose für +${basePeriod} Handelstage`;
 
-        const hist=await fetchHistoricalData(sel, basePeriod*2);
+        const hist = await fetchHistoricalData(sel, basePeriod*2);
 
         const prognosen=[];
         for(let i=0;i<4;i++){
@@ -255,31 +256,49 @@ async function run(){
             }
         }
 
-        drawChartWithConfidence(hist,prognosen);
+        drawChartWithConfidence(hist, prognosen);
 
         let html="";
-        const now=new Date();
-        const timeStr=now.toLocaleString();
+        const now = new Date();
+        const timeStr = now.toLocaleString();
 
         prognosen.forEach((p,i)=>{
-            const diff=(p-priceChf)/priceChf;
-            const sigObj=getSignal(diff);
-            html+=`<tr><td>KI${i+1}</td><td>${p.toFixed(2)}</td><td class="${sigObj.class}">${sigObj.sig}</td><td>${(diff*100).toFixed(1)}%</td><td class="conf">${getConfidence(diff)}</td><td>${timeStr}</td></tr>`;
+            const diff = (p - priceChf)/priceChf;
+            const sigObj = getSignal(diff);
+            html += `<tr>
+                <td>KI${i+1}</td>
+                <td>${p.toFixed(2)}</td>
+                <td class="${sigObj.class}">${sigObj.sig}</td>
+                <td>${(diff*100).toFixed(1)}%</td>
+                <td class="conf">${getConfidence(diff)}</td>
+                <td class="alert">${sigObj.alert}</td>
+                <td>${timeStr}</td>
+            </tr>`;
         });
 
-        const avg=prognosen.reduce((a,b)=>a+b,0)/prognosen.length;
-        const diff=(avg-priceChf)/priceChf;
-        const sigObj=getSignal(diff);
-        html+=`<tr><td>Durchschnitt</td><td>${avg.toFixed(2)}</td><td class="${sigObj.class}">${sigObj.sig}</td><td>${(diff*100).toFixed(1)}%</td><td class="conf">${getConfidence(diff)}</td><td>${timeStr}</td></tr>`;
+        const avg = prognosen.reduce((a,b)=>a+b,0)/prognosen.length;
+        const diff = (avg - priceChf)/priceChf;
+        const sigObj = getSignal(diff);
+        html += `<tr>
+            <td>Durchschnitt</td>
+            <td>${avg.toFixed(2)}</td>
+            <td class="${sigObj.class}">${sigObj.sig}</td>
+            <td>${(diff*100).toFixed(1)}%</td>
+            <td class="conf">${getConfidence(diff)}</td>
+            <td class="alert">${sigObj.alert}</td>
+            <td>${timeStr}</td>
+        </tr>`;
 
-        document.getElementById("out").innerHTML=html;
+        document.getElementById("out").innerHTML = html;
 
-        // Warnung anzeigen, falls notwendig
+        // Dynamische Warnung
         if(sigObj.alert && sigObj.alert!=="Keine Auffälligkeit") alert(`Warnung: ${sigObj.alert}`);
 
-        document.getElementById("status").textContent="Fertig";
+        document.getElementById("status").textContent = "Fertig";
 
-    }catch(err){document.getElementById("status").textContent="Fehler: "+err;}
+    }catch(err){
+        document.getElementById("status").textContent = "Fehler: " + err;
+    }
 }
 
 // --- Kauf-Links ---
