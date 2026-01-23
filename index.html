@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Multi-KI Aktien & Krypto Analyse</title>
+<title>Multi-KI Aktien & Krypto Analyse – Auto-Prüfung</title>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
@@ -33,7 +33,7 @@ progress{width:80%;height:16px}
 
 <body>
 <h1>Multi-KI Analyse – Aktien & Krypto</h1>
-<div class="subtitle">Dropdown zeigt nur Assets mit verfügbarer Historie</div>
+<div class="subtitle">Dropdown wird automatisch gefüllt mit Assets, die 200 Tage Historie haben</div>
 
 <div class="controls">
 <select id="asset" size="8" style="min-width:250px"></select>
@@ -48,10 +48,10 @@ progress{width:80%;height:16px}
 <option value="1320">5 Jahre</option>
 </select>
 
-<button onclick="runSelected()">Analyse starten</button>
+<button id="runBtn" onclick="runSelected()" disabled>Analyse starten</button>
 </div>
 
-<div id="status">Bereit</div>
+<div id="status">Prüfe Assets…</div>
 <div id="currentPrice"></div>
 <div style="text-align:center">
 <button id="buyLink" onclick="window.open(getBuyLink(asset.value),'_blank')">Asset kaufen</button>
@@ -86,8 +86,12 @@ progress{width:80%;height:16px}
 <script>
 const API_KEY = "d5ohqjhr01qjast6qrjgd5ohqjhr01q";
 const sel = document.getElementById("asset");
+const runBtn = document.getElementById("runBtn");
 
-// Große US-Aktien (sicher bei Finnhub)
+/* =======================
+   Alle möglichen Assets
+======================= */
+// Große US-Aktien
 const STOCKS = [
 {symbol:"AAPL",name:"Apple"},
 {symbol:"MSFT",name:"Microsoft"},
@@ -110,19 +114,50 @@ const CRYPTOS = [
 {symbol:"BINANCE:SOLUSDT",name:"Solana (SOL/USD)"}
 ];
 
-// Dropdown füllen (erst Aktien, dann Krypto)
-[...STOCKS,...CRYPTOS].forEach(a=>{
-    const o = document.createElement("option");
-    o.value = a.symbol;
-    o.textContent = a.name;
-    sel.appendChild(o);
-});
+const ALL_ASSETS = [...STOCKS,...CRYPTOS];
 
+/* =======================
+   Dropdown nur für verfügbare Assets füllen
+======================= */
+async function checkAssets(){
+    const validAssets = [];
+    for(let i=0;i<ALL_ASSETS.length;i++){
+        const a = ALL_ASSETS[i];
+        updateProgress(Math.floor(i/ALL_ASSETS.length*100),`Prüfe ${a.name}… (${i+1}/${ALL_ASSETS.length})`);
+        try{
+            const hist = await fetchHist(a.symbol,200);
+            if(hist && hist.closes && hist.closes.length>0){
+                validAssets.push(a);
+            }
+        }catch{}
+        await sleep(500); // kurz warten, API-Limits vermeiden
+    }
+    // Dropdown füllen
+    validAssets.forEach(a=>{
+        const o = document.createElement("option");
+        o.value = a.symbol;
+        o.textContent = a.name;
+        sel.appendChild(o);
+    });
+    if(validAssets.length>0){
+        runBtn.disabled=false;
+        document.getElementById("status").textContent=`Prüfung abgeschlossen – ${validAssets.length} Assets verfügbar`;
+    } else document.getElementById("status").textContent=`Keine Assets verfügbar`;
+}
+
+/* =======================
+   Hilfsfunktionen
+======================= */
 function getBuyLink(sym){
     if(sym.startsWith("BINANCE:")) return `https://www.binance.com/en/trade/${sym.split(":")[1]}`;
     else return `https://www.tradingview.com/symbol/${sym}/`;
 }
 function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
+
+/* =======================
+   Lade Prüfung beim Start
+======================= */
+checkAssets();
 </script>
 <script>
 let chart = null;
@@ -147,19 +182,21 @@ async function fetchHist(sym, maxDays = 200) {
 }
 
 async function fetchPrice(sym){
-    let url = sym.startsWith("BINANCE:") 
-        ? `https://finnhub.io/api/v1/crypto/candle?symbol=${sym}&resolution=1&from=${Math.floor(Date.now()/1000)-60}&to=${Math.floor(Date.now()/1000)}&token=${API_KEY}`
-        : `https://finnhub.io/api/v1/quote?symbol=${sym}&token=${API_KEY}`;
-    const res = await fetch(url);
-    const data = await res.json();
     if(sym.startsWith("BINANCE:")){
+        const now = Math.floor(Date.now()/1000);
+        const res = await fetch(`https://finnhub.io/api/v1/crypto/candle?symbol=${sym}&resolution=1&from=${now-60}&to=${now}&token=${API_KEY}`);
+        const data = await res.json();
         if(data.c && data.c.length>0) return Number(data.c[data.c.length-1]);
-    } else if(data && data.c) return Number(data.c);
+    } else {
+        const res = await fetch(`https://finnhub.io/api/v1/quote?symbol=${sym}&token=${API_KEY}`);
+        const data = await res.json();
+        if(data && data.c) return Number(data.c);
+    }
     throw new Error("Aktueller Kurs nicht verfügbar");
 }
 
 /* =======================
-   KI-PROGNOSE & TREND
+   KI-PROGNOSE
 ======================= */
 function forecastKIs(hist, days, currentPrice){
     const futs=[];
@@ -335,4 +372,3 @@ function updateProgress(p,text){
 </script>
 </body>
 </html>
-
