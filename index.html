@@ -140,15 +140,8 @@ const STOCKS = [
   {symbol:"IQV", name:"IQVIA"}, {symbol:"SRE", name:"Sempra Energy"}, {symbol:"WMB", name:"Williams Companies"}, {symbol:"OXY", name:"Occidental Petroleum"},
   {symbol:"AMLX", name:"AmerisourceBergen"}
 ];
-
-// Optionen ins Select einfügen
-STOCKS.forEach(s => {
-    const o = document.createElement("option");
-    o.value = s.symbol;
-    o.textContent = `${s.name} (${s.symbol})`;
-    sel.appendChild(o);
-});
-sel.selectedIndex = 0;
+STOCKS.forEach(s=>{const o=document.createElement("option");o.value=s.symbol;o.textContent=`${s.name} (${s.symbol})`;sel.appendChild(o);});
+sel.selectedIndex=0;
 
 /* =======================
    HILFSFUNKTIONEN
@@ -161,52 +154,50 @@ function getBuyLink(sym){return `https://www.tradingview.com/symbols/${sym}/`;}
 /* =======================
    FINANZKRISEN & FRÜHWARNUNGEN
 ======================= */
-const financialCrises = [
-    {start: "2007-10-01", end: "2009-03-01", name: "Finanzkrise 2008"},
-    {start: "2010-04-01", end: "2012-06-30", name: "Euro-Schuldenkrise"},
-    {start: "2020-02-01", end: "2020-04-30", name: "COVID-19 Crash"},
-    {start: "2022-01-20", end: "2022-12-31", name: "Ukraine / Marktvolatilität"}
+const financialCrises=[
+{start:"2007-10-01",end:"2009-03-01",name:"Finanzkrise 2008"},
+{start:"2010-04-01",end:"2012-06-30",name:"Euro-Schuldenkrise"},
+{start:"2020-02-01",end:"2020-04-30",name:"COVID-19 Crash"},
+{start:"2022-01-20",end:"2022-12-31",name:"Ukraine / Marktvolatilität"}
 ];
-
-const crisisConditions = [
-    {name:"Finanzkrise 2008", maxVol:0.07, minTrend:-0.1, maxDailyDrop:-0.05},
-    {name:"Euro-Schuldenkrise", maxVol:0.06, minTrend:-0.08, maxDailyDrop:-0.04},
-    {name:"COVID-19 Crash", maxVol:0.08, minTrend:-0.12, maxDailyDrop:-0.07},
-    {name:"Ukraine / Marktvolatilität 2022", maxVol:0.06, minTrend:-0.08, maxDailyDrop:-0.05}
+const crisisConditions=[
+{name:"Finanzkrise 2008",maxVol:0.07,minTrend:-0.1,maxDailyDrop:-0.05},
+{name:"Euro-Schuldenkrise",maxVol:0.06,minTrend:-0.08,maxDailyDrop:-0.04},
+{name:"COVID-19 Crash",maxVol:0.08,minTrend:-0.12,maxDailyDrop:-0.07},
+{name:"Ukraine / Marktvolatilität 2022",maxVol:0.06,minTrend:-0.08,maxDailyDrop:-0.05}
 ];
 
 /* =======================
    HISTORIE + AKTUELLER KURS
 ======================= */
-async function fetchHist(sym, days=365){
-    const now = Math.floor(Date.now()/1000);
-    const from = now - days*86400;
+async function fetchHist(sym,days=365){
+    const now=Math.floor(Date.now()/1000);
+    const from=now-days*86400;
     try{
-        const res = await fetch(`https://finnhub.io/api/v1/stock/candle?symbol=${sym}&resolution=D&from=${from}&to=${now}&token=${API_KEY}`);
-        const data = await res.json();
-        if(data.s==="ok" && data.c && data.c.length>=60){
-            const dates = data.t.map(ts=>new Date(ts*1000).toISOString().split("T")[0]);
-            const closes = data.c.map(v=>Number(v));
-            return {dates, closes};
+        const res=await fetch(`https://finnhub.io/api/v1/stock/candle?symbol=${sym}&resolution=D&from=${from}&to=${now}&token=${API_KEY}`);
+        const data=await res.json();
+        if(data.s==="ok"&&data.c&&data.c.length>=60){
+            const dates=data.t.map(ts=>new Date(ts*1000).toISOString().split("T")[0]);
+            const closes=data.c.map(v=>Number(v));
+            return {dates,closes};
         }
     }catch(e){}
-    // Fallback: kleine Simulation
-    const arr=[], dates=[];
-    let base = 400;
+    const arr=[],dates=[];
+    let base=400;
     for(let i=0;i<days;i++){
-        base *= 1+0.002*Math.sin(i/5);
+        base*=1+0.002*Math.sin(i/5);
         arr.push(base);
-        const d = new Date(); d.setDate(d.getDate()-days+i);
+        const d=new Date(); d.setDate(d.getDate()-days+i);
         dates.push(d.toISOString().split("T")[0]);
     }
-    return {dates, closes:arr};
+    return {dates,closes:arr};
 }
 
 async function fetchPrice(sym){
     try{
-        const r = await fetch(`https://finnhub.io/api/v1/quote?symbol=${sym}&token=${API_KEY}`);
-        const j = await r.json();
-        if(j && j.c) return j.c;
+        const r=await fetch(`https://finnhub.io/api/v1/quote?symbol=${sym}&token=${API_KEY}`);
+        const j=await r.json();
+        if(j&&j.c) return j.c;
     }catch{}
     return null;
 }
@@ -253,7 +244,7 @@ function calcWarningForecast(dates,h,future=null){
 }
 
 /* =======================
-   ENTSCHEIDUNG / RISK
+   ENTSCHEIDUNG / STOP & ZIEL
 ======================= */
 function decision(curr,fut,h){
     const t=trend(h),v=volatility(h),bt=parseFloat(backtest(h))/100;
@@ -318,6 +309,7 @@ function startPriceInterval(){
 async function updateCurrentPrice(sym){
     const price=await fetchPrice(sym);
     if(price) document.getElementById("currentPrice").textContent=`Aktueller Kurs ${sym}: ${price.toFixed(2)} USD`;
+    return price;
 }
 
 /* =======================
@@ -336,8 +328,12 @@ async function run(){
         await sleep(150);
 
         updateProgress(25,"Lade aktuellen Kurs…");
-        const price=await fetchPrice(sym)||histObj.closes[histObj.closes.length-1];
-        await sleep(100);
+        // WARTE, BIS AKTUELLER KURS VORLIEGT
+        let price=null;
+        while(price===null){
+            price=await fetchPrice(sym);
+            if(price===null) await sleep(500);
+        }
 
         const futs=[];
         for(let i=0;i<4;i++){
