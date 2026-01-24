@@ -1,6 +1,6 @@
 const API_KEY = "d5ohqjhr01qjast6qrjgd5ohqjhr01qjast6qrk0";
 
-// --- Elemente ---
+// Elemente
 const assetSelect = document.getElementById("assetSelect");
 const periodSelect = document.getElementById("periodSelect");
 const analyseBtn = document.getElementById("analyseBtn");
@@ -17,7 +17,7 @@ const swissquoteBtn = document.getElementById("swissquoteBtn");
 
 let chart = null;
 
-// --- Assets (Aktien + Krypto) ---
+// --- Assets ---
 const ASSETS = [
     {symbol:"AAPL",name:"Apple Inc."},{symbol:"MSFT",name:"Microsoft Corp."},{symbol:"NVDA",name:"NVIDIA Corp."},
     {symbol:"AMZN",name:"Amazon.com Inc."},{symbol:"GOOGL",name:"Alphabet Inc."},{symbol:"TSLA",name:"Tesla Inc."},
@@ -25,12 +25,11 @@ const ASSETS = [
     {symbol:"BNB-USD",name:"Binance Coin"},{symbol:"SOL-USD",name:"Solana"},{symbol:"ADA-USD",name:"Cardano"}
 ];
 
-// --- Hilfsfunktionen ---
+// Hilfsfunktionen
 function updateProgress(val, text){
     progressBar.value = val;
     progressText.textContent = text;
 }
-
 function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
 
 // Live USD → CHF
@@ -44,34 +43,44 @@ async function fetchUsdChf(){
 
 // Live Kurs
 async function fetchQuote(sym){
-    let url = sym.includes("USD") 
-        ? `https://finnhub.io/api/v1/crypto/candle?symbol=${sym}&resolution=D&from=${Math.floor(Date.now()/1000)-60*24*60*60}&to=${Math.floor(Date.now()/1000)}&token=${API_KEY}`
-        : `https://finnhub.io/api/v1/quote?symbol=${sym}&token=${API_KEY}`;
     try{
-        const r = await fetch(url);
-        const j = await r.json();
-        if(sym.includes("USD") && j.s==="ok") return j.c.at(-1);
-        if(!sym.includes("USD") && j.c!==undefined) return j.c;
-    }catch{}
+        let url;
+        if(sym.includes("USD")){
+            const cryptoSym = sym.replace("-USD","USDT");
+            url = `https://finnhub.io/api/v1/crypto/candle?symbol=BINANCE:${cryptoSym}&resolution=D&from=${Math.floor(Date.now()/1000)-60*24*60*60}&to=${Math.floor(Date.now()/1000)}&token=${API_KEY}`;
+            const r = await fetch(url);
+            const j = await r.json();
+            if(j.s==="ok" && j.c?.length>0) return j.c.at(-1);
+        } else {
+            url = `https://finnhub.io/api/v1/quote?symbol=${sym}&token=${API_KEY}`;
+            const r = await fetch(url);
+            const j = await r.json();
+            if(j.c!==undefined) return j.c;
+        }
+    }catch{return null;}
     return null;
 }
 
-// Historische Daten
+// Historische Daten (Aktien + Krypto)
 async function fetchHistorical(sym, days){
     const now = Math.floor(Date.now()/1000);
     const start = now - days*24*60*60;
     try{
-        let url = sym.includes("USD")
-            ? `https://finnhub.io/api/v1/crypto/candle?symbol=${sym}&resolution=D&from=${start}&to=${now}&token=${API_KEY}`
-            : `https://finnhub.io/api/v1/stock/candle?symbol=${sym}&resolution=D&from=${start}&to=${now}&token=${API_KEY}`;
+        let url;
+        if(sym.includes("USD")){ 
+            const cryptoSym = sym.replace("-USD","USDT");
+            url = `https://finnhub.io/api/v1/crypto/candle?symbol=BINANCE:${cryptoSym}&resolution=D&from=${start}&to=${now}&token=${API_KEY}`;
+        } else {
+            url = `https://finnhub.io/api/v1/stock/candle?symbol=${sym}&resolution=D&from=${start}&to=${now}&token=${API_KEY}`;
+        }
         const r = await fetch(url);
         const j = await r.json();
         if(j.s==="ok" && j.c && j.c.length>0) return j.c.map(Number);
-    }catch{}
+    }catch(e){console.warn(`Fehler bei historischen Daten für ${sym}:`, e);}
     return [];
 }
 
-// --- LSTM Prognose ---
+// LSTM Prognose
 async function predictLSTM(data, period){
     const noisy = data.map(v => v*(1+(Math.random()-0.5)/100));
     const min = Math.min(...noisy), max = Math.max(...noisy);
@@ -93,12 +102,11 @@ async function predictLSTM(data, period){
     model.compile({optimizer:"adam",loss:"meanSquaredError"});
 
     await model.fit(xs,ys,{epochs:5,verbose:0});
-
     const p = model.predict(tf.tensor3d([X.at(-1)])).dataSync()[0];
     return p*(max-min)+min;
 }
 
-// --- Tabelle + Chart ---
+// Tabelle + Chart
 function getConfidence(diff){return Math.abs(diff)>0.1?"Hoch":Math.abs(diff)>0.05?"Mittel":"Niedrig";}
 
 function drawChart(hist, preds){
@@ -141,14 +149,14 @@ async function displayTable(hist, preds, fx){
     outTable.innerHTML = html;
 }
 
-// --- Kauf-Links ---
+// Kauf-Links
 function updateBuyLinks(sym){
     yahooBtn.onclick = ()=>window.open(`https://finance.yahoo.com/quote/${sym}`,"_blank");
     tradingViewBtn.onclick = ()=>window.open(`https://www.tradingview.com/symbols/${sym}/`,"_blank");
     swissquoteBtn.onclick = ()=>window.open(`https://www.swissquote.ch/sqw-en/private/trading/instruments/search?query=${sym}`,"_blank");
 }
 
-// --- Analyse starten ---
+// Analyse starten
 analyseBtn.addEventListener("click", async ()=>{
     const sym = assetSelect.value;
     if(!sym) {alert("Bitte ein Asset auswählen!"); return;}
@@ -161,7 +169,7 @@ analyseBtn.addEventListener("click", async ()=>{
     updateProgress(5,"USD → CHF geladen…");
 
     const hist = await fetchHistorical(sym, period*2);
-    if(hist.length===0){alert("Keine historischen Daten");return;}
+    if(hist.length===0){alert("Keine historischen Daten"); return;}
     updateProgress(20,"Historische Daten geladen…");
 
     const current = await fetchQuote(sym);
@@ -182,14 +190,14 @@ analyseBtn.addEventListener("click", async ()=>{
     statusDiv.textContent="Fertig";
 });
 
-// --- Assets beim Start laden ---
-async function initAssets(){
+// Assets beim Start laden
+function initAssets(){
     assetSelect.innerHTML="";
-    for(let a of ASSETS){
+    ASSETS.forEach(a=>{
         const option = document.createElement("option");
         option.value = a.symbol;
         option.textContent = `${a.name} (${a.symbol})`;
         assetSelect.appendChild(option);
-    }
+    });
 }
 initAssets();
