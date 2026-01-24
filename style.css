@@ -1,187 +1,200 @@
-/* style.css – Profi-Design für Multi-KI Analyse */
+/* =====================================================
+   style.css – Profi KI Aktien & Krypto Analyse
+   Dark Finance Dashboard
+===================================================== */
 
-body {
-  background: #0f172a;
-  color: #e5e7eb;
-  font-family: 'Segoe UI', Arial, sans-serif;
-  margin: 0;
-  padding: 15px;
-}
+:root{
+  --bg-main:#0f172a;
+  --bg-panel:#020617;
+  --border:#22c55e;
 
-h1 {
-  text-align: center;
-  font-size: 1.8rem;
-  margin-bottom: 4px;
-}
+  --text-main:#e5e7eb;
+  --text-muted:#94a3b8;
 
-.subtitle {
-  text-align: center;
-  color: #94a3b8;
-  font-size: 1rem;
-  margin-bottom: 15px;
+  --green:#22c55e;
+  --red:#ef4444;
+  --yellow:#facc15;
+  --blue:#38bdf8;
+  --orange:#f97316;
 }
 
-.infoBox {
-  text-align: center;
-  margin: 8px auto;
-  font-size: 1rem;
-  font-weight: bold;
-  padding: 6px 10px;
-  border-radius: 6px;
-  background: #020617;
-  width: fit-content;
+/* ===================== BASE ===================== */
+
+*{
+  box-sizing:border-box;
 }
 
-.controls {
-  display: flex;
-  justify-content: center;
-  gap: 10px;
-  flex-wrap: wrap;
-  margin: 15px 0;
+body{
+  margin:0;
+  padding:16px;
+  background:var(--bg-main);
+  color:var(--text-main);
+  font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;
 }
 
-select, button {
-  background: #020617;
-  color: #e5e7eb;
-  border: 1px solid #22c55e;
-  padding: 8px 14px;
-  border-radius: 6px;
-  font-size: 0.9rem;
-  transition: all 0.2s ease;
+/* ===================== HEADER ===================== */
+
+h1{
+  text-align:center;
+  margin:4px 0;
+  font-size:1.6rem;
 }
 
-button:hover, select:hover {
-  background: #22c55e;
-  color: #020617;
-  cursor: pointer;
+.subtitle{
+  text-align:center;
+  font-size:0.85rem;
+  color:var(--text-muted);
+  margin-bottom:12px;
 }
 
-.status {
-  text-align: center;
-  margin: 10px;
-  font-weight: bold;
-  font-size: 0.95rem;
+/* ===================== INFO BOX ===================== */
+
+.infoBox{
+  text-align:center;
+  background:var(--bg-panel);
+  border:1px solid var(--border);
+  border-radius:8px;
+  padding:8px;
+  margin:6px auto;
+  width:fit-content;
+  min-width:220px;
+  font-size:0.9rem;
+  font-weight:600;
 }
 
-.loader {
-  margin-top: 6px;
-  font-size: 0.9rem;
-  color: #38bdf8;
-  text-align: center;
+.warningBox{
+  border-color:var(--yellow);
+  color:var(--yellow);
 }
 
-progress {
-  border-radius: 5px;
-  height: 18px;
-  appearance: none;
-  width: 80%;
-  transition: all 0.2s ease;
-}
-progress::-webkit-progress-bar {
-  background: #020617;
-  border-radius: 5px;
-}
-progress::-webkit-progress-value {
-  background: #22c55e;
-  border-radius: 5px;
-  transition: width 0.3s ease;
+/* ===================== CONTROLS ===================== */
+
+.controls{
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  flex-wrap:wrap;
+  gap:8px;
+  margin:14px 0;
 }
 
-canvas {
-  max-width: 100%;
-  margin: 20px auto;
-  display: block;
-  background: #020617;
-  border-radius: 10px;
-  box-shadow: 0 0 15px rgba(255,255,255,0.1);
+select,button{
+  background:var(--bg-panel);
+  color:var(--text-main);
+  border:1px solid var(--border);
+  padding:8px 12px;
+  border-radius:6px;
+  font-size:0.85rem;
+  transition:0.2s ease;
 }
 
-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-top: 15px;
-  font-size: 0.9rem;
+select{
+  min-width:170px;
 }
 
-th, td {
-  border: 1px solid #22c55e;
-  padding: 8px;
-  text-align: center;
+button:hover{
+  background:var(--border);
+  color:#020617;
+  cursor:pointer;
+  transform:translateY(-1px);
 }
 
-th {
-  background: #02201a;
+/* ===================== STATUS ===================== */
+
+.status{
+  text-align:center;
+  font-weight:600;
+  font-size:0.9rem;
+  margin-top:6px;
 }
 
-.buy {
-  color: #22c55e;
-  font-weight: bold;
+.loader{
+  text-align:center;
+  font-size:0.8rem;
+  color:var(--blue);
+  margin-bottom:6px;
 }
 
-.sell {
-  color: #ef4444;
-  font-weight: bold;
+/* ===================== PROGRESS ===================== */
+
+.progressWrap{
+  text-align:center;
+  margin:10px 0;
 }
 
-.hold {
-  color: #facc15;
-  font-weight: bold;
+progress{
+  width:80%;
+  height:16px;
+  border-radius:6px;
+  overflow:hidden;
 }
 
-.conf {
-  color: #38bdf8;
-  font-weight: bold;
+/* ===================== CHART ===================== */
+
+canvas{
+  max-width:100%;
+  margin:18px auto;
+  display:block;
+  background:var(--bg-panel);
+  border-radius:12px;
+  padding:6px;
 }
 
-.footer {
-  text-align: center;
-  margin-top: 20px;
-  font-size: 0.75rem;
-  color: #94a3b8;
+/* ===================== TABLE ===================== */
+
+table{
+  width:100%;
+  border-collapse:collapse;
+  margin-top:14px;
+  font-size:0.85rem;
 }
 
-/* --- Profi Effekte --- */
-
-/* Live-Kurs blinkt kurz bei Änderung */
-@keyframes blink {
-  0% {opacity: 0.5;}
-  50% {opacity: 1;}
-  100% {opacity: 0.5;}
-}
-.infoBox.price-change {
-  animation: blink 0.5s ease;
+th,td{
+  border:1px solid var(--border);
+  padding:7px 6px;
+  text-align:center;
 }
 
-/* Responsive Table Scroll */
-@media screen and (max-width: 700px) {
-  table, thead, tbody, th, td, tr {
-    display: block;
-  }
-  th {
-    position: absolute;
-    top: -9999px;
-    left: -9999px;
-  }
-  tr { margin: 0 0 1rem 0; }
-  td {
-    border: none;
-    position: relative;
-    padding-left: 50%;
-    text-align: left;
-  }
-  td:before {
-    position: absolute;
-    top: 8px;
-    left: 8px;
-    width: 45%;
-    white-space: nowrap;
-    font-weight: bold;
-    color: #94a3b8;
-  }
-  td:nth-of-type(1):before { content: "KI-Modell"; }
-  td:nth-of-type(2):before { content: "Prognose (CHF)"; }
-  td:nth-of-type(3):before { content: "Signal"; }
-  td:nth-of-type(4):before { content: "Δ"; }
-  td:nth-of-type(5):before { content: "Konfidenz"; }
-  td:nth-of-type(6):before { content: "Datum/Uhrzeit"; }
+th{
+  background:#020617;
+  font-weight:700;
+}
+
+/* ===================== SIGNALS ===================== */
+
+.buy{
+  color:var(--green);
+  font-weight:700;
+}
+
+.sell{
+  color:var(--red);
+  font-weight:700;
+}
+
+.hold{
+  color:var(--yellow);
+  font-weight:700;
+}
+
+.conf{
+  color:var(--blue);
+  font-weight:700;
+}
+
+/* ===================== FOOTER ===================== */
+
+.footer{
+  text-align:center;
+  margin-top:16px;
+  font-size:0.7rem;
+  color:var(--text-muted);
+}
+
+/* ===================== RESPONSIVE ===================== */
+
+@media (max-width:600px){
+  h1{font-size:1.3rem;}
+  select{min-width:140px;}
+  table{font-size:0.75rem;}
 }
