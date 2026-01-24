@@ -51,7 +51,9 @@ progress{width:80%;height:16px}
 <button id="runBtn" onclick="runSelected()" disabled>Analyse starten</button>
 </div>
 
-<div id="status">Prüfe Assets…</div>
+<div id="status">Suche Assets…</div>
+<div id="foundCount">Gefundene Assets: 0 / 0</div>
+<div id="timeLeft">Geschätzte verbleibende Zeit: 0s</div>
 <div id="currentPrice"></div>
 <div style="text-align:center">
 <button id="buyLink" onclick="window.open(getBuyLink(asset.value),'_blank')">Asset kaufen</button>
@@ -117,21 +119,40 @@ const CRYPTOS = [
 const ALL_ASSETS = [...STOCKS,...CRYPTOS];
 
 /* =======================
-   Dropdown nur für verfügbare Assets füllen
+   Dropdown nur für verfügbare Assets füllen + Zähler + Zeit
 ======================= */
 async function checkAssets(){
     const validAssets = [];
-    for(let i=0;i<ALL_ASSETS.length;i++){
+    const total = ALL_ASSETS.length;
+    const startTime = Date.now();
+
+    for(let i=0;i<total;i++){
         const a = ALL_ASSETS[i];
-        updateProgress(Math.floor(i/ALL_ASSETS.length*100),`Prüfe ${a.name}… (${i+1}/${ALL_ASSETS.length})`);
+
+        // Status Update
+        document.getElementById("status").textContent = `Prüfe ${a.name} (${i+1}/${total})…`;
+
         try{
             const hist = await fetchHist(a.symbol,200);
             if(hist && hist.closes && hist.closes.length>0){
                 validAssets.push(a);
             }
-        }catch{}
+        }catch(err){
+            console.warn(`Asset ${a.name} nicht verfügbar: ${err.message}`);
+        }
+
+        // Live Zähler
+        document.getElementById("foundCount").textContent = `Gefundene Assets: ${validAssets.length} / ${total}`;
+
+        // Zeit-Schätzung
+        const elapsed = (Date.now() - startTime) / 1000;
+        const avgPerAsset = elapsed / (i + 1);
+        const remaining = Math.ceil(avgPerAsset * (total - i - 1));
+        document.getElementById("timeLeft").textContent = `Geschätzte verbleibende Zeit: ~${remaining}s`;
+
         await sleep(500); // kurz warten, API-Limits vermeiden
     }
+
     // Dropdown füllen
     validAssets.forEach(a=>{
         const o = document.createElement("option");
@@ -139,10 +160,15 @@ async function checkAssets(){
         o.textContent = a.name;
         sel.appendChild(o);
     });
+
     if(validAssets.length>0){
         runBtn.disabled=false;
         document.getElementById("status").textContent=`Prüfung abgeschlossen – ${validAssets.length} Assets verfügbar`;
-    } else document.getElementById("status").textContent=`Keine Assets verfügbar`;
+        document.getElementById("timeLeft").textContent = `Geschätzte verbleibende Zeit: 0s`;
+    } else {
+        document.getElementById("status").textContent=`Keine Assets verfügbar`;
+        document.getElementById("timeLeft").textContent = `Geschätzte verbleibende Zeit: 0s`;
+    }
 }
 
 /* =======================
