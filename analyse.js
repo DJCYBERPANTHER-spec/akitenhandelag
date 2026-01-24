@@ -28,16 +28,7 @@ const ASSETS = [
   { symbol: "BNB-USD", name: "Binance Coin" },
   { symbol: "SOL-USD", name: "Solana" },
   { symbol: "ADA-USD", name: "Cardano" },
-  { symbol: "DOGE-USD", name: "Dogecoin" },
-  { symbol: "XRP-USD", name: "Ripple" },
-  { symbol: "LTC-USD", name: "Litecoin" },
-  { symbol: "DOT-USD", name: "Polkadot" },
-  { symbol: "LINK-USD", name: "Chainlink" },
-  { symbol: "AVAX-USD", name: "Avalanche" },
-  { symbol: "MATIC-USD", name: "Polygon" },
-  { symbol: "ATOM-USD", name: "Cosmos" },
-  { symbol: "FTM-USD", name: "Fantom" },
-  { symbol: "ALGO-USD", name: "Algorand" }
+  { symbol: "DOGE-USD", name: "Dogecoin" }
 ];
 
 // --- Helfer
@@ -222,3 +213,4 @@ document.addEventListener("DOMContentLoaded", async ()=>{
   window.openTradingView=()=>window.open(`https://www.tradingview.com/symbols/${assetSelect.value}/`,"_blank");
   window.openSwissquote=()=>window.open(`https://www.swissquote.ch/sqw-en/private/trading/instruments/search?query=${assetSelect.value}`,"_blank");
 });
+
