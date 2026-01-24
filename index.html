@@ -90,6 +90,9 @@ footer {
                 <option value="365">365 Tage</option>
             </select>
             <button onclick="loadAsset()">📊 Analyse</button>
+            <button onclick="openYahoo()">Yahoo</button>
+            <button onclick="openTradingView()">TradingView</button>
+            <button onclick="openSwissquote()">Swissquote</button>
         </div>
 
         <div class="progress"><div id="progressBar"></div></div>
@@ -117,7 +120,7 @@ footer {
 <footer>@ Aktien Handel AG – Professionelle Analyse</footer>
 <script>
 // ================== KONFIG ==================
-const FINNHUB_KEY="DEIN_API_KEY_HIER"; // Finnhub API
+const FINNHUB_KEY="d5ohqjhr01qjast6qrjgd5ohqjhr01qjast6qrk0"; // Dein Key
 let chart=null;
 let liveInterval=null;
 let validAssets=[];
@@ -128,7 +131,6 @@ const MIN_DAYS=10;
 const TARGET_ASSETS=20;
 const DELAY=600; // ms zwischen Abfragen
 
-// Aktien & Kryptos (Beispiel)
 const STOCKS=["AAPL","MSFT","GOOGL","AMZN","TSLA","META","NVDA","JNJ","KO"];
 const CRYPTOS=["BTCUSDT","ETHUSDT","BNBUSDT","ADAUSDT","SOLUSDT"];
 const ALL_ASSETS=[...STOCKS.map(s=>({symbol:s,type:"stock"})),...CRYPTOS.map(c=>({symbol:c,type:"crypto"}))];
@@ -184,7 +186,6 @@ async function searchAssets(){
         }
         if(validAssets.length>=TARGET_ASSETS) break;
     }
-    // Fortlaufende Suche falls < TARGET_ASSETS
     while(validAssets.length<TARGET_ASSETS){
         for(const a of ALL_ASSETS){
             if(validAssets.length>=TARGET_ASSETS) break;
@@ -210,8 +211,6 @@ function addOption(asset){
     o.textContent=`${asset.symbol} (${asset.type})`;
     assetSelect.appendChild(o);
 }
-
-// ======= AUTO-START SUCHE =======
 searchAssets();
 
 // ================== LIVE-KURSE ==================
@@ -240,8 +239,7 @@ async function startLivePrice(idx){
     if(liveInterval) clearInterval(liveInterval);
     liveInterval=setInterval(updatePrice,5000);
 }
-</script>
-<script>
+
 // ================== KI-PROGNOSE ==================
 async function predictModelVaried(data, basePeriod, kiIndex){
     const period=basePeriod + kiIndex*2;
@@ -277,7 +275,71 @@ function getConfidence(diff){
     return Math.abs(diff)>0.1?"Hoch":Math.abs(diff)>0.05?"Mittel":"Niedrig";
 }
 
-// ================== ASSET LADEN ==================
+// ================== STABILES UPDATE CHART & TABELLE ==================
+function drawChart(hist,prognosen){
+    const labels=hist.dates.map(d=>d.toISOString().slice(0,10));
+    const avg=prognosen.reduce((a,b)=>a+b,0)/prognosen.length;
+
+    if(!chart){
+        chart=new Chart(document.getElementById("chart"),{
+            type:"line",
+            data:{
+                labels,
+                datasets:[
+                    {label:"KI1",data:[...Array(hist.prices.length-1).fill(null),prognosen[0]],borderColor:"#22c55e",fill:false},
+                    {label:"KI2",data:[...Array(hist.prices.length-1).fill(null),prognosen[1]],borderColor:"#3b82f6",fill:false},
+                    {label:"KI3",data:[...Array(hist.prices.length-1).fill(null),prognosen[2]],borderColor:"#f97316",fill:false},
+                    {label:"KI4",data:[...Array(hist.prices.length-1).fill(null),prognosen[3]],borderColor:"#facc15",fill:false},
+                    {label:"Durchschnitt",data:[...Array(hist.prices.length-1).fill(null),avg],borderColor:"#ffffff",fill:false}
+                ]
+            },
+            options:{
+                responsive:true,
+                maintainAspectRatio:false,
+                plugins:{
+                    tooltip:{
+                        enabled:true,
+                        mode:'nearest',
+                        intersect:false,
+                        callbacks:{
+                            label:function(context){
+                                return `${context.dataset.label}: ${context.raw.toFixed(2)}`;
+                            }
+                        }
+                    }
+                },
+                animation:false
+            }
+        });
+    }else{
+        chart.data.labels=labels;
+        chart.data.datasets[0].data=[...Array(hist.prices.length-1).fill(null),prognosen[0]];
+        chart.data.datasets[1].data=[...Array(hist.prices.length-1).fill(null),prognosen[1]];
+        chart.data.datasets[2].data=[...Array(hist.prices.length-1).fill(null),prognosen[2]];
+        chart.data.datasets[3].data=[...Array(hist.prices.length-1).fill(null),prognosen[3]];
+        chart.data.datasets[4].data=[...Array(hist.prices.length-1).fill(null),avg];
+        chart.update();
+    }
+}
+
+function displayTable(hist,prognosen){
+    const out=document.getElementById("out");
+    const current=hist.prices[hist.prices.length-1];
+    const now=new Date().toLocaleString();
+    let html="";
+    prognosen.forEach((p,i)=>{
+        const diff=(p-current)/current;
+        const sig=diff>0.05?"buy":diff<-0.05?"sell":"hold";
+        html+=`<tr><td>KI${i+1}</td><td>${p.toFixed(2)}</td><td class="${sig}">${sig.toUpperCase()}</td><td>${(diff*100).toFixed(1)}%</td><td class="conf">${getConfidence(diff)}</td><td>${now}</td></tr>`;
+    });
+    const avg=prognosen.reduce((a,b)=>a+b,0)/prognosen.length;
+    const diff=(avg-current)/current;
+    const sig=diff>0.05?"buy":diff<-0.05?"sell":"hold";
+    html+=`<tr><td>Durchschnitt</td><td>${avg.toFixed(2)}</td><td class="${sig}">${sig.toUpperCase()}</td><td>${(diff*100).toFixed(1)}%</td><td class="conf">${getConfidence(diff)}</td><td>${now}</td></tr>`;
+    out.innerHTML=html;
+}
+
+// ================== LADE AUSGEWÄHLTES ASSET ==================
 async function loadAsset(){
     const idx=assetSelect.value;
     if(idx===null) return;
@@ -298,139 +360,13 @@ async function loadAsset(){
     displayTable(hist,prognosen);
 }
 
-// ================== CHART ==================
-function drawChart(hist,prognosen){
-    if(chart) chart.destroy();
-    const labels=hist.dates.map(d=>d.toISOString().slice(0,10));
-    const avg=prognosen.reduce((a,b)=>a+b,0)/prognosen.length;
-
-    chart=new Chart(document.getElementById("chart"),{
-        type:"line",
-        data:{
-            labels,
-            datasets:[
-                {label:"KI1",data:[...Array(hist.prices.length-1).fill(null),prognosen[0]],borderColor:"#22c55e",fill:false},
-                {label:"KI2",data:[...Array(hist.prices.length-1).fill(null),prognosen[1]],borderColor:"#3b82f6",fill:false},
-                {label:"KI3",data:[...Array(hist.prices.length-1).fill(null),prognosen[2]],borderColor:"#f97316",fill:false},
-                {label:"KI4",data:[...Array(hist.prices.length-1).fill(null),prognosen[3]],borderColor:"#facc15",fill:false},
-                {label:"Durchschnitt",data:[...Array(hist.prices.length-1).fill(null),avg],borderColor:"#ffffff",fill:false}
-            ]
-        },
-        options:{responsive:true,maintainAspectRatio:false}
-    });
-}
-
-// ================== TABELLE ==================
-function displayTable(hist,prognosen){
-    const out=document.getElementById("out");
-    const current=hist.prices[hist.prices.length-1];
-    const now=new Date().toLocaleString();
-    let html="";
-    prognosen.forEach((p,i)=>{
-        const diff=(p-current)/current;
-        const sig=diff>0.05?"buy":diff<-0.05?"sell":"hold";
-        html+=`<tr><td>KI${i+1}</td><td>${p.toFixed(2)}</td><td class="${sig}">${sig.toUpperCase()}</td><td>${(diff*100).toFixed(1)}%</td><td class="conf">${getConfidence(diff)}</td><td>${now}</td></tr>`;
-    });
-    const avg=prognosen.reduce((a,b)=>a+b,0)/prognosen.length;
-    const diff=(avg-current)/current;
-    const sig=diff>0.05?"buy":diff<-0.05?"sell":"hold";
-    html+=`<tr><td>Durchschnitt</td><td>${avg.toFixed(2)}</td><td class="${sig}">${sig.toUpperCase()}</td><td>${(diff*100).toFixed(1)}%</td><td class="conf">${getConfidence(diff)}</td><td>${now}</td></tr>`;
-    out.innerHTML=html;
-}
-
 // ================== KAUF-/INFO-LINKS ==================
-function openYahoo(){
-    const idx=assetSelect.value;
-    if(idx===null) return;
-    const sym=validAssets[idx].symbol;
-    window.open(`https://finance.yahoo.com/quote/${sym}`,"_blank");
-}
+function openYahoo(){const idx=assetSelect.value;if(idx===null)return;const sym=validAssets[idx].symbol;window.open(`https://finance.yahoo.com/quote/${sym}`,"_blank");}
+function openTradingView(){const idx=assetSelect.value;if(idx===null)return;const a=validAssets[idx];const sym=a.type==="crypto"?`BINANCE:${a.symbol}`:a.symbol;window.open(`https://www.tradingview.com/chart/?symbol=${sym}`,"_blank");}
+function openSwissquote(){const idx=assetSelect.value;if(idx===null)return;const sym=validAssets[idx].symbol;window.open(`https://www.swissquote.ch/sqw-en/private/trading/instruments/search?query=${sym}`,"_blank");}
 
-function openTradingView(){
-    const idx=assetSelect.value;
-    if(idx===null) return;
-    const a=validAssets[idx];
-    const sym=a.type==="crypto" ? `BINANCE:${a.symbol}` : a.symbol;
-    window.open(`https://www.tradingview.com/chart/?symbol=${sym}`,"_blank");
-}
-
-function openSwissquote(){
-    const idx=assetSelect.value;
-    if(idx===null) return;
-    const sym=validAssets[idx].symbol;
-    window.open(`https://www.swissquote.ch/sqw-en/private/trading/instruments/search?query=${sym}`,"_blank");
-}
-</script>
-<script>
-// ================== MULTI-ASSET VERGLEICH ==================
-async function compareAssets(selectedIndices){
-    if(selectedIndices.length===0) return;
-    const compareDatasets=[];
-    selectedIndices.forEach(idx=>{
-        const asset=validAssets[idx];
-        compareDatasets.push({
-            label: asset.symbol,
-            data: asset.prices,
-            borderColor:getRandomColor(),
-            pointRadius:0,
-            fill:false
-        });
-    });
-
-    if(chart) chart.destroy();
-    const labels=validAssets[0].dates.map(d=>d.toISOString().slice(0,10));
-    chart=new Chart(document.getElementById("chart"),{
-        type:"line",
-        data:{labels,datasets:compareDatasets},
-        options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true}}}
-    });
-}
-
-// ================== FINANZKRISEN-MARKIERUNG ==================
-const CRISES=[
-    {name:"Finanzkrise 2008",from:"2008-09-01",to:"2009-06-30"},
-    {name:"COVID-19 Crash",from:"2020-02-15",to:"2020-04-30"}
-];
-
-function markCrises(){
-    if(!chart) return;
-    const ctx=chart.ctx;
-    CRISES.forEach(c=>{
-        const from=new Date(c.from);
-        const to=new Date(c.to);
-        const startIdx=chart.data.labels.findIndex(d=>new Date(d)>=from);
-        const endIdx=chart.data.labels.findIndex(d=>new Date(d)>=to);
-        if(startIdx>=0 && endIdx>=0){
-            const xStart=chart.scales.x.getPixelForValue(startIdx);
-            const xEnd=chart.scales.x.getPixelForValue(endIdx);
-            ctx.fillStyle="rgba(255,165,0,0.2)";
-            ctx.fillRect(xStart,chart.chartArea.top,xEnd-xStart,chart.chartArea.bottom-chart.chartArea.top);
-        }
-    });
-}
-
-// ================== HILFSFUNKTION ==================
-function getRandomColor(){
-    const r=Math.floor(Math.random()*200+30);
-    const g=Math.floor(Math.random()*200+30);
-    const b=Math.floor(Math.random()*200+30);
-    return `rgb(${r},${g},${b})`;
-}
-
-// ================== AUTO-UPDATE LIVE-KURSE ==================
-setInterval(()=>{
-    const idx=assetSelect.value;
-    if(idx!==null) startLivePrice(idx);
-},300000); // alle 5 Minuten
-
-// ================== OPTIONAL: MULTI-ASSET SELECTION ==================
-assetSelect.addEventListener("change",()=>{
-    const idx=assetSelect.value;
-    if(idx!==null){
-        startLivePrice(idx);
-        loadAsset();
-    }
-});
+// ================== EVENT ==================
+assetSelect.addEventListener("change",()=>{loadAsset();});
 </script>
 </body>
 </html>
