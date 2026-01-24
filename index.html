@@ -64,18 +64,17 @@ progress{width:80%;height:16px}
 </table>
 
 <div class="footer">@ AKTIEN KRYPTO HANDEL AG – Keine Anlageberatung</div>
+
 <script>
 // --- API-Key Finnhub ---
 const API_KEY = "d5ohqjhr01qjast6qrjgd5ohqjhr01qjast6qrk0";
 
 // --- Asset-Liste: Aktien + Kryptos ---
 const ASSETS = [
-  // Aktien
   {symbol:"AAPL",name:"Apple Inc."},{symbol:"MSFT",name:"Microsoft Corp."},{symbol:"NVDA",name:"NVIDIA Corp."},
   {symbol:"AMZN",name:"Amazon.com Inc."},{symbol:"GOOGL",name:"Alphabet Inc."},{symbol:"TSLA",name:"Tesla Inc."},
   {symbol:"META",name:"Meta Platforms"},{symbol:"NVS",name:"Novartis AG"},{symbol:"NESN.SW",name:"Nestlé AG"},
   {symbol:"ORCL",name:"Oracle Corp."},{symbol:"INTC",name:"Intel Corp."},{symbol:"ADBE",name:"Adobe Inc."},
-  // Kryptos
   {symbol:"BTC-USD",name:"Bitcoin"},{symbol:"ETH-USD",name:"Ethereum"},{symbol:"BNB-USD",name:"Binance Coin"},
   {symbol:"SOL-USD",name:"Solana"},{symbol:"ADA-USD",name:"Cardano"},{symbol:"DOGE-USD",name:"Dogecoin"},
   {symbol:"XRP-USD",name:"Ripple"},{symbol:"LTC-USD",name:"Litecoin"},{symbol:"DOT-USD",name:"Polkadot"}
@@ -90,7 +89,7 @@ const currentPriceDiv = document.getElementById("currentPrice");
 const chartCanvas = document.getElementById("chart");
 let chart = null;
 
-// --- USD → CHF Kurs abrufen ---
+// --- USD → CHF Kurs ---
 async function fetchUsdChf(){
   try{
     const res = await fetch("https://api.exchangerate.host/latest?base=USD&symbols=CHF");
@@ -99,7 +98,7 @@ async function fetchUsdChf(){
   }catch{return 0.93;}
 }
 
-// --- Einzelkurs abrufen (Aktien oder Krypto) ---
+// --- Einzelkurs abrufen ---
 async function fetchQuote(symbol){
   try{
     if(symbol.includes("USD")){
@@ -134,7 +133,7 @@ async function fetchHistoricalData(symbol, days){
   return [];
 }
 
-// --- Dropdown mit Assets füllen ---
+// --- Dropdown füllen ---
 async function initAssets(){
   const fx = await fetchUsdChf();
   selectAsset.innerHTML="";
@@ -151,10 +150,8 @@ async function initAssets(){
 }
 initAssets();
 
-// --- Fortschrittsanzeige ---
+// --- Fortschritt & Tabelle ---
 function updateProgress(p,text){progressBar.value=p;progressText.textContent=text;}
-
-// --- Tabelle leeren ---
 function clearTable(){tableBody.innerHTML='<tr><td colspan="9">Bitte Asset auswählen</td></tr>';}
 
 // --- Chart zeichnen ---
@@ -186,7 +183,6 @@ runBtn.addEventListener("click", async ()=>{
   worker.onmessage = e=>{
     if(e.data.progressText) updateProgress(progressBar.value+20,e.data.progressText);
     if(e.data.tableData){
-      // Tabelle füllen
       tableBody.innerHTML="";
       e.data.tableData.rows.forEach(r=>{
         const tr = document.createElement("tr");
@@ -194,7 +190,6 @@ runBtn.addEventListener("click", async ()=>{
         <td>${r.action}</td><td>–</td><td>–</td><td>–</td><td>–</td>`;
         tableBody.appendChild(tr);
       });
-      // Chart zeichnen
       drawChart(e.data.tableData.hist,e.data.forecasts);
       updateProgress(100,"Analyse abgeschlossen ✔");
     }
