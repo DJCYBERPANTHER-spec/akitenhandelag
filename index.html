@@ -94,45 +94,44 @@ progress{border-radius:5px;width:80%;height:18px}
 <div class="footer">@ AKTIEN HANDEL AG – Keine Anlageberatung</div>
 
 <script>
-const API_KEY = "d5ohqjhr01qjast6qrjgd5ohqjhr01qjast6qrk0";
+const API_KEY="d5ohqjhr01qjast6qrjgd5ohqjhr01qjast6qrk0";
 let chart=null, liveInterval=null;
 
-// Finanzkrisen
-const financialCrises=[
-    {start:"2007-10-01",end:"2009-03-01",name:"Finanzkrise 2008"},
-    {start:"2010-04-01",end:"2012-06-30",name:"Euro-Schuldenkrise"},
-    {start:"2020-02-01",end:"2020-04-30",name:"COVID-19 Crash"},
-    {start:"2022-01-20",end:"2022-12-31",name:"Ukraine / Marktvolatilität"}
-];
-
-// Assets Aktien + Krypto
-const POSSIBLE_ASSETS = [
+// Aktien + Kryptos
+const POSSIBLE_ASSETS=[
   {symbol:"AAPL",name:"Apple Inc."},{symbol:"MSFT",name:"Microsoft Corp."},{symbol:"NVDA",name:"NVIDIA Corp."},
   {symbol:"AMZN",name:"Amazon.com Inc."},{symbol:"GOOGL",name:"Alphabet Inc."},{symbol:"TSLA",name:"Tesla Inc."},
-  {symbol:"META",name:"Meta Platforms"},{symbol:"NVS",name:"Novartis AG"},{symbol:"NESN.SW",name:"Nestlé AG"},
-  {symbol:"ORCL",name:"Oracle Corp."},{symbol:"INTC",name:"Intel Corp."},{symbol:"ADBE",name:"Adobe Inc."},
-  {symbol:"BTC-USD",name:"Bitcoin"},{symbol:"ETH-USD",name:"Ethereum"},{symbol:"BNB-USD",name:"Binance Coin"},
-  {symbol:"SOL-USD",name:"Solana"},{symbol:"ADA-USD",name:"Cardano"},{symbol:"DOGE-USD",name:"Dogecoin"},
-  {symbol:"XRP-USD",name:"Ripple"},{symbol:"LTC-USD",name:"Litecoin"},{symbol:"DOT-USD",name:"Polkadot"}
+  {symbol:"META",name:"Meta Platforms"},{symbol:"BTC-USD",name:"Bitcoin"},{symbol:"ETH-USD",name:"Ethereum"},
+  {symbol:"BNB-USD",name:"Binance Coin"},{symbol:"SOL-USD",name:"Solana"},{symbol:"ADA-USD",name:"Cardano"},
+  {symbol:"DOGE-USD",name:"Dogecoin"},{symbol:"XRP-USD",name:"Ripple"},{symbol:"LTC-USD",name:"Litecoin"}
 ];
-const selectStock = document.getElementById("stock");
 
-// Prüfen & hinzufügen
+const selectStock=document.getElementById("stock");
+const loader=document.getElementById("loader");
+
+// Prüfen und Liste füllen
 async function validateAssetsSequential(){
-  const loader=document.getElementById("loader");
   selectStock.innerHTML="";
   loader.textContent="Prüfe Assets...";
   for(let i=0;i<POSSIBLE_ASSETS.length;i++){
     const sym=POSSIBLE_ASSETS[i].symbol;
     loader.textContent=`Prüfe ${i+1}/${POSSIBLE_ASSETS.length}: ${POSSIBLE_ASSETS[i].name}`;
     try{
-      const url=sym.includes("USD") ? 
-        `https://finnhub.io/api/v1/crypto/candle?symbol=${sym}&resolution=D&from=${Math.floor(Date.now()/1000)-30*24*60*60}&to=${Math.floor(Date.now()/1000)}&token=${API_KEY}` :
-        `https://finnhub.io/api/v1/stock/profile2?symbol=${sym}&token=${API_KEY}`;
-      const r=await fetch(url); const j=await r.json();
-      if((j.s==="ok"&&j.c?.length>0)||j.name){
+      let available=false;
+      if(sym.includes("USD")){
+        const now=Math.floor(Date.now()/1000);
+        const res=await fetch(`https://finnhub.io/api/v1/crypto/candle?symbol=${sym}&resolution=D&from=${now-3*24*60*60}&to=${now}&token=${API_KEY}`);
+        const data=await res.json();
+        if(data.s==="ok" && data.c?.length>0) available=true;
+      }else{
+        const res=await fetch(`https://finnhub.io/api/v1/stock/profile2?symbol=${sym}&token=${API_KEY}`);
+        const data=await res.json();
+        if(data.name) available=true;
+      }
+      if(available){
         const o=document.createElement("option");
-        o.value=sym; o.textContent=`${POSSIBLE_ASSETS[i].name} (${sym})`;
+        o.value=sym;
+        o.textContent=`${POSSIBLE_ASSETS[i].name} (${sym})`;
         selectStock.appendChild(o);
       }
     }catch{}
@@ -143,13 +142,11 @@ validateAssetsSequential();
 
 // USD→CHF
 async function fetchUsdChf(){try{ const r=await fetch("https://api.exchangerate.host/latest?base=USD&symbols=CHF"); const j=await r.json(); return Number(j?.rates?.CHF)||0.93;}catch{return 0.93;}}
-async function fetchQuote(sym){ 
-  const url=sym.includes("USD") ? 
-    `https://finnhub.io/api/v1/crypto/candle?symbol=${sym}&resolution=D&from=${Math.floor(Date.now()/1000)-60*24*60*60}&to=${Math.floor(Date.now()/1000)}&token=${API_KEY}` :
-    `https://finnhub.io/api/v1/quote?symbol=${sym}&token=${API_KEY}`;
+async function fetchQuote(sym){
+  const url=sym.includes("USD") ? `https://finnhub.io/api/v1/crypto/candle?symbol=${sym}&resolution=D&from=${Math.floor(Date.now()/1000)-60*24*60*60}&to=${Math.floor(Date.now()/1000)}&token=${API_KEY}` : `https://finnhub.io/api/v1/quote?symbol=${sym}&token=${API_KEY}`;
   const r=await fetch(url); const j=await r.json();
-  if(sym.includes("USD")&&j.s==="ok") return Number(j.c?.at(-1));
-  if(!sym.includes("USD")&&j.c!==undefined) return Number(j.c);
+  if(sym.includes("USD") && j.s==="ok") return Number(j.c?.at(-1));
+  if(!sym.includes("USD") && j.c!==undefined) return Number(j.c);
   throw "Keine Kursdaten verfügbar";
 }
 
@@ -179,8 +176,115 @@ async function predictLSTM(data,period){
   return model.predict(tf.tensor3d([X.at(-1)])).dataSync()[0]*(max-min)+min;
 }
 
-// Tabelle + Chart + CHF + Krypto sind vollständig integriert
+// Kauf-Links
+function getBuyLink(sym){return `https://www.tradingview.com/symbols/${sym}/`;}
+function openYahoo(){window.open(`https://finance.yahoo.com/quote/${selectStock.value}`,"_blank");}
+function openTradingView(){window.open(`https://www.tradingview.com/symbols/${selectStock.value}/`,"_blank");}
+function openSwissquote(){window.open(`https://www.swissquote.ch/sqw-en/private/trading/instruments/search?query=${selectStock.value}`,"_blank");}
 
+// ================= Hilfsfunktionen für Tabelle & Chart =================
+function getConfidence(diff){if(Math.abs(diff)>0.1) return "Hoch"; if(Math.abs(diff)>0.05) return "Mittel"; return "Niedrig";}
+function getSignal(diff){if(diff>0.05) return "KAUFEN"; if(diff<-0.05) return "VERKAUFEN"; return "HALTEN";}
+function backtest(hist){let e=0;const n=Math.min(60,hist.length-1);for(let i=hist.length-n;i<hist.length-1;i++){e+=Math.min(Math.abs((hist[i]-hist[i+1])/hist[i+1]),1);} return Math.max(0,((1-e/n)*100)).toFixed(1)+"%";}
+function decision(curr,fut,hist){const diff=(fut-curr)/curr; if(diff>0.03) return ["🟢 KAUFEN","Aufwärtstrend bestätigt"]; if(diff<-0.03) return ["🔴 VERKAUFEN","Abwärtstrend bestätigt"]; return ["⚪ HALTEN","Keine klare Richtung"];}
+function risk(curr,hist){const vol=hist.reduce((a,b)=>a+b,0)/hist.length*0.05; return {sl:(curr-2*vol).toFixed(2),tp:(curr+3*vol).toFixed(2)};}
+function drawChart(hist,preds){if(chart) chart.destroy(); const avg=preds.reduce((a,b)=>a+b,0)/preds.length; const labels=hist.map((_,i)=>`T${i+1}`); chart=new Chart(document.getElementById("chart"),{type:'line',data:{labels,datasets:[{label:"KI1",data:[...Array(hist.length-1).fill(null), preds[0]], borderColor:"#22c55e",fill:false},{label:"KI2",data:[...Array(hist.length-1).fill(null), preds[1]], borderColor:"#3b82f6",fill:false},{label:"KI3",data:[...Array(hist.length-1).fill(null), preds[2]], borderColor:"#f97316",fill:false},{label:"KI4",data:[...Array(hist.length-1).fill(null), preds[3]], borderColor:"#facc15",fill:false},{label:"Durchschnitt",data:[...Array(hist.length-1).fill(null), avg],borderColor:"#ffffff",fill:false}]} ,options:{responsive:true, maintainAspectRatio:true}});}
+</script>
+<script>
+async function run(){
+    const symbol = selectStock.value;
+    if(!symbol){ alert("Bitte ein Asset auswählen!"); return; }
+
+    const status = document.getElementById("status");
+    const progressBar = document.getElementById("progressBar");
+    const progressText = document.getElementById("progressText");
+    const periodDiv = document.getElementById("period");
+
+    status.textContent = "Analyse läuft…";
+    progressBar.value = 0;
+    progressText.textContent = "Starte Analyse…";
+
+    try{
+        // --- Aktueller Kurs USD/CHF ---
+        const quote = await fetchQuote(symbol);
+        const fx = await fetchUsdChf();
+        const priceCHF = quote * fx;
+        document.getElementById("currentPrice").textContent = `Aktueller Kurs: ${priceCHF.toFixed(2)} CHF`;
+
+        const basePeriod = parseInt(document.getElementById("timeRange").value);
+        periodDiv.textContent = `📅 KI-Prognose für +${basePeriod} Handelstage`;
+
+        // --- Historische Daten abrufen ---
+        progressBar.value = 10; progressText.textContent = "Lade historische Daten…";
+        const hist = await fetchHistoricalData(symbol, basePeriod*2);
+        const histCHF = hist.map(h=>h*fx); // in CHF umrechnen
+
+        // --- 4 KI-Prognosen berechnen ---
+        const preds = [];
+        for(let i=0;i<4;i++){
+            progressBar.value = 20 + i*20;
+            progressText.textContent = `Berechne KI${i+1}…`;
+            preds[i] = await predictLSTM(histCHF, basePeriod + i*2);
+        }
+
+        // --- Chart zeichnen ---
+        progressBar.value = 90; progressText.textContent = "Zeichne Chart…";
+        drawChart(histCHF, preds);
+
+        // --- Tabelle füllen ---
+        progressBar.value = 95; progressText.textContent = "Erstelle Tabelle…";
+        let html = "";
+        const now = new Date().toLocaleString();
+
+        preds.forEach((p,i)=>{
+            const diff = (p - histCHF[histCHF.length-1])/histCHF[histCHF.length-1];
+            const sig = getSignal(diff);
+            const conf = getConfidence(diff);
+            const dec = decision(histCHF[histCHF.length-1], p, histCHF);
+            const r = risk(histCHF[histCHF.length-1], histCHF);
+            const bt = backtest(histCHF);
+
+            html += `<tr>
+                <td>KI${i+1}</td>
+                <td>${p.toFixed(2)}</td>
+                <td class="${sig.toLowerCase()}">${sig}</td>
+                <td>${(diff*100).toFixed(1)}%</td>
+                <td class="conf">${conf}</td>
+                <td class="warning">–</td>
+                <td>${bt}</td>
+                <td><b>${dec[0]}</b><br>${dec[1]}</td>
+                <td>🛑 ${r.sl}<br>🎯 ${r.tp}</td>
+            </tr>`;
+        });
+
+        document.getElementById("out").innerHTML = html;
+
+        // Beste KI markieren
+        let bestValue = -Infinity, bestRow = null;
+        document.querySelectorAll("#out tr").forEach(row=>{
+            const val = parseFloat(row.cells[1].textContent);
+            if(val > bestValue){ bestValue = val; bestRow = row; }
+            row.classList.remove("bestKI");
+        });
+        if(bestRow) bestRow.classList.add("bestKI");
+
+        // Update Button-Link
+        document.getElementById("buyLink").onclick = () => window.open(getBuyLink(symbol),"_blank");
+
+        progressBar.value = 100;
+        progressText.textContent = "Analyse abgeschlossen ✔";
+        status.textContent = "Fertig";
+
+    }catch(err){
+        console.error(err);
+        status.textContent = "Fehler: "+err;
+        progressText.textContent = "Fehler bei Analyse";
+        progressBar.value = 0;
+    }
+}
+
+// Beim Seitenstart: aktueller Kurs laden, Tabelle vorbereiten
+selectStock.addEventListener("change", ()=>run());
 </script>
 </body>
 </html>
