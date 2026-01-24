@@ -2,7 +2,7 @@
 // analyse.js – Teil 1 von 3 – 100+ Aktien & 100+ Kryptos
 // ==============================
 
-const API_KEY = "HIER_DEIN_FINNHUB_KEY"; // Finnhub API Key einsetzen
+const API_KEY = "d5ohqjhr01qjast6qrjgd5ohqjhr01qjast6qrk0"; // Finnhub API Key einsetzen
 
 // --- Assets (ca. 100 Aktien)
 const ASSETS = [
@@ -343,3 +343,4 @@ async function manual7DayForecast(){
 
 // Beispiel: zusätzlicher Button im HTML um manuelle 7-Tage Prognose auszulösen
 // <button onclick="manual7DayForecast()">7-Tage Prognose</button>
+
