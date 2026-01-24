@@ -10,57 +10,55 @@
 </head>
 <body>
 
-<h1>AKTIEN KRYPTO HANDEL AG</h1>
-<div class="subtitle">Live-Kurse, Multi-KI Prognosen & Kauf-Links</div>
+<h1>AKTIEN & KRYPTOS DASHBOARD</h1>
+<div class="subtitle">Echte Live-Daten & KI-Prognosen in CHF</div>
 
-<!-- Controls -->
 <div class="controls">
-  <select id="assetSelect"></select>
-  <select id="periodSelect">
-    <option value="7">1 Woche</option>
-    <option value="30">1 Monat</option>
-    <option value="90">3 Monate</option>
-    <option value="180">6 Monate</option>
-    <option value="365">1 Jahr</option>
-  </select>
-  <button id="analyseBtn">Analyse starten</button>
+    <select id="assetSelect"></select>
+    <select id="periodSelect">
+        <option value="20">1 Monat</option>
+        <option value="60">3 Monate</option>
+        <option value="120">6 Monate</option>
+        <option value="240">1 Jahr</option>
+    </select>
+    <button id="analyseBtn">Analyse starten</button>
 </div>
 
-<!-- Status & Preis -->
 <div id="status">Bereit</div>
 <div id="currentPrice">–</div>
 
-<!-- Kauf-Links -->
-<div id="buyLinks" style="text-align:center;margin-bottom:10px;">
-  <button id="yahooBtn">Yahoo Finance</button>
-  <button id="tradingViewBtn">TradingView</button>
-  <button id="swissquoteBtn">Swissquote</button>
+<div class="buy-buttons">
+    <button id="yahooBtn">Yahoo</button>
+    <button id="tradingViewBtn">TradingView</button>
+    <button id="swissquoteBtn">Swissquote</button>
 </div>
 
-<!-- Progress -->
-<progress id="progressBar" value="0" max="100"></progress>
-<div id="progressText"></div>
+<div style="text-align:center">
+    <progress id="progressBar" value="0" max="100" style="width:80%;height:16px;"></progress>
+    <div id="progressText"></div>
+</div>
 
-<!-- Chart -->
-<canvas id="chart" height="280"></canvas>
+<div class="chart-container">
+    <canvas id="chart" height="280"></canvas>
+</div>
 
-<!-- Tabelle -->
-<table>
-  <thead>
-    <tr>
-      <th>KI</th>
-      <th>Prognose (CHF)</th>
-      <th>Signal</th>
-      <th>Δ %</th>
-      <th>Konfidenz</th>
-      <th>Backtest</th>
-      <th>Aktion</th>
-    </tr>
-  </thead>
-  <tbody id="out"></tbody>
-</table>
+<div class="table-container">
+    <table>
+        <thead>
+            <tr>
+                <th>KI</th>
+                <th>Prognose (CHF)</th>
+                <th>Signal</th>
+                <th>Δ %</th>
+                <th>Konfidenz</th>
+                <th>Datum/Zeit</th>
+            </tr>
+        </thead>
+        <tbody id="out"></tbody>
+    </table>
+</div>
 
-<div class="footer">⚠️ Analyse-Tool – keine Anlageberatung</div>
+<div class="footer">@ AKTIEN KRYPTO HANDEL AG – Keine Anlageberatung</div>
 
 <script src="app.js"></script>
 </body>
