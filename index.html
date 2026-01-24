@@ -5,13 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>AKTIEN KRYPTO HANTEL AG</title>
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.9.0/dist/tf.min.js"></script>
-<link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
     body { font-family: Arial, sans-serif; margin:20px; background:#f5f5f5; }
     select, button { padding:5px 10px; margin:5px 0; }
     #progressBar { width:100%; height:20px; margin:5px 0; }
     #hiddenStatus { margin:10px 0; font-weight:bold; color:blue; }
-    table { border-collapse: collapse; width:100%; margin-top:10px; }
+    table { border-collapse: collapse; width:100%; margin-top:10px; background:#fff; }
     th, td { border:1px solid #ccc; padding:5px; text-align:center; }
 </style>
 </head>
@@ -38,10 +38,54 @@
 <div id="currentPrice"></div>
 <div id="hiddenStatus"></div>
 
+<!-- Tabelle für sichtbare Analyse -->
 <div id="out"></div>
 
+<!-- Chart für sichtbare Analyse -->
 <canvas id="chart" width="800" height="400" style="border:1px solid #ccc; margin-top:10px;"></canvas>
 
 <script src="analyse.js"></script>
+
+<script>
+// Funktion zum Füllen der Tabelle aus JS
+function displayTable(sym, hist, preds, fx){
+    const container = document.getElementById("out");
+    container.innerHTML = ""; // vorher leeren
+
+    const table = document.createElement("table");
+    const header = document.createElement("tr");
+    header.innerHTML = "<th>Tag</th><th>Historisch</th><th>Prognose</th><th>CHF</th>";
+    table.appendChild(header);
+
+    for(let i=0;i<hist.length;i++){
+        const row = document.createElement("tr");
+        const histVal = hist[i] || 0;
+        const predVal = preds[i] || "-";
+        row.innerHTML = `<td>${i+1}</td>
+                         <td>${histVal.toFixed(2)}</td>
+                         <td>${typeof predVal === "number" ? predVal.toFixed(2) : predVal}</td>
+                         <td>${fx ? (histVal*fx).toFixed(2) : "-"}</td>`;
+        table.appendChild(row);
+    }
+
+    container.appendChild(table);
+
+    // Chart aktualisieren
+    if(window.chart) window.chart.destroy();
+    const ctx = document.getElementById("chart").getContext("2d");
+    window.chart = new Chart(ctx, {
+        type:"line",
+        data:{
+            labels:hist.map((v,i)=>i+1),
+            datasets:[
+                {label:"Historisch", data:hist, borderColor:"blue", fill:false},
+                {label:"Prognose", data:preds, borderColor:"red", fill:false}
+            ]
+        },
+        options:{responsive:true, plugins:{legend:{position:"top"}}}
+    });
+}
+</script>
+
 </body>
 </html>
