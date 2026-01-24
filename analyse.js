@@ -2,7 +2,7 @@
 // analyse.js – Optimierte KI
 // ==============================
 
-const API_KEY = "HIER_DEIN_FINNHUB_KEY";
+const API_KEY = "d5qi0c9r01qhn30fr1r0d5qi0c9r01qhn30fr1rg";
 
 // ✅ Alle Aktien + Kryptowährungen
 const ASSETS = [
@@ -264,3 +264,4 @@ document.addEventListener("DOMContentLoaded", async ()=>{
   assetSelect.value = randomAsset;
   await runAnalysis(randomAsset);
 });
+
