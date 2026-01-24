@@ -97,6 +97,14 @@ progress{border-radius:5px;width:80%;height:18px}
 const API_KEY = "d5ohqjhr01qjast6qrjgd5ohqjhr01qjast6qrk0";
 let chart=null, liveInterval=null;
 
+// Finanzkrisen
+const financialCrises=[
+    {start:"2007-10-01",end:"2009-03-01",name:"Finanzkrise 2008"},
+    {start:"2010-04-01",end:"2012-06-30",name:"Euro-Schuldenkrise"},
+    {start:"2020-02-01",end:"2020-04-30",name:"COVID-19 Crash"},
+    {start:"2022-01-20",end:"2022-12-31",name:"Ukraine / Marktvolatilität"}
+];
+
 // Assets Aktien + Krypto
 const POSSIBLE_ASSETS = [
   {symbol:"AAPL",name:"Apple Inc."},{symbol:"MSFT",name:"Microsoft Corp."},{symbol:"NVDA",name:"NVIDIA Corp."},
@@ -159,7 +167,7 @@ async function fetchHistoricalData(symbol,period){
   }catch{ const q=await fetchQuote(symbol); return Array(Math.max(period,30)).fill(q); }
 }
 
-// LSTM Prognose
+// Prognose LSTM
 async function predictLSTM(data,period){
   const noisy=data.map(v=>v*(1+(Math.random()-0.5)/100)); 
   const min=Math.min(...noisy), max=Math.max(...noisy); 
@@ -176,10 +184,19 @@ async function predictLSTM(data,period){
 // Backtest
 function backtest(h){let e=0;const n=Math.min(60,h.length-1);for(let i=h.length-n;i<h.length-1;i++){const p=h[i]*(1+h.slice(0,i).reduce((a,b)=>a+b,0)/i);e+=Math.min(Math.abs((p-h[i+1])/h[i+1]),1);}return Math.max(0,((1-e/n)*100)).toFixed(1)+"%";}
 
-// Warnung
-function calcWarning(h){const v=Math.sqrt(h.reduce((a,b)=>a+Math.pow(b-h.reduce((x,y)=>x+y,0)/h.length,2),0)/h.length)/h.reduce((a,b)=>a+b,0)*h.length; return v>0.06?"⚠️ Hohe Volatilität":"–";}
+// Warnung inkl. Finanzkrisen
+function calcWarning(hist,symbol){
+  const vol=Math.sqrt(hist.reduce((a,b)=>a+Math.pow(b-hist.reduce((x,y)=>x+y,0)/hist.length,2),0)/hist.length)/hist.reduce((a,b)=>a+b,0)*hist.length;
+  if(vol>0.06)return "⚠️ Hohe Volatilität";
+  const today=new Date();
+  for(const c of financialCrises){
+    const start=new Date(c.start), end=new Date(c.end);
+    if(today>=start && today<=end) return `⚠️ Finanzkrise: ${c.name}`;
+  }
+  return "–";
+}
 
-// Entscheidung & Stop/Target
+// Entscheidung
 function decision(curr,fut,h){
   const t=(h.slice(-20).reduce((a,b)=>a+b,0)/20-h.slice(-100).reduce((a,b)=>a+b,0)/100)/ (h.slice(-100).reduce((a,b)=>a+b,0)/100);
   const v=Math.sqrt(h.reduce((a,b)=>a+Math.pow(b-h.reduce((x,y)=>x+y,0)/h.length,2),0)/h.length)/h.reduce((a,b)=>a+b,0)*h.length;
@@ -189,14 +206,27 @@ function decision(curr,fut,h){
   return ["⚪ HALTEN","Keine klare Richtung"];
 }
 function risk(curr,h){const v=Math.sqrt(h.reduce((a,b)=>a+Math.pow(b-h.reduce((x,y)=>x+y,0)/h.length,2),0)/h.length)/h.reduce((a,b)=>a+b,0)*h.length*curr; return {sl:(curr-2*v).toFixed(2),tp:(curr+3*v).toFixed(2)};}
-
-// Buy-Link
 function getBuyLink(sym){return `https://www.tradingview.com/symbols/${sym}/`;}
+function openYahoo(){window.open(`https://finance.yahoo.com/quote/${selectStock.value}`,"_blank");}
+function openTradingView(){window.open(`https://www.tradingview.com/symbols/${selectStock.value}/`,"_blank");}
+function openSwissquote(){window.open(`https://www.swissquote.ch/sqw-en/private/trading/instruments/search?query=${selectStock.value}`,"_blank");}
 
-// Run Analyse
+// Live Preis
+async function startLivePrice(symbol){
+  const currentDiv=document.getElementById("currentPrice");
+  async function updatePrice(){
+    try{ const quote=await fetchQuote(symbol); const fx=await fetchUsdChf(); currentDiv.textContent=`Aktueller Kurs: ${(quote*fx).toFixed(2)} CHF`; } 
+    catch(err){currentDiv.textContent=`Fehler beim Abrufen: ${err}`;}
+  }
+  await updatePrice();
+  if(liveInterval) clearInterval(liveInterval);
+  liveInterval=setInterval(updatePrice,5000);
+}
+
+// Analyse starten
 async function run(){
   const symbol=selectStock.value;
-  if(!symbol){ alert("Bitte ein Asset auswählen!"); return;}
+  if(!symbol){alert("Bitte Asset auswählen!"); return;}
   const status=document.getElementById("status");
   const progressBar=document.getElementById("progressBar");
   const progressText=document.getElementById("progressText");
@@ -245,7 +275,7 @@ async function run(){
     const conf=Math.abs(diff)>0.1?"Hoch":Math.abs(diff)>0.05?"Mittel":"Niedrig";
     const dec=decision(price,p,hist);
     const r=risk(price,hist);
-    const warn=calcWarning(hist);
+    const warn=calcWarning(hist,symbol);
     html+=`<tr ${i===0?'class="bestKI"':''}>
       <td>KI${i+1}</td>
       <td>${p.toFixed(2)}</td>
@@ -260,7 +290,6 @@ async function run(){
   });
   out.innerHTML=html;
 
-  // Live Preis starten
   startLivePrice(symbol);
 
   progressBar.value=100;
