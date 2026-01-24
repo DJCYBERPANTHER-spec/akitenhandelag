@@ -1,78 +1,45 @@
-/**********************************************************
- * analyse.js – Profi KI Aktien & Krypto Analyse (ERWEITERT)
- **********************************************************/
-
-const API_KEY = "d5ohqjhr01qjast6qrjgd5ohqjhr01qjast6qrk0";
+/***********************
+ * KONFIGURATION
+ ***********************/
+const API_KEY = "DEIN_FINNHUB_KEY"; // Finnhub
 let chart = null;
 
-/* ===================== ASSETS ===================== */
-/* 👉 Hier kannst du jederzeit selbst Assets ergänzen */
-
+/***********************
+ * ASSETS (erweitert)
+ ***********************/
 const ASSETS = [
-
-  /* ===== AKTIEN (USA & GLOBAL) ===== */
+  // Aktien
   { symbol: "AAPL", name: "Apple" },
   { symbol: "MSFT", name: "Microsoft" },
-  { symbol: "NVDA", name: "NVIDIA" },
+  { symbol: "NVDA", name: "Nvidia" },
   { symbol: "AMZN", name: "Amazon" },
   { symbol: "GOOGL", name: "Alphabet" },
-  { symbol: "META", name: "Meta Platforms" },
+  { symbol: "META", name: "Meta" },
   { symbol: "TSLA", name: "Tesla" },
-  { symbol: "AMD", name: "AMD" },
-  { symbol: "INTC", name: "Intel" },
-  { symbol: "NFLX", name: "Netflix" },
-  { symbol: "ORCL", name: "Oracle" },
-  { symbol: "IBM", name: "IBM" },
-  { symbol: "BABA", name: "Alibaba" },
-  { symbol: "DIS", name: "Disney" },
-  { symbol: "JPM", name: "JP Morgan" },
-  { symbol: "V", name: "Visa" },
-  { symbol: "MA", name: "Mastercard" },
-  { symbol: "KO", name: "Coca-Cola" },
-  { symbol: "PEP", name: "PepsiCo" },
-  { symbol: "NKE", name: "Nike" },
-  { symbol: "PFE", name: "Pfizer" },
-  { symbol: "XOM", name: "Exxon Mobil" },
-  { symbol: "CVX", name: "Chevron" },
-  { symbol: "BA", name: "Boeing" },
 
-  /* ===== KRYPTOWÄHRUNGEN ===== */
+  // Kryptos
   { symbol: "BTC-USD", name: "Bitcoin" },
   { symbol: "ETH-USD", name: "Ethereum" },
   { symbol: "BNB-USD", name: "Binance Coin" },
   { symbol: "SOL-USD", name: "Solana" },
   { symbol: "ADA-USD", name: "Cardano" },
   { symbol: "XRP-USD", name: "Ripple" },
-  { symbol: "DOGE-USD", name: "Dogecoin" },
-  { symbol: "DOT-USD", name: "Polkadot" },
-  { symbol: "AVAX-USD", name: "Avalanche" },
-  { symbol: "LINK-USD", name: "Chainlink" },
-  { symbol: "MATIC-USD", name: "Polygon" },
-  { symbol: "ATOM-USD", name: "Cosmos" },
-  { symbol: "LTC-USD", name: "Litecoin" },
-  { symbol: "TRX-USD", name: "TRON" },
-  { symbol: "XLM-USD", name: "Stellar" },
-  { symbol: "ETC-USD", name: "Ethereum Classic" },
-  { symbol: "NEAR-USD", name: "Near Protocol" },
-  { symbol: "ICP-USD", name: "Internet Computer" }
+  { symbol: "DOGE-USD", name: "Dogecoin" }
 ];
 
-/* ===================== DOM ===================== */
-
+/***********************
+ * DOM
+ ***********************/
 const assetSelect = document.getElementById("assetSelect");
-const timeRange = document.getElementById("timeRange");
 const analyseBtn = document.getElementById("analyseBtn");
-const currentPriceDiv = document.getElementById("currentPrice");
-const warningDiv = document.getElementById("warning");
 const statusDiv = document.getElementById("status");
-const loaderDiv = document.getElementById("loader");
-const progressBar = document.getElementById("progressBar");
-const progressText = document.getElementById("progressText");
+const warningDiv = document.getElementById("warning");
 const outTable = document.getElementById("out");
 const chartCanvas = document.getElementById("chart");
 
-/* ===================== INIT ===================== */
-
+/***********************
+ * DROPDOWN
+ ***********************/
 ASSETS.forEach(a => {
   const o = document.createElement("option");
   o.value = a.symbol;
@@ -80,238 +47,176 @@ ASSETS.forEach(a => {
   assetSelect.appendChild(o);
 });
 
-analyseBtn.addEventListener("click", run);
-
-/* ===================== HILFSFUNKTIONEN ===================== */
-
-async function fetchUsdChf() {
-  try {
-    const r = await fetch("https://api.exchangerate.host/latest?base=USD&symbols=CHF");
-    const j = await r.json();
-    return j?.rates?.CHF || 0.93;
-  } catch {
-    return 0.93;
-  }
+/***********************
+ * HILFSFUNKTIONEN
+ ***********************/
+function getRandomAsset(){
+  return ASSETS[Math.floor(Math.random() * ASSETS.length)];
 }
 
-async function fetchQuote(sym) {
-  try {
-    if (sym.includes("USD")) return fetchCrypto(sym);
-    const r = await fetch(`https://finnhub.io/api/v1/quote?symbol=${sym}&token=${API_KEY}`);
-    const j = await r.json();
-    return j.c || 100;
-  } catch {
-    return 100;
-  }
+function isCrypto(sym){
+  return sym.includes("USD");
 }
 
-async function fetchCrypto(sym) {
-  const map = {
-    "BTC-USD": "bitcoin", "ETH-USD": "ethereum", "BNB-USD": "binancecoin",
-    "SOL-USD": "solana", "ADA-USD": "cardano", "XRP-USD": "ripple",
-    "DOGE-USD": "dogecoin", "DOT-USD": "polkadot", "AVAX-USD": "avalanche-2",
-    "LINK-USD": "chainlink", "MATIC-USD": "polygon",
-    "ATOM-USD": "cosmos", "LTC-USD": "litecoin",
-    "TRX-USD": "tron", "XLM-USD": "stellar",
-    "ETC-USD": "ethereum-classic", "NEAR-USD": "near",
-    "ICP-USD": "internet-computer"
-  };
-  const id = map[sym];
-  if (!id) return 100;
-
-  try {
-    const r = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${id}&vs_currencies=usd`);
-    const j = await r.json();
-    return j[id]?.usd || 100;
-  } catch {
-    return 100;
-  }
-}
-
-async function fetchHistoricalData(sym, days) {
-  try {
-    if (sym.includes("USD")) {
+/***********************
+ * KURSE
+ ***********************/
+async function fetchQuote(sym){
+  try{
+    if(isCrypto(sym)){
       const map = {
-        "BTC-USD": "bitcoin", "ETH-USD": "ethereum", "BNB-USD": "binancecoin",
-        "SOL-USD": "solana", "ADA-USD": "cardano", "XRP-USD": "ripple",
-        "DOGE-USD": "dogecoin", "DOT-USD": "polkadot", "AVAX-USD": "avalanche-2",
-        "LINK-USD": "chainlink", "MATIC-USD": "polygon",
-        "ATOM-USD": "cosmos", "LTC-USD": "litecoin",
-        "TRX-USD": "tron", "XLM-USD": "stellar",
-        "ETC-USD": "ethereum-classic", "NEAR-USD": "near",
-        "ICP-USD": "internet-computer"
+        "BTC-USD":"bitcoin","ETH-USD":"ethereum","BNB-USD":"binancecoin",
+        "SOL-USD":"solana","ADA-USD":"cardano","XRP-USD":"ripple","DOGE-USD":"dogecoin"
+      };
+      const id = map[sym];
+      const r = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${id}&vs_currencies=usd`);
+      const j = await r.json();
+      return j[id].usd;
+    }else{
+      const r = await fetch(`https://finnhub.io/api/v1/quote?symbol=${sym}&token=${API_KEY}`);
+      const j = await r.json();
+      return j.c;
+    }
+  }catch{
+    return 0;
+  }
+}
+
+async function fetchHistory(sym, days = 30){
+  try{
+    if(isCrypto(sym)){
+      const map = {
+        "BTC-USD":"bitcoin","ETH-USD":"ethereum","BNB-USD":"binancecoin",
+        "SOL-USD":"solana","ADA-USD":"cardano","XRP-USD":"ripple","DOGE-USD":"dogecoin"
       };
       const id = map[sym];
       const r = await fetch(`https://api.coingecko.com/api/v3/coins/${id}/market_chart?vs_currency=usd&days=${days}`);
       const j = await r.json();
       return j.prices.map(p => p[1]);
-    } else {
-      const now = Math.floor(Date.now() / 1000);
-      const from = now - days * 86400;
+    }else{
+      const now = Math.floor(Date.now()/1000);
+      const from = now - days*86400;
       const r = await fetch(`https://finnhub.io/api/v1/stock/candle?symbol=${sym}&resolution=D&from=${from}&to=${now}&token=${API_KEY}`);
       const j = await r.json();
-      return j.s === "ok" ? j.c : [];
+      return j.c;
     }
-  } catch {
+  }catch{
     return [];
   }
 }
 
-/* ===================== KI ===================== */
+/***********************
+ * KI-MODELLE
+ ***********************/
+function trendModel(p){
+  return p.at(-1) + (p.at(-1) - p[0]) / p.length * 7;
+}
 
-async function predictKI(hist, period, index) {
-  if (hist.length < period + 5) return Array(7).fill(hist.at(-1) || 100);
+function momentumModel(p){
+  return p.at(-1) + (p.at(-1) - p.at(-5)) * 1.5;
+}
 
-  const min = Math.min(...hist);
-  const max = Math.max(...hist);
-  const norm = hist.map(v => (v - min) / (max - min || 1));
+function volatilityModel(p){
+  const avg = p.reduce((a,b)=>a+b,0)/p.length;
+  return avg + (p.at(-1)-avg)*0.5;
+}
 
-  let X = [], Y = [];
-  for (let i = 0; i < norm.length - period; i++) {
-    X.push(norm.slice(i, i + period).map(v => [v]));
-    Y.push([norm[i + period]]);
+function ensemble(p){
+  return {
+    ki1: trendModel(p),
+    ki2: momentumModel(p),
+    ki3: volatilityModel(p)
+  };
+}
+
+/***********************
+ * GENAUIGKEIT
+ ***********************/
+function accuracy(pred, real){
+  const err = Math.abs(pred - real) / real;
+  return Math.max(0, Math.round((1 - err) * 100));
+}
+
+/***********************
+ * WARNUNG
+ ***********************/
+function strongRiseWarning(preds, live){
+  const avg = (preds.ki1 + preds.ki2 + preds.ki3)/3;
+  const diff = (avg - live)/live*100;
+  if(diff > 15){
+    return "⚠️ Starker Anstieg prognostiziert – erhöhte Volatilität!";
   }
-
-  const xs = tf.tensor3d(X);
-  const ys = tf.tensor2d(Y);
-
-  const model = tf.sequential();
-  model.add(tf.layers.lstm({ units: 14 + index * 4, inputShape: [period, 1] }));
-  model.add(tf.layers.dense({ units: 1 }));
-  model.compile({ optimizer: "adam", loss: "meanSquaredError" });
-
-  await model.fit(xs, ys, { epochs: 8, verbose: 0 });
-
-  let seq = norm.slice(-period);
-  let preds = [];
-
-  for (let i = 0; i < 7; i++) {
-    const t = tf.tensor3d([seq.map(v => [v])]);
-    const p = model.predict(t).dataSync()[0];
-    preds.push(p * (max - min) + min);
-    seq.shift(); seq.push(p);
-    t.dispose();
-  }
-
-  xs.dispose(); ys.dispose(); model.dispose();
-  return preds;
+  return "Keine besondere Warnung";
 }
 
-/* ===================== WARNUNGEN & SIGNAL ===================== */
-
-function generateWarnings(hist, preds) {
-  const last = hist.at(-1);
-  const avg = preds.reduce((a, b) => a + b, 0) / preds.length;
-  const diff = (avg - last) / last;
-
-  if (diff > 0.18) return "🚀 Sehr starker KI-Anstieg prognostiziert!";
-  if (diff > 0.10) return "📈 Deutlicher KI-Anstieg prognostiziert";
-  if (diff < -0.18) return "📉 Starker Rückgang prognostiziert!";
-  return "Keine akute Warnung";
-}
-
-function getSignal(diff) {
-  if (diff > 0.05) return "buy";
-  if (diff < -0.05) return "sell";
-  return "hold";
-}
-
-function getConfidence(diff) {
-  const a = Math.abs(diff);
-  if (a > 0.15) return "Hoch";
-  if (a > 0.08) return "Mittel";
-  return "Niedrig";
-}
-
-/* ===================== CHART ===================== */
-
-function drawChart(hist, allPreds) {
-  if (chart) chart.destroy();
-
-  const avg = Array(7).fill(0).map((_, i) =>
-    allPreds.reduce((s, p) => s + p[i], 0) / allPreds.length
-  );
-
-  chart = new Chart(chartCanvas, {
-    type: "line",
-    data: {
-      labels: [...hist.map((_, i) => `T${i+1}`), "T+1","T+2","T+3","T+4","T+5","T+6","T+7"],
-      datasets: [
-        { label: "Historisch", data: hist, borderColor: "#3b82f6", tension: 0.2 },
-        ...allPreds.map((p, i) => ({
-          label: `KI${i+1}`,
-          data: Array(hist.length).fill(null).concat(p),
-          borderColor: ["#22c55e","#f97316"][i],
-          tension: 0.3
-        })),
-        {
-          label: "Durchschnitt",
-          data: Array(hist.length).fill(null).concat(avg),
-          borderColor: "#ffffff",
-          borderWidth: 2
-        }
+/***********************
+ * CHART
+ ***********************/
+function drawChart(hist, preds){
+  if(chart) chart.destroy();
+  chart = new Chart(chartCanvas,{
+    type:"line",
+    data:{
+      labels: hist.map((_,i)=>`T${i+1}`),
+      datasets:[
+        { label:"Historisch", data:hist, borderColor:"#3b82f6" },
+        { label:"KI Ø", data:[...Array(hist.length-1).fill(null),
+          (preds.ki1+preds.ki2+preds.ki3)/3], borderColor:"#22c55e" }
       ]
     }
   });
 }
 
-/* ===================== MAIN ===================== */
+/***********************
+ * AUTOMATISCHER START
+ ***********************/
+document.addEventListener("DOMContentLoaded", async ()=>{
+  const stored = localStorage.getItem("ki7d");
 
-async function run() {
-  try {
-    statusDiv.textContent = "Analyse läuft…";
-    loaderDiv.textContent = "Daten & KI werden geladen…";
-    outTable.innerHTML = "";
+  if(stored){
+    const d = JSON.parse(stored);
+    if(Date.now() - d.date > 7*86400000){
+      const real = await fetchQuote(d.symbol);
+      const acc1 = accuracy(d.preds.ki1, real);
+      const acc2 = accuracy(d.preds.ki2, real);
+      const acc3 = accuracy(d.preds.ki3, real);
+      const avgAcc = Math.round((acc1+acc2+acc3)/3);
 
-    const sym = assetSelect.value;
-    const fx = await fetchUsdChf();
-    const live = await fetchQuote(sym);
-    currentPriceDiv.textContent = `Aktueller Kurs: ${(live * fx).toFixed(2)} CHF`;
-
-    const period = parseInt(timeRange.value);
-    const hist = await fetchHistoricalData(sym, period * 2);
-
-    const ki1 = await predictKI(hist, period, 0);
-    const ki2 = await predictKI(hist, period, 1);
-    const allPreds = [ki1, ki2];
-
-    warningDiv.textContent = generateWarnings(hist, [...ki1, ...ki2]);
-    drawChart(hist, allPreds);
-
-    const ts = new Date().toLocaleString();
-
-    allPreds.forEach((p, i) => {
-      const diff = (p[0] - live) / live;
-      const arrow = diff > 0 ? "▲" : diff < 0 ? "▼" : "→";
-      const sig = getSignal(diff);
-
-      outTable.insertAdjacentHTML("beforeend", `
-        <tr>
-          <td>KI${i+1}</td>
-          <td>${p[0].toFixed(2)}</td>
-          <td class="${sig}">${sig.toUpperCase()}</td>
-          <td>${arrow} ${(diff*100).toFixed(1)}%</td>
-          <td class="conf">${getConfidence(diff)}</td>
-          <td>${ts}</td>
-        </tr>
-      `);
-    });
-
-    statusDiv.textContent = "Fertig";
-    loaderDiv.textContent = "–";
-
-  } catch (e) {
-    console.error(e);
-    statusDiv.textContent = "Fehler";
-    loaderDiv.textContent = "Analyse fehlgeschlagen";
+      statusDiv.innerHTML = `🎯 KI-Auswertung für ${d.symbol}<br>Durchschnittliche Genauigkeit: <b>${avgAcc}%</b>`;
+      localStorage.removeItem("ki7d");
+      return;
+    }
   }
-}
 
-/* ===================== LINKS ===================== */
+  const asset = getRandomAsset();
+  assetSelect.value = asset.symbol;
+  const hist = await fetchHistory(asset.symbol);
+  const preds = ensemble(hist);
 
-function openYahoo() {
-  window.open(`https://finance.yahoo.com/quote/${assetSelect.value}`, "_blank");
-}
-function openTradingView() {
-  window.open(`https://www.tradingview.com/symbols/${assetSelect.value}/`, "_blank");
-}
+  localStorage.setItem("ki7d", JSON.stringify({
+    symbol: asset.symbol,
+    preds,
+    date: Date.now()
+  }));
+
+  statusDiv.innerHTML = `📊 Automatische 7-Tage-Prognose gestartet für <b>${asset.name}</b>`;
+});
+
+/***********************
+ * MANUELLE ANALYSE
+ ***********************/
+analyseBtn.addEventListener("click", async ()=>{
+  const sym = assetSelect.value;
+  const hist = await fetchHistory(sym);
+  const live = await fetchQuote(sym);
+  const preds = ensemble(hist);
+
+  warningDiv.textContent = strongRiseWarning(preds, live);
+  drawChart(hist, preds);
+
+  outTable.innerHTML = `
+    <tr><td>KI 1</td><td>${preds.ki1.toFixed(2)}</td></tr>
+    <tr><td>KI 2</td><td>${preds.ki2.toFixed(2)}</td></tr>
+    <tr><td>KI 3</td><td>${preds.ki3.toFixed(2)}</td></tr>
+  `;
+});
