@@ -13,9 +13,11 @@
 <h1>AKTIEN & KRYPTO HANTEL AG</h1>
 <div class="subtitle">Live-Daten & KI-Prognosen (CHF)</div>
 
+<!-- Live-Kurs + Warnung -->
 <div class="infoBox" id="currentPrice" data-last="0">Aktueller Kurs: –</div>
 <div class="infoBox" id="warning">Warnungen: –</div>
 
+<!-- Steuerung -->
 <div class="controls">
   <select id="assetSelect"></select>
   <select id="timeRange">
@@ -30,23 +32,27 @@
   <button onclick="openSwissquote()">Swissquote</button>
 </div>
 
+<!-- Status & Loader -->
 <div class="status" id="status">Bereit</div>
 <div class="loader" id="loader">–</div>
 
+<!-- Fortschrittsbalken -->
 <div style="text-align:center;margin-bottom:10px;">
   <progress id="progressBar" value="0" max="100"></progress>
   <div id="progressText">Warte auf Berechnung…</div>
 </div>
 
+<!-- Chart -->
 <canvas id="chart" height="280"></canvas>
 
+<!-- Prognosetabelle -->
 <table>
   <thead>
     <tr>
       <th>KI-Modell</th>
       <th>Prognose (CHF)</th>
       <th>Signal</th>
-      <th>Abweichungen</th>
+      <th>Δ</th>
       <th>Konfidenz</th>
       <th>Datum/Uhrzeit</th>
     </tr>
@@ -57,6 +63,7 @@
 <div class="footer">@ Analyse-Tool – keine Anlageberatung</div>
 
 <script src="analyse.js"></script>
+
 <script>
   // Blink Effekt beim Live-Kurs
   const currentPriceDiv = document.getElementById('currentPrice');
