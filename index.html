@@ -6,24 +6,25 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
-body { font-family: Arial; background:#111; color:#eee; padding:20px }
-select, button { padding:8px; margin:5px }
-#status { margin-top:10px }
-.ok { color:#4caf50 }
-.warn { color:#ff9800 }
-.danger { color:#f44336 }
-small { color:#aaa }
+body { font-family: Arial, sans-serif; background:#111; color:#eee; padding:20px; }
+#app { max-width:900px; margin:auto; }
+.card { background:#020617; border:1px solid #1e293b; padding:15px; border-radius:10px; margin-bottom:15px; }
+select, button { padding:8px; margin:5px; width:100%; background:#020617; color:white; border:1px solid #1e293b; border-radius:6px; }
+#status { margin-top:10px; }
+.ok { color:#4caf50; }
+.warn { color:#ff9800; }
+.danger { color:#f44336; }
+small { color:#aaa; }
+.progress { height:8px; background:#1e293b; border-radius:4px; overflow:hidden; margin-top:5px; }
+.progress div { height:100%; width:0%; background:#38bdf8; transition: width 0.3s; }
 </style>
 </head>
 
 <body>
-<h2>📉 Asset Risiko- & Crash-Analyse</h2>
+<div id="app">
 
-<div>
-<select id="assetSelect"></select>
-<button onclick="loadAsset()">Analysieren</button>
-</div>
-
+<div class="card">
+<h2>🔍 Asset-Scanner</h2>
 <div id="status">
 <b>Status:</b> <span id="searchStatus">Suche Assets…</span><br>
 Geprüft: <span id="checked">0</span> |
@@ -31,146 +32,249 @@ Gefunden: <span id="found">0</span> |
 ETA: <span id="eta">–</span>
 </div>
 
-<hr>
+<div class="progress"><div id="bar"></div></div>
 
+<select id="assetSelect">
+<option>Lade Assets…</option>
+</select>
+
+<button onclick="loadAsset()">📊 Analysieren</button>
+</div>
+
+<div class="card">
+<h2>📈 Analyse</h2>
 <div id="info"></div>
+<div id="warnings"></div>
 <canvas id="chart" height="120"></canvas>
 
-<hr>
-<div id="warnings"></div>
+<button onclick="openTradingView()">TradingView öffnen</button>
+<button onclick="openBuy()">Kaufen / Infos</button>
+</div>
 
 <script>
 // ================== KONFIGURATION ==================
-const FINNHUB_KEY = "DEIN_API_KEY";
-const MIN_DAYS = 10;
-const TARGET_ASSETS = 10;
+const FINNHUB_KEY = "DEIN_API_KEY_HIER"; // Finnhub API
+const MIN_DAYS = 10;                     // minimale Historie
+const TARGET_ASSETS = 10;                // Mindestanzahl gefundener Assets
+const DELAY = 1200;                      // ms Pause zwischen Requests
 
-// Finanzkrisen
+// Finanzkrisen der letzten 20 Jahre
 const CRISES = [
   { name:"Finanzkrise 2008", from:"2008-09-01", to:"2009-03-01" },
   { name:"Eurokrise", from:"2010-05-01", to:"2012-07-01" },
   { name:"Covid-Crash", from:"2020-02-15", to:"2020-04-15" },
   { name:"Zins/Tech-Crash", from:"2022-01-01", to:"2022-10-01" }
 ];
-
-// Kandidaten
-const STOCKS = ["AAPL","MSFT","GOOGL","AMZN","META","NVDA","TSLA","JPM","V","JNJ","KO","PEP","ADBE","ORCL","INTC"];
-const CRYPTOS = ["BTCUSDT","ETHUSDT","BNBUSDT","SOLUSDT","XRPUSDT","ADAUSDT","DOGEUSDT"];
-
+// ================== STATE ==================
 let validAssets = [];
 let checkedCount = 0;
 let startTime = Date.now();
-let chart;
-// ================== HISTORIE LADEN ==================
-async function fetchStockHistory(symbol) {
-  const to = Math.floor(Date.now()/1000);
-  const from = to - 400*86400;
-  const url = `https://finnhub.io/api/v1/stock/candle?symbol=${symbol}&resolution=D&from=${from}&to=${to}&token=${FINNHUB_KEY}`;
-  const r = await fetch(url).then(r=>r.json());
-  if (r.s !== "ok" || r.c.length < MIN_DAYS) throw "no data";
-  return { type:"stock", symbol, dates:r.t.map(t=>new Date(t*1000)), prices:r.c };
-}
 
-async function fetchCryptoHistory(symbol) {
-  const url = `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=1d&limit=400`;
-  const r = await fetch(url).then(r=>r.json());
-  if (!Array.isArray(r) || r.length < MIN_DAYS) throw "no data";
-  return {
-    type:"crypto",
-    symbol,
-    dates: r.map(x=>new Date(x[0])),
-    prices: r.map(x=>parseFloat(x[4]))
-  };
-}
+// ================== ASSETS ==================
+// Aktienliste (sicher große US-Large Caps)
+const STOCKS = ["AAPL","MSFT","GOOGL","AMZN","META","NVDA","TSLA","JPM","V","JNJ","KO","PEP","ADBE","ORCL","INTC"];
+// Kryptos über Binance
+const CRYPTOS = ["BTCUSDT","ETHUSDT","BNBUSDT","SOLUSDT","XRPUSDT","ADAUSDT","DOGEUSDT"];
 
-// ================== ASSET SUCHEN ==================
-async function searchAssets() {
-  for (let s of STOCKS) {
-    await tryAsset(()=>fetchStockHistory(s));
-  }
-  for (let c of CRYPTOS) {
-    await tryAsset(()=>fetchCryptoHistory(c));
-  }
-  document.getElementById("searchStatus").textContent = "Suche abgeschlossen";
-}
+// Zusammengeführt
+const ALL_ASSETS = [
+  ...STOCKS.map(s=>({symbol:s,type:"stock"})),
+  ...CRYPTOS.map(c=>({symbol:c,type:"crypto"}))
+];
 
-async function tryAsset(fn) {
-  checkedCount++;
+// ================== HILFSFUNKTIONEN ==================
+function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
+function updateUI(){
   document.getElementById("checked").textContent = checkedCount;
-  try {
-    const data = await fn();
-    validAssets.push(data);
-    addOption(data);
-    document.getElementById("found").textContent = validAssets.length;
-  } catch {}
-  const elapsed = (Date.now()-startTime)/1000;
-  document.getElementById("eta").textContent =
-    Math.max(0, ((checkedCount+1)*elapsed/checkedCount - elapsed).toFixed(1))+"s";
+  document.getElementById("found").textContent = validAssets.length;
+  document.getElementById("bar").style.width = Math.min(100,(validAssets.length/TARGET_ASSETS)*100) + "%";
+  let elapsed = (Date.now()-startTime)/1000;
+  let avg = checkedCount ? elapsed/checkedCount : 0;
+  let remaining = Math.max((TARGET_ASSETS-validAssets.length)*avg,0);
+  document.getElementById("eta").textContent = Math.ceil(remaining)+"s";
 }
 
-// ================== UI ==================
-function addOption(a) {
+// ================== HISTORIE ABRUF ==================
+async function fetchStockHistory(symbol, days=MIN_DAYS){
+  const to = Math.floor(Date.now()/1000);
+  const from = to - days*86400;
+  const url = `https://finnhub.io/api/v1/stock/candle?symbol=${symbol}&resolution=D&from=${from}&to=${to}&token=${FINNHUB_KEY}`;
+  const res = await fetch(url).then(r=>r.json());
+  if(res.s!=="ok" || !res.c || res.c.length<MIN_DAYS) throw "no data";
+  return {symbol,type:"stock",prices:res.c,dates:res.t.map(t=>new Date(t*1000))};
+}
+
+async function fetchCryptoHistory(symbol, days=MIN_DAYS){
+  const url = `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=1d&limit=${days}`;
+  const res = await fetch(url).then(r=>r.json());
+  if(!Array.isArray(res) || res.length<MIN_DAYS) throw "no data";
+  return {symbol,type:"crypto",prices:res.map(x=>parseFloat(x[4])),dates:res.map(x=>new Date(x[0]))};
+}
+
+// ================== ASSET SUCHE ==================
+async function searchAssets(){
+  for(const a of ALL_ASSETS){
+    if(validAssets.length>=TARGET_ASSETS) break;
+    checkedCount++;
+    try{
+      let data = a.type==="stock" 
+        ? await fetchStockHistory(a.symbol,365)
+        : await fetchCryptoHistory(a.symbol,365);
+      validAssets.push(data);
+      addOption(data);
+    }catch(e){}
+    updateUI();
+    await sleep(DELAY);
+  }
+
+  // Fallback auf 200 Tage
+  if(validAssets.length<TARGET_ASSETS){
+    for(const a of ALL_ASSETS){
+      if(validAssets.length>=TARGET_ASSETS) break;
+      if(validAssets.find(v=>v.symbol===a.symbol)) continue;
+      checkedCount++;
+      try{
+        let data = a.type==="stock" 
+          ? await fetchStockHistory(a.symbol,200)
+          : await fetchCryptoHistory(a.symbol,200);
+        validAssets.push(data);
+        addOption(data);
+      }catch(e){}
+      updateUI();
+      await sleep(DELAY);
+    }
+  }
+
+  // Fallback auf 10 Tage
+  if(validAssets.length<TARGET_ASSETS){
+    for(const a of ALL_ASSETS){
+      if(validAssets.length>=TARGET_ASSETS) break;
+      if(validAssets.find(v=>v.symbol===a.symbol)) continue;
+      checkedCount++;
+      try{
+        let data = a.type==="stock" 
+          ? await fetchStockHistory(a.symbol,MIN_DAYS)
+          : await fetchCryptoHistory(a.symbol,MIN_DAYS);
+        validAssets.push(data);
+        addOption(data);
+      }catch(e){}
+      updateUI();
+      await sleep(DELAY);
+    }
+  }
+
+  document.getElementById("searchStatus").textContent = "✅ Suche abgeschlossen";
+}
+
+// ================== DROPDOWN ==================
+const assetSelect = document.getElementById("assetSelect");
+function addOption(asset){
+  if(validAssets.length===1) assetSelect.innerHTML = "";
   const o = document.createElement("option");
   o.value = validAssets.length-1;
-  o.textContent = `${a.symbol} (${a.type})`;
+  o.textContent = `${asset.symbol} (${asset.type})`;
   assetSelect.appendChild(o);
 }
 
-function loadAsset() {
-  const a = validAssets[assetSelect.value];
+// ======= AUTOMATISCH START =======
+searchAssets();
+// ================== ANALYSE ==================
+let chart;
+const infoDiv = document.getElementById("info");
+const warningsDiv = document.getElementById("warnings");
+
+function loadAsset(){
+  const idx = assetSelect.value;
+  if(idx===null) return;
+  const a = validAssets[idx];
   renderChart(a);
   analyse(a);
 }
 
-// ================== ANALYSE ==================
-function analyse(a) {
-  const p = a.prices;
-  const ret30 = ((p[p.length-1]-p[p.length-31])/p[p.length-31])*100;
-  const vol = std(p.slice(-30));
-  const dd = maxDrawdown(p);
-
-  let html = `<h3>${a.symbol}</h3>`;
-  html += `30T Performance: ${ret30.toFixed(2)}%<br>`;
-  html += `Volatilität: ${vol.toFixed(2)}<br>`;
-  html += `Max Drawdown: ${dd.toFixed(2)}%<br>`;
-  html += `<a href="https://www.tradingview.com/symbols/${a.symbol}/" target="_blank">TradingView</a> |
-           <a href="https://finance.yahoo.com/quote/${a.symbol}" target="_blank">Yahoo Finance</a>`;
-  info.innerHTML = html;
-
-  let w = "";
-  if (dd < -20) w += "<div class='danger'>🔴 Starker Drawdown</div>";
-  if (vol > (a.type==="crypto"?6:3)) w += "<div class='warn'>🟠 Hohe Volatilität</div>";
-  warnings.innerHTML = w || "<div class='ok'>🟢 Keine akute Warnung</div>";
-}
-
 // ================== CHART ==================
-function renderChart(a) {
-  if (chart) chart.destroy();
+function renderChart(a){
+  if(chart) chart.destroy();
   chart = new Chart(document.getElementById("chart"), {
     type:"line",
     data:{
-      labels:a.dates.map(d=>d.toISOString().slice(0,10)),
-      datasets:[{ label:a.symbol, data:a.prices, borderColor:"#4caf50", pointRadius:0 }]
+      labels: a.dates.map(d=>d.toISOString().slice(0,10)),
+      datasets:[{label:a.symbol, data:a.prices, borderColor:"#4caf50", pointRadius:0}]
+    },
+    options:{
+      plugins:{
+        legend:{display:false},
+      }
     }
   });
 }
 
-// ================== HILFSFUNKTIONEN ==================
-function std(arr) {
-  const m = arr.reduce((a,b)=>a+b)/arr.length;
-  return Math.sqrt(arr.reduce((a,b)=>a+(b-m)**2,0)/arr.length);
+// ================== WARNUNGEN ==================
+function analyse(a){
+  const p = a.prices;
+  const dates = a.dates;
+  const last = p[p.length-1];
+  const ma20 = p.slice(-20).reduce((x,y)=>x+y,0)/20;
+  const vol = stdDev(p.slice(-30));
+  const dd = maxDrawdown(p);
+
+  // Trend
+  let trend = last>ma20 ? "Trend: steigend" : "Trend: fallend";
+
+  // Warnungen
+  let warnHtml = "";
+  if(dd<-20) warnHtml += "<div class='danger'>🔴 Starker Drawdown</div>";
+  if(vol > (a.type==="crypto"?6:3)) warnHtml += "<div class='warn'>🟠 Hohe Volatilität</div>";
+
+  // Finanzkrisen markieren (nur Hinweis)
+  CRISES.forEach(c=>{
+    const from = new Date(c.from);
+    const to = new Date(c.to);
+    if(dates[0]<=to && dates[dates.length-1]>=from){
+      warnHtml += `<div class='warn'>⚠️ Zeitraum ${c.name} enthalten</div>`;
+    }
+  });
+
+  infoDiv.innerHTML = `
+    <b>${a.symbol}</b><br>
+    Aktueller Kurs: ${last.toFixed(2)}<br>
+    ${trend}<br>
+    30T Volatilität: ${vol.toFixed(2)}<br>
+    Max Drawdown: ${dd.toFixed(2)}%
+  `;
+  warningsDiv.innerHTML = warnHtml || "<div class='ok'>🟢 Keine akute Warnung</div>";
 }
-function maxDrawdown(p) {
-  let peak=p[0], dd=0;
-  for (let x of p) {
-    if (x>peak) peak=x;
-    dd=Math.min(dd,(x-peak)/peak*100);
-  }
+
+// ================== HILFSFUNKTIONEN ==================
+function stdDev(arr){
+  const mean = arr.reduce((a,b)=>a+b)/arr.length;
+  return Math.sqrt(arr.reduce((a,b)=>a+(b-mean)**2,0)/arr.length);
+}
+function maxDrawdown(prices){
+  let peak = prices[0], dd=0;
+  prices.forEach(p=>{
+    if(p>peak) peak=p;
+    dd = Math.min(dd,(p-peak)/peak*100);
+  });
   return dd;
 }
 
-// START
-searchAssets();
+// ================== LINKS ==================
+function openTradingView(){
+  const idx = assetSelect.value;
+  if(idx===null) return;
+  const a = validAssets[idx];
+  const sym = a.type==="crypto" ? `BINANCE:${a.symbol}` : `NASDAQ:${a.symbol}`;
+  window.open(`https://www.tradingview.com/chart/?symbol=${sym}`,"_blank");
+}
+function openBuy(){
+  const idx = assetSelect.value;
+  if(idx===null) return;
+  const a = validAssets[idx];
+  const url = a.type==="crypto"
+    ? `https://www.binance.com/en/trade/${a.symbol}`
+    : `https://www.nasdaq.com/market-activity/stocks/${a.symbol.toLowerCase()}`;
+  window.open(url,"_blank");
+}
 </script>
 </body>
 </html>
