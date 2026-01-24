@@ -1,65 +1,50 @@
-/* style.css – episches Layout & Design */
+/* style.css – Layout & Design für Multi-KI Analyse */
+
 body {
-  background: linear-gradient(160deg,#0f172a,#020617);
+  background: #0f172a;
   color: #e5e7eb;
-  font-family: "Segoe UI", Arial, sans-serif;
+  font-family: Arial, sans-serif;
   margin: 0;
   padding: 15px;
 }
 
-header h1 {
+h1 {
   text-align: center;
-  font-size: 2rem;
-  color: #22c55e;
-  margin-bottom: 5px;
-  text-shadow: 0 0 10px #22c55e;
+  font-size: 1.5rem;
 }
 
 .subtitle {
   text-align: center;
   color: #94a3b8;
-  font-size: 1rem;
-  margin-bottom: 20px;
-}
-
-.info {
-  display: flex;
-  justify-content: center;
-  gap: 20px;
-  flex-wrap: wrap;
-  margin-bottom: 15px;
+  font-size: 0.9rem;
+  margin-bottom: 10px;
 }
 
 .infoBox {
-  background: #020617;
-  border: 2px solid #22c55e;
-  border-radius: 8px;
-  padding: 10px 15px;
-  font-weight: bold;
-  min-width: 180px;
   text-align: center;
-  box-shadow: 0 0 15px rgba(34,197,94,0.4);
+  margin: 8px;
+  font-size: 0.9rem;
+  font-weight: bold;
 }
 
 .controls {
   display: flex;
   justify-content: center;
-  gap: 10px;
+  gap: 8px;
   flex-wrap: wrap;
-  margin: 15px 0;
+  margin: 12px 0;
 }
 
 select, button {
   background: #020617;
   color: #e5e7eb;
-  border: 2px solid #22c55e;
+  border: 1px solid #22c55e;
+  padding: 8px 12px;
   border-radius: 6px;
-  padding: 8px 14px;
-  font-size: 0.9rem;
-  transition: all 0.2s ease;
+  font-size: 0.85rem;
 }
 
-button:hover, select:hover {
+button:hover {
   background: #22c55e;
   color: #020617;
   cursor: pointer;
@@ -69,66 +54,57 @@ button:hover, select:hover {
   text-align: center;
   margin: 10px;
   font-weight: bold;
-  font-size: 1rem;
-  color: #facc15;
-}
-
-.progress-section {
-  text-align: center;
-  margin: 10px 0;
+  font-size: 0.9rem;
 }
 
 progress {
-  width: 80%;
-  height: 20px;
-  border-radius: 10px;
-  overflow: hidden;
-  appearance: none;
-}
-
-progress::-webkit-progress-bar { background: #020617; }
-progress::-webkit-progress-value { background: #22c55e; }
-
-.chart-container {
-  max-width: 95%;
-  margin: 20px auto;
-  background: #020617;
-  border-radius: 12px;
-  padding: 10px;
-  box-shadow: 0 0 20px rgba(34,197,94,0.5);
+  border-radius: 5px;
 }
 
 canvas {
-  display: block;
   max-width: 100%;
+  margin: 18px auto;
+  display: block;
+  background: #020617;
   border-radius: 10px;
 }
 
 table {
   width: 100%;
   border-collapse: collapse;
-  margin-top: 15px;
-  font-size: 0.9rem;
-  background: #020617;
-  border-radius: 8px;
-  overflow: hidden;
-  box-shadow: 0 0 15px rgba(34,197,94,0.3);
+  margin-top: 10px;
+  font-size: 0.85rem;
 }
 
 th, td {
   border: 1px solid #22c55e;
-  padding: 8px;
+  padding: 6px;
   text-align: center;
 }
 
-.buy { color: #22c55e; font-weight: bold; }
-.sell { color: #ef4444; font-weight: bold; }
-.hold { color: #facc15; font-weight: bold; }
-.conf { color: #38bdf8; font-weight: bold; }
+.buy {
+  color: #22c55e;
+  font-weight: bold;
+}
+
+.sell {
+  color: #ef4444;
+  font-weight: bold;
+}
+
+.hold {
+  color: #facc15;
+  font-weight: bold;
+}
+
+.conf {
+  color: #38bdf8;
+  font-weight: bold;
+}
 
 .footer {
   text-align: center;
-  margin-top: 20px;
-  font-size: 0.75rem;
+  margin-top: 14px;
+  font-size: 0.7rem;
   color: #94a3b8;
 }
