@@ -1,6 +1,7 @@
-/* ----------------------------
-   GLOBAL
----------------------------- */
+/* ==============================
+   style.css – Layout & Design
+   ============================== */
+
 body {
   background: #0f172a;
   color: #e5e7eb;
@@ -21,22 +22,13 @@ h1 {
   margin-bottom: 10px;
 }
 
-/* ----------------------------
-   INFO BOXEN
----------------------------- */
 .infoBox {
   text-align: center;
-  margin: 8px 0;
+  margin: 8px;
   font-size: 0.9rem;
   font-weight: bold;
-  padding: 6px 0;
-  border-radius: 6px;
-  background-color: #1e293b;
 }
 
-/* ----------------------------
-   CONTROLS
----------------------------- */
 .controls {
   display: flex;
   justify-content: center;
@@ -60,9 +52,6 @@ button:hover {
   cursor: pointer;
 }
 
-/* ----------------------------
-   STATUS & WARNUNG
----------------------------- */
 .status {
   text-align: center;
   margin: 10px;
@@ -70,32 +59,14 @@ button:hover {
   font-size: 0.9rem;
 }
 
-.loader {
-  margin-top: 6px;
-  font-size: 0.85rem;
-  color: #a8dadc;
-}
-
-#warning {
-  color: #facc15;
-  font-weight: bold;
-}
-
-/* ----------------------------
-   CHART
----------------------------- */
 canvas {
   max-width: 100%;
   margin: 18px auto;
   display: block;
   background: #020617;
   border-radius: 10px;
-  padding: 10px;
 }
 
-/* ----------------------------
-   TABELLE
----------------------------- */
 table {
   width: 100%;
   border-collapse: collapse;
@@ -109,55 +80,14 @@ th, td {
   text-align: center;
 }
 
-.buy {
-  color: #22c55e;
-  font-weight: bold;
-}
+.buy { color: #22c55e; font-weight: bold; }
+.sell { color: #ef4444; font-weight: bold; }
+.hold { color: #facc15; font-weight: bold; }
+.conf { color: #38bdf8; font-weight: bold; }
 
-.sell {
-  color: #ef4444;
-  font-weight: bold;
-}
-
-.hold {
-  color: #facc15;
-  font-weight: bold;
-}
-
-.conf {
-  color: #38bdf8;
-  font-weight: bold;
-}
-
-/* ----------------------------
-   FUSSZEILE
----------------------------- */
 .footer {
   text-align: center;
   margin-top: 14px;
   font-size: 0.7rem;
   color: #94a3b8;
-}
-
-/* ----------------------------
-   RESPONSIVE
----------------------------- */
-@media screen and (max-width: 600px) {
-  .controls {
-    flex-direction: column;
-    gap: 6px;
-  }
-
-  th, td {
-    font-size: 0.75rem;
-    padding: 4px;
-  }
-
-  h1 {
-    font-size: 1.3rem;
-  }
-
-  .subtitle {
-    font-size: 0.8rem;
-  }
 }
