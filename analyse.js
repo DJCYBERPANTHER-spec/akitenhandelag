@@ -3,7 +3,7 @@
 // Alle Assets + Fetching + KI-Modelle
 // ==============================
 
-const API_KEY = "d5ohqjhr01qjast6qrjgd5ohqjhr01qjast6qrk0"; // Finnhub API Key
+const API_KEY = "d5qi0c9r01qhn30fr1r0d5qi0c9r01qhn30fr1rg"; // Finnhub API Key
 
 // -----------------
 // Assets
@@ -333,3 +333,4 @@ document.addEventListener("DOMContentLoaded", async ()=>{
   assetSelect.value = randomAsset.symbol;
   await runAnalysis();
 });
+
