@@ -36,7 +36,7 @@ progress{border-radius:5px;width:80%;height:18px}
 </head>
 <body>
 
-<h1>Multi-KI Aktien & Krypto Prognose</h1>
+<h1>Multi-KI Aktien & Krypto Dashboard</h1>
 <div class="subtitle">Live-Daten, KI-Prognosen & Historie (CHF)</div>
 <div class="infoBox" id="currentPrice">Aktueller Kurs: –</div>
 <div class="period" id="period">Zeitraum: –</div>
@@ -142,12 +142,16 @@ validateAssetsSequential();
 
 // USD→CHF
 async function fetchUsdChf(){try{ const r=await fetch("https://api.exchangerate.host/latest?base=USD&symbols=CHF"); const j=await r.json(); return Number(j?.rates?.CHF)||0.93;}catch{return 0.93;}}
+
+// Aktueller Preis
 async function fetchQuote(sym){
-  const url=sym.includes("USD") ? `https://finnhub.io/api/v1/crypto/candle?symbol=${sym}&resolution=D&from=${Math.floor(Date.now()/1000)-60*24*60*60}&to=${Math.floor(Date.now()/1000)}&token=${API_KEY}` : `https://finnhub.io/api/v1/quote?symbol=${sym}&token=${API_KEY}`;
-  const r=await fetch(url); const j=await r.json();
-  if(sym.includes("USD") && j.s==="ok") return Number(j.c?.at(-1));
-  if(!sym.includes("USD") && j.c!==undefined) return Number(j.c);
-  throw "Keine Kursdaten verfügbar";
+  try{
+    let url=sym.includes("USD") ? `https://finnhub.io/api/v1/crypto/candle?symbol=${sym}&resolution=D&from=${Math.floor(Date.now()/1000)-60*24*60*60}&to=${Math.floor(Date.now()/1000)}&token=${API_KEY}` : `https://finnhub.io/api/v1/quote?symbol=${sym}&token=${API_KEY}`;
+    const r=await fetch(url); const j=await r.json();
+    if(sym.includes("USD") && j.s==="ok") return Number(j.c?.at(-1));
+    if(!sym.includes("USD") && j.c!==undefined) return Number(j.c);
+  }catch{}
+  return 0;
 }
 
 // Historische Daten
@@ -155,11 +159,16 @@ async function fetchHistoricalData(symbol,period){
   const now=Math.floor(Date.now()/1000);
   const start=now-period*24*60*60;
   try{
-    const url=symbol.includes("USD")?`https://finnhub.io/api/v1/crypto/candle?symbol=${symbol}&resolution=D&from=${start}&to=${now}&token=${API_KEY}`:`https://finnhub.io/api/v1/stock/candle?symbol=${symbol}&resolution=D&from=${start}&to=${now}&token=${API_KEY}`;
+    let url=symbol.includes("USD") ? 
+      `https://finnhub.io/api/v1/crypto/candle?symbol=${symbol}&resolution=D&from=${start}&to=${now}&token=${API_KEY}` : 
+      `https://finnhub.io/api/v1/stock/candle?symbol=${symbol}&resolution=D&from=${start}&to=${now}&token=${API_KEY}`;
     const r=await fetch(url); const j=await r.json();
-    if(j.s!=="ok"||!j.c||j.c.length===0)throw"Keine historischen Daten";
+    if(j.s!=="ok"||!j.c||j.c.length===0) throw "Keine historischen Daten";
     return j.c.map(v=>Number(v));
-  }catch{ const q=await fetchQuote(symbol); return Array(Math.max(period,30)).fill(q); }
+  }catch{ 
+    const q=await fetchQuote(symbol);
+    return Array(Math.max(period,30)).fill(q); 
+  }
 }
 
 // LSTM Prognose
@@ -167,7 +176,8 @@ async function predictLSTM(data,period){
   const noisy=data.map(v=>v*(1+(Math.random()-0.5)/100)); 
   const min=Math.min(...noisy), max=Math.max(...noisy); 
   const norm=noisy.map(v=>(v-min)/(max-min||1));
-  let X=[], Y=[]; for(let i=0;i<norm.length-period;i++){ X.push(norm.slice(i,i+period).map(v=>[v])); Y.push([norm[i+period]]);}
+  let X=[], Y=[]; 
+  for(let i=0;i<norm.length-period;i++){ X.push(norm.slice(i,i+period).map(v=>[v])); Y.push([norm[i+period]];}
   if(X.length===0)return data[data.length-1];
   const xs=tf.tensor3d(X), ys=tf.tensor2d(Y);
   const model=tf.sequential(); model.add(tf.layers.lstm({units:12,inputShape:[period,1]})); model.add(tf.layers.dense({units:1}));
@@ -182,7 +192,7 @@ function openYahoo(){window.open(`https://finance.yahoo.com/quote/${selectStock.
 function openTradingView(){window.open(`https://www.tradingview.com/symbols/${selectStock.value}/`,"_blank");}
 function openSwissquote(){window.open(`https://www.swissquote.ch/sqw-en/private/trading/instruments/search?query=${selectStock.value}`,"_blank");}
 
-// ================= Hilfsfunktionen für Tabelle & Chart =================
+// Hilfsfunktionen für Tabelle & Chart
 function getConfidence(diff){if(Math.abs(diff)>0.1) return "Hoch"; if(Math.abs(diff)>0.05) return "Mittel"; return "Niedrig";}
 function getSignal(diff){if(diff>0.05) return "KAUFEN"; if(diff<-0.05) return "VERKAUFEN"; return "HALTEN";}
 function backtest(hist){let e=0;const n=Math.min(60,hist.length-1);for(let i=hist.length-n;i<hist.length-1;i++){e+=Math.min(Math.abs((hist[i]-hist[i+1])/hist[i+1]),1);} return Math.max(0,((1-e/n)*100)).toFixed(1)+"%";}
@@ -191,6 +201,22 @@ function risk(curr,hist){const vol=hist.reduce((a,b)=>a+b,0)/hist.length*0.05; r
 function drawChart(hist,preds){if(chart) chart.destroy(); const avg=preds.reduce((a,b)=>a+b,0)/preds.length; const labels=hist.map((_,i)=>`T${i+1}`); chart=new Chart(document.getElementById("chart"),{type:'line',data:{labels,datasets:[{label:"KI1",data:[...Array(hist.length-1).fill(null), preds[0]], borderColor:"#22c55e",fill:false},{label:"KI2",data:[...Array(hist.length-1).fill(null), preds[1]], borderColor:"#3b82f6",fill:false},{label:"KI3",data:[...Array(hist.length-1).fill(null), preds[2]], borderColor:"#f97316",fill:false},{label:"KI4",data:[...Array(hist.length-1).fill(null), preds[3]], borderColor:"#facc15",fill:false},{label:"Durchschnitt",data:[...Array(hist.length-1).fill(null), avg],borderColor:"#ffffff",fill:false}]} ,options:{responsive:true, maintainAspectRatio:true}});}
 </script>
 <script>
+// ---------- Live-Kurs aus Yahoo (CHF) ----------
+async function fetchCurrentPriceCHF(symbol){
+    try{
+        const url = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}`;
+        const res = await fetch(url);
+        const data = await res.json();
+        const priceUSD = data.chart.result[0].meta.regularMarketPrice;
+        const fx = await fetchUsdChf();
+        return priceUSD * fx;
+    }catch(err){
+        console.error("Yahoo-Kurs konnte nicht geladen werden", err);
+        return 0;
+    }
+}
+
+// ---------- Run-Analyse ----------
 async function run(){
     const symbol = selectStock.value;
     if(!symbol){ alert("Bitte ein Asset auswählen!"); return; }
@@ -205,10 +231,8 @@ async function run(){
     progressText.textContent = "Starte Analyse…";
 
     try{
-        // --- Aktueller Kurs USD/CHF ---
-        const quote = await fetchQuote(symbol);
-        const fx = await fetchUsdChf();
-        const priceCHF = quote * fx;
+        // --- Aktueller Kurs CHF ---
+        const priceCHF = await fetchCurrentPriceCHF(symbol);
         document.getElementById("currentPrice").textContent = `Aktueller Kurs: ${priceCHF.toFixed(2)} CHF`;
 
         const basePeriod = parseInt(document.getElementById("timeRange").value);
@@ -217,9 +241,15 @@ async function run(){
         // --- Historische Daten abrufen ---
         progressBar.value = 10; progressText.textContent = "Lade historische Daten…";
         const hist = await fetchHistoricalData(symbol, basePeriod*2);
-        const histCHF = hist.map(h=>h*fx); // in CHF umrechnen
 
-        // --- 4 KI-Prognosen berechnen ---
+        // USD→CHF umrechnen
+        let histCHF = hist;
+        if(symbol.includes("USD")){
+            const fx = await fetchUsdChf();
+            histCHF = hist.map(h=>h*fx);
+        }
+
+        // --- 4 KI-Prognosen ---
         const preds = [];
         for(let i=0;i<4;i++){
             progressBar.value = 20 + i*20;
@@ -263,13 +293,13 @@ async function run(){
         let bestValue = -Infinity, bestRow = null;
         document.querySelectorAll("#out tr").forEach(row=>{
             const val = parseFloat(row.cells[1].textContent);
-            if(val > bestValue){ bestValue = val; bestRow = row; }
+            if(val>bestValue){ bestValue=val; bestRow=row; }
             row.classList.remove("bestKI");
         });
         if(bestRow) bestRow.classList.add("bestKI");
 
-        // Update Button-Link
-        document.getElementById("buyLink").onclick = () => window.open(getBuyLink(symbol),"_blank");
+        // Kauflink aktualisieren
+        document.getElementById("buyLink").onclick = ()=> window.open(getBuyLink(symbol),"_blank");
 
         progressBar.value = 100;
         progressText.textContent = "Analyse abgeschlossen ✔";
@@ -283,9 +313,8 @@ async function run(){
     }
 }
 
-// Beim Seitenstart: aktueller Kurs laden, Tabelle vorbereiten
+// --- Start bei Seitenaufruf ---
 selectStock.addEventListener("change", ()=>run());
 </script>
 </body>
 </html>
-
