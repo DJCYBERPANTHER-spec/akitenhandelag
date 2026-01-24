@@ -1,24 +1,48 @@
 // ==============================
-// analyse.js – Teil 1: Kernlogik & Dropdown + Multi-KI
+// analyse.js – Teil 1: Assets, Dropdown, Multi-KI Logik
 // ==============================
 
-// --- API Key
+// --- API Key für Finnhub ---
 const API_KEY = "d5ohqjhr01qjast6qrjgd5ohqjhr01qjast6qrk0"; // Finnhub API Key einsetzen
 
-// --- Assets (Aktien + Kryptos)
+// --- Assets (Aktien + Kryptos), erweitert
 const ASSETS = [
-  { symbol: "AAPL", name: "Apple" }, { symbol: "MSFT", name: "Microsoft" },
-  { symbol: "NVDA", name: "Nvidia" }, { symbol: "AMZN", name: "Amazon" },
-  { symbol: "GOOGL", name: "Alphabet" }, { symbol: "META", name: "Meta" },
-  { symbol: "TSLA", name: "Tesla" },
-  { symbol: "BTC-USD", name: "Bitcoin" }, { symbol: "ETH-USD", name: "Ethereum" },
-  { symbol: "BNB-USD", name: "Binance Coin" }, { symbol: "SOL-USD", name: "Solana" },
-  { symbol: "ADA-USD", name: "Cardano" }, { symbol: "XRP-USD", name: "Ripple" },
-  { symbol: "DOGE-USD", name: "Dogecoin" }, { symbol: "LTC-USD", name: "Litecoin" },
-  { symbol: "DOT-USD", name: "Polkadot" }, { symbol: "LINK-USD", name: "Chainlink" }
+  // Aktien
+  { symbol: "AAPL", name: "Apple Inc." },
+  { symbol: "MSFT", name: "Microsoft Corp." },
+  { symbol: "NVDA", name: "NVIDIA Corp." },
+  { symbol: "AMZN", name: "Amazon.com Inc." },
+  { symbol: "GOOGL", name: "Alphabet Inc." },
+  { symbol: "META", name: "Meta Platforms" },
+  { symbol: "TSLA", name: "Tesla Inc." },
+  { symbol: "NFLX", name: "Netflix" },
+  { symbol: "INTC", name: "Intel Corp." },
+  { symbol: "ORCL", name: "Oracle Corp." },
+  { symbol: "IBM", name: "IBM" },
+  { symbol: "SAP", name: "SAP SE" },
+  { symbol: "DIS", name: "Disney" },
+  { symbol: "ADBE", name: "Adobe Inc." },
+  { symbol: "PYPL", name: "PayPal Holdings" },
+  
+  // Kryptowährungen
+  { symbol: "BTC-USD", name: "Bitcoin" },
+  { symbol: "ETH-USD", name: "Ethereum" },
+  { symbol: "BNB-USD", name: "Binance Coin" },
+  { symbol: "SOL-USD", name: "Solana" },
+  { symbol: "ADA-USD", name: "Cardano" },
+  { symbol: "DOGE-USD", name: "Dogecoin" },
+  { symbol: "XRP-USD", name: "Ripple" },
+  { symbol: "LTC-USD", name: "Litecoin" },
+  { symbol: "DOT-USD", name: "Polkadot" },
+  { symbol: "LINK-USD", name: "Chainlink" },
+  { symbol: "AVAX-USD", name: "Avalanche" },
+  { symbol: "MATIC-USD", name: "Polygon" },
+  { symbol: "ATOM-USD", name: "Cosmos" },
+  { symbol: "FTM-USD", name: "Fantom" },
+  { symbol: "ALGO-USD", name: "Algorand" }
 ];
 
-// --- Hilfsfunktionen
+// --- Helferfunktionen
 function getRandomAsset(){ return ASSETS[Math.floor(Math.random()*ASSETS.length)]; }
 function isCrypto(sym){ return sym.includes("USD"); }
 
@@ -29,7 +53,9 @@ async function fetchQuote(sym){
       const map = {
         "BTC-USD":"bitcoin","ETH-USD":"ethereum","BNB-USD":"binancecoin",
         "SOL-USD":"solana","ADA-USD":"cardano","XRP-USD":"ripple",
-        "DOGE-USD":"dogecoin","LTC-USD":"litecoin","DOT-USD":"polkadot","LINK-USD":"chainlink"
+        "DOGE-USD":"dogecoin","LTC-USD":"litecoin","DOT-USD":"polkadot",
+        "LINK-USD":"chainlink","AVAX-USD":"avalanche-2","MATIC-USD":"matic-network",
+        "ATOM-USD":"cosmos","FTM-USD":"fantom","ALGO-USD":"algorand"
       };
       const r = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${map[sym]}&vs_currencies=usd`);
       const j = await r.json();
@@ -49,7 +75,9 @@ async function fetchHistory(sym, days=60){
       const map = {
         "BTC-USD":"bitcoin","ETH-USD":"ethereum","BNB-USD":"binancecoin",
         "SOL-USD":"solana","ADA-USD":"cardano","XRP-USD":"ripple",
-        "DOGE-USD":"dogecoin","LTC-USD":"litecoin","DOT-USD":"polkadot","LINK-USD":"chainlink"
+        "DOGE-USD":"dogecoin","LTC-USD":"litecoin","DOT-USD":"polkadot",
+        "LINK-USD":"chainlink","AVAX-USD":"avalanche-2","MATIC-USD":"matic-network",
+        "ATOM-USD":"cosmos","FTM-USD":"fantom","ALGO-USD":"algorand"
       };
       const r = await fetch(`https://api.coingecko.com/api/v3/coins/${map[sym]}/market_chart?vs_currency=usd&days=${days}`);
       const j = await r.json();
@@ -67,10 +95,7 @@ async function fetchHistory(sym, days=60){
 // --- Klassische Modelle
 function trendModel(p){ return p.at(-1) + (p.at(-1)-p[0])/p.length*7; }
 function momentumModel(p){ return p.at(-1) + (p.at(-1)-p.at(Math.max(0,p.length-5)))*1.5; }
-function volatilityModel(p){ 
-  const avg = p.reduce((a,b)=>a+b,0)/p.length; 
-  return avg + (p.at(-1)-avg)*0.5; 
-}
+function volatilityModel(p){ const avg = p.reduce((a,b)=>a+b,0)/p.length; return avg + (p.at(-1)-avg)*0.5; }
 
 // --- LSTM Modell (kontinuierliches Lernen)
 async function trainLSTM(hist, period=7, assetKey="default"){
@@ -90,7 +115,6 @@ async function trainLSTM(hist, period=7, assetKey="default"){
   model.add(tf.layers.dense({units:1}));
   model.compile({optimizer:"adam",loss:"meanSquaredError"});
 
-  // Gewichte aus localStorage laden
   try{ await model.loadWeights(`localstorage://${assetKey}_lstm`); }catch(e){}
 
   await model.fit(xs,ys,{epochs:10,verbose:0});
@@ -162,14 +186,13 @@ function fillDropdown(){
   });
   const randomAsset = getRandomAsset();
   assetSelect.value = randomAsset.symbol;
+  console.log("Dropdown erfolgreich gefüllt! Assets:", ASSETS.length);
 }
 // ==============================
 // analyse.js – Teil 2: UI, Analyse starten, 7-Tage-Check, Tabelle, Kauf-Links
 // ==============================
 
 document.addEventListener("DOMContentLoaded", async () => {
-  fillDropdown(); // Dropdown korrekt füllen
-
   const assetSelect = document.getElementById("assetSelect");
   const analyseBtn = document.getElementById("analyseBtn");
   const currentPriceDiv = document.getElementById("currentPrice");
@@ -177,6 +200,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   const statusDiv = document.getElementById("status");
   const chartCanvas = document.getElementById("chart");
   const outTable = document.getElementById("out");
+
+  // Dropdown füllen
+  fillDropdown();
 
   let liveInterval = null;
 
@@ -197,10 +223,13 @@ document.addEventListener("DOMContentLoaded", async () => {
   async function runAnalysis(assetSym){
     const sym = assetSym || assetSelect.value;
     statusDiv.textContent = "Analyse läuft…";
+
     const live = await fetchQuote(sym);
     const hist = await fetchHistory(sym,60);
+    if(hist.length===0){ statusDiv.textContent="Keine historischen Daten verfügbar"; return; }
 
     const preds = await ensemble(hist, sym);
+
     drawChart(hist, preds, chartCanvas);
     warningDiv.textContent = strongRiseWarning(preds, live);
 
