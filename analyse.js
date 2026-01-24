@@ -1,8 +1,8 @@
 // ==============================
-// analyse.js – finale Version, alle Funktionen, LSTM async
+// analyse.js – finale Version
 // ==============================
 
-const API_KEY = "d5qi0c9r01qhn30fr1r0d5qi0c9r01qhn30fr1rg";
+const API_KEY = "HIER_DEIN_FINNHUB_KEY";
 
 // --- Assets
 const ASSETS = [
@@ -91,7 +91,7 @@ function trendModel(hist){ return hist.at(-1) + (hist.at(-1)-hist[0])/hist.lengt
 function momentumModel(hist){ return hist.at(-1) + (hist.at(-1)-hist.at(Math.max(0,hist.length-5)))*1.5; }
 function volatilityModel(hist){ const avg = hist.reduce((a,b)=>a+b,0)/hist.length; return avg + (hist.at(-1)-avg)*0.5; }
 
-// --- LSTM async, nur im Hintergrund
+// --- LSTM async
 async function trainLSTM(hist, period=7){
   if(hist.length<period) return hist.at(-1);
 
@@ -120,7 +120,6 @@ async function ensemble(hist){
   const ki1 = trendModel(hist);
   const ki2 = momentumModel(hist);
   const ki3 = volatilityModel(hist);
-  // LSTM wird im Hintergrund gestartet, sofort Chart zeigt Trend+Momentum+Volatilität
   const ki4Promise = trainLSTM(hist,7);
   return { ki1, ki2, ki3, ki4Promise };
 }
@@ -168,7 +167,11 @@ async function runAnalysis(sym){
   statusDiv.textContent="Analyse läuft…";
 
   const hist = await fetchHistoricalData(sym,100);
+  if(!hist || hist.length<2){ alert("Keine historischen Daten verfügbar!"); return; }
+
   const live = await fetchCurrentPrice(sym);
+  if(!live || live===0){ alert("Kursdaten konnten nicht abgerufen werden!"); return; }
+
   currentPriceDiv.textContent=`Aktueller Kurs: ${live.toFixed(2)} CHF`;
   warningDiv.textContent = checkWarnings(hist);
 
@@ -179,10 +182,10 @@ async function runAnalysis(sym){
   progressBar.value = 70; progressText.textContent="Chart wird gezeichnet…";
   drawChart(hist, prognosen);
 
-  // --- Tabelle
+  // Tabelle
   const now = new Date().toLocaleString();
   let html = "";
-  const ki4Val = hist.at(-1); // LSTM placeholder
+  const ki4Val = hist.at(-1); 
   const avg = (prognosen.ki1+prognosen.ki2+prognosen.ki3+ki4Val)/4;
 
   ["ki1","ki2","ki3"].forEach((k,i)=>{
@@ -197,7 +200,7 @@ async function runAnalysis(sym){
 
   progressBar.value=100; progressText.textContent="Fertig"; statusDiv.textContent="Analyse abgeschlossen";
 
-  // --- LSTM async Update Chart
+  // LSTM async Update Chart
   prognosen.ki4Promise.then(ki4=>{
     prognosen.ki4 = ki4;
     drawChart(hist, prognosen);
@@ -208,7 +211,7 @@ async function runAnalysis(sym){
     outTable.innerHTML = html;
   });
 
-  // --- 7-Tage Check
+  // 7-Tage Check
   setTimeout(async ()=>{
     const newLive = await fetchCurrentPrice(sym);
     const diff7 = ((newLive-avg)/avg*100).toFixed(2);
@@ -235,23 +238,22 @@ document.addEventListener("DOMContentLoaded", async ()=>{
     assetSelect.appendChild(o);
   });
 
-  const randomAsset = getRandomAsset().symbol;
-  assetSelect.value = randomAsset;
-  await runAnalysis(randomAsset);
+  analyseBtn.addEventListener("click", async ()=>{
+    if(!assetSelect.value){ alert("Bitte Asset auswählen!"); return; }
+    await runAnalysis(assetSelect.value);
+  });
 
   liveInterval = setInterval(async ()=>{
     const live = await fetchCurrentPrice(assetSelect.value);
     currentPriceDiv.textContent=`Aktueller Kurs: ${live.toFixed(2)} CHF`;
   },5000);
+
+  const randomAsset = getRandomAsset().symbol;
+  assetSelect.value = randomAsset;
+  await runAnalysis(randomAsset);
 });
 
-analyseBtn?.addEventListener("click", async ()=>{
-  const sym = assetSelect.value;
-  if(!sym){ alert("Bitte Asset auswählen!"); return; }
-  await runAnalysis(sym);
-});
-
+// --- Kauf-Links
 function openYahoo(){ window.open(`https://finance.yahoo.com/quote/${assetSelect.value}`,"_blank"); }
 function openTradingView(){ window.open(`https://www.tradingview.com/symbols/${assetSelect.value}/`,"_blank"); }
 function openSwissquote(){ window.open(`https://www.swissquote.ch/sqw-en/private/trading/instruments/search?query=${assetSelect.value}`,"_blank"); }
-
