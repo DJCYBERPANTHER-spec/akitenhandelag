@@ -7,30 +7,34 @@
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.9.0/dist/tf.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
-    body { font-family: Arial, sans-serif; margin:20px; background:#f5f5f5; }
-    select, button { padding:5px 10px; margin:5px 0; }
-    #progressBar { width:100%; height:20px; margin:5px 0; }
-    #hiddenStatus { margin:10px 0; font-weight:bold; color:blue; }
-    table { border-collapse: collapse; width:100%; margin-top:10px; background:#fff; }
-    th, td { border:1px solid #ccc; padding:5px; text-align:center; }
+    body { font-family: Arial, sans-serif; margin:20px; background:#ffffff; color:#000; }
+    h1 { font-size:24px; margin-bottom:15px; }
+    label, select, button { display:block; margin:5px 0; }
+    select, button { padding:5px; font-size:14px; }
+    #progressBar { width:100%; height:20px; margin-top:10px; }
+    #progressText { margin:5px 0; font-weight:bold; }
+    #hiddenStatus { margin:10px 0; font-weight:bold; color:green; }
+    table { border-collapse: collapse; width:100%; margin-top:10px; }
+    th, td { border:1px solid #000; padding:5px; text-align:center; }
+    canvas { margin-top:10px; }
 </style>
 </head>
 <body>
 
 <h1>AKTIEN KRYPTO HANTEL AG</h1>
 
-<label for="assetSelect">Asset auswählen:</label><br>
-<select id="assetSelect"></select><br>
+<label for="assetSelect">Asset auswählen:</label>
+<select id="assetSelect"></select>
 
-<label for="periodSelect">Analysezeitraum (Tage):</label><br>
+<label for="periodSelect">Analysezeitraum (Tage):</label>
 <select id="periodSelect">
     <option value="30">30</option>
     <option value="60">60</option>
     <option value="90">90</option>
     <option value="120">120</option>
-</select><br>
+</select>
 
-<button id="analyseBtn">Analyse starten</button><br>
+<button id="analyseBtn">Analyse starten</button>
 
 <progress id="progressBar" value="0" max="100"></progress>
 <div id="progressText"></div>
@@ -38,19 +42,19 @@
 <div id="currentPrice"></div>
 <div id="hiddenStatus"></div>
 
-<!-- Tabelle für sichtbare Analyse -->
+<!-- Tabelle -->
 <div id="out"></div>
 
-<!-- Chart für sichtbare Analyse -->
-<canvas id="chart" width="800" height="400" style="border:1px solid #ccc; margin-top:10px;"></canvas>
+<!-- Chart -->
+<canvas id="chart" width="800" height="400"></canvas>
 
 <script src="analyse.js"></script>
 
 <script>
-// Funktion zum Füllen der Tabelle aus JS
+// Tabelle und Chart wie früher
 function displayTable(sym, hist, preds, fx){
     const container = document.getElementById("out");
-    container.innerHTML = ""; // vorher leeren
+    container.innerHTML = "";
 
     const table = document.createElement("table");
     const header = document.createElement("tr");
@@ -70,7 +74,7 @@ function displayTable(sym, hist, preds, fx){
 
     container.appendChild(table);
 
-    // Chart aktualisieren
+    // Chart
     if(window.chart) window.chart.destroy();
     const ctx = document.getElementById("chart").getContext("2d");
     window.chart = new Chart(ctx, {
@@ -82,7 +86,10 @@ function displayTable(sym, hist, preds, fx){
                 {label:"Prognose", data:preds, borderColor:"red", fill:false}
             ]
         },
-        options:{responsive:true, plugins:{legend:{position:"top"}}}
+        options:{
+            responsive:true,
+            plugins:{legend:{position:"top"}}
+        }
     });
 }
 </script>
