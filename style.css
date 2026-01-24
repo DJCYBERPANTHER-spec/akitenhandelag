@@ -1,0 +1,127 @@
+/* ================== BODY ================== */
+body {
+    background: #0f172a;
+    color: #e5e7eb;
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 15px;
+}
+
+/* ================== TITEL ================== */
+h1 {
+    text-align: center;
+    font-size: 1.6rem;
+    margin-bottom: 5px;
+}
+
+.subtitle {
+    text-align: center;
+    color: #94a3b8;
+    font-size: 0.9rem;
+    margin-bottom: 15px;
+}
+
+/* ================== CONTROLS ================== */
+.controls {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 15px;
+}
+
+select, button {
+    background: #020617;
+    color: #e5e7eb;
+    border: 1px solid #22c55e;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 0.9rem;
+}
+
+button:hover, select:hover {
+    background: #22c55e;
+    color: #020617;
+    cursor: pointer;
+}
+
+/* ================== STATUS ================== */
+#status, #currentPrice {
+    text-align: center;
+    font-weight: bold;
+    margin-bottom: 10px;
+}
+
+/* ================== PROGRESS ================== */
+progress {
+    width: 80%;
+    height: 18px;
+    display: block;
+    margin: 0 auto 8px auto;
+}
+
+/* ================== CHART ================== */
+canvas {
+    max-width: 100%;
+    display: block;
+    margin: 15px auto;
+    background: #020617;
+    border-radius: 10px;
+}
+
+/* ================== TABELLE ================== */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+    margin-top: 15px;
+}
+
+th, td {
+    border: 1px solid #22c55e;
+    padding: 6px;
+    text-align: center;
+}
+
+th {
+    background: #0f172a;
+}
+
+/* ================== SIGNAL FARBCODE ================== */
+.buy {
+    color: #22c55e;
+    font-weight: bold;
+}
+.sell {
+    color: #ef4444;
+    font-weight: bold;
+}
+.hold {
+    color: #facc15;
+    font-weight: bold;
+}
+
+/* ================== KONFIDENZ ================== */
+.conf {
+    color: #38bdf8;
+    font-weight: bold;
+}
+
+/* ================== FOOTER ================== */
+.footer {
+    text-align: center;
+    margin-top: 15px;
+    font-size: 0.75rem;
+    color: #94a3b8;
+}
+
+/* ================== BEST KI ================== */
+.bestKI {
+    background-color: #22c55e33;
+}
+
+/* ================== WARNUNGEN ================== */
+.warning {
+    color: #f87171;
+    font-weight: bold;
+}
