@@ -1,7 +1,7 @@
 /***********************
  * KONFIGURATION
  ***********************/
-const API_KEY = "DEIN_FINNHUB_KEY"; // Finnhub
+const API_KEY = "d5ohqjhr01qjast6qrjgd5ohqjhr01qjast6qrk0"; // Finnhub
 let chart = null;
 
 /***********************
@@ -220,3 +220,4 @@ analyseBtn.addEventListener("click", async ()=>{
     <tr><td>KI 3</td><td>${preds.ki3.toFixed(2)}</td></tr>
   `;
 });
+
