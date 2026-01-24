@@ -1,11 +1,10 @@
-// analyse.js – Profi-Version Multi-KI Analyse inkl. 7-Tage-Prognose
+// analyse.js – Profi-Level Multi-KI Analyse + Warnungen bei hohem Anstieg
 
 const API_KEY = "d5ohqjhr01qjast6qrjgd5ohqjhr01qjast6qrk0";
 let chart = null;
 let liveInterval = null;
 let usdChfRate = 0.93;
 
-// DOM Elemente
 const assetSelect = document.getElementById("assetSelect");
 const timeRange = document.getElementById("timeRange");
 const analyseBtn = document.getElementById("analyseBtn");
@@ -18,7 +17,6 @@ const loaderDiv = document.getElementById("loader");
 const outTable = document.getElementById("out");
 const chartCanvas = document.getElementById("chart");
 
-// Assets
 const ASSETS = [
   {symbol:"AAPL",name:"Apple Inc."},{symbol:"MSFT",name:"Microsoft Corp."},{symbol:"NVDA",name:"NVIDIA Corp."},
   {symbol:"AMZN",name:"Amazon.com Inc."},{symbol:"GOOGL",name:"Alphabet Inc."},{symbol:"TSLA",name:"Tesla Inc."},
@@ -89,10 +87,14 @@ async function fetchHistoricalData(sym,days){
   }catch{return Array(days).fill(await fetchQuote(sym));}
 }
 
-// --- Warnungen
-function checkWarnings(hist){
+// --- Warnungen (starker Rückgang oder starker Anstieg)
+function generateWarnings(hist, forecast){
   const lastReturn = (hist[hist.length-1]-hist[0])/hist[0];
-  return lastReturn<-0.15 ? `⚠️ Starker Rückgang: ${Math.round(lastReturn*100)}%` : "Keine akute Warnung";
+  const maxForecast = Math.max(...forecast);
+  let msg = [];
+  if(lastReturn<-0.15) msg.push(`⚠️ Starker Rückgang historisch: ${Math.round(lastReturn*100)}%`);
+  if(maxForecast/hist[hist.length-1]-1 > 0.10) msg.push(`🚀 Starker Anstieg prognostiziert: ${(maxForecast/hist[hist.length-1]*100-100).toFixed(1)}%`);
+  return msg.length>0 ? msg.join(" | ") : "Keine akute Warnung";
 }
 
 // --- KI Prognose (7-Tage) 
@@ -143,9 +145,7 @@ function getConfidence(diff){ return Math.abs(diff)>0.1?"Hoch":Math.abs(diff)>0.
 // --- Chart zeichnen
 function drawChart(hist, allPrognosen){
     if(chart) chart.destroy();
-    const avg = Array(7).fill(0).map((_,i) =>
-        allPrognosen.reduce((sum,p)=>sum+p[i],0)/allPrognosen.length
-    );
+    const avg = Array(7).fill(0).map((_,i)=>allPrognosen.reduce((sum,p)=>sum+p[i],0)/allPrognosen.length);
 
     chart = new Chart(chartCanvas,{
         type:'line',
@@ -171,7 +171,7 @@ function drawChart(hist, allPrognosen){
     });
 }
 
-// --- Analyse starten
+// --- Analyse starten (Multi-Asset + Warnungen)
 async function run(){
     const sel = assetSelect.value;
     if(!sel){alert("Bitte Asset auswählen!");return;}
@@ -184,7 +184,6 @@ async function run(){
 
     const period = parseInt(timeRange.value);
     const hist = await fetchHistoricalData(sel, period*2);
-    warningDiv.textContent = checkWarnings(hist);
 
     const allPrognosen = [];
     for(let i=0;i<4;i++){
@@ -193,34 +192,43 @@ async function run(){
         progressBar.value = ((i+1)/4*100).toFixed(0);
     }
 
+    warningDiv.textContent = generateWarnings(hist, allPrognosen.flat());
+
     drawChart(hist, allPrognosen);
 
-    let html=""; const ts = new Date().toLocaleString();
+    const ts = new Date().toLocaleString();
+
+    // Neue Analyse anhängen
     allPrognosen.forEach((p,i)=>{
-        const diff = (p[0]-live)/live; const sig = getSignal(diff);
-        html += `<tr>
-            <td>KI${i+1}</td>
+        const diff = p[0]-live;
+        const arrow = diff>0 ? '▲' : diff<0 ? '▼' : '→';
+        const sig = getSignal(diff/live);
+        const row = `<tr>
+            <td>KI${i+1} (${sel})</td>
             <td>${p[0].toFixed(2)}</td>
             <td class="${sig}">${sig.toUpperCase()}</td>
-            <td>${(diff*100).toFixed(1)}%</td>
-            <td class="conf">${getConfidence(diff)}</td>
+            <td>${arrow} ${(diff/live*100).toFixed(1)}%</td>
+            <td class="conf">${getConfidence(diff/live)}</td>
             <td>${ts}</td>
         </tr>`;
+        outTable.insertAdjacentHTML('beforeend', row);
     });
 
     // Durchschnitt
     const avg = Array(7).fill(0).map((_,i)=>allPrognosen.reduce((sum,p)=>sum+p[i],0)/allPrognosen.length);
-    const diffAvg = (avg[0]-live)/live; const sigAvg = getSignal(diffAvg);
-    html += `<tr>
-        <td>Durchschnitt</td>
+    const diffAvg = avg[0]-live;
+    const arrowAvg = diffAvg>0 ? '▲' : diffAvg<0 ? '▼' : '→';
+    const sigAvg = getSignal(diffAvg/live);
+    const avgRow = `<tr>
+        <td>Durchschnitt (${sel})</td>
         <td>${avg[0].toFixed(2)}</td>
         <td class="${sigAvg}">${sigAvg.toUpperCase()}</td>
-        <td>${(diffAvg*100).toFixed(1)}%</td>
-        <td class="conf">${getConfidence(diffAvg)}</td>
+        <td>${arrowAvg} ${(diffAvg/live*100).toFixed(1)}%</td>
+        <td class="conf">${getConfidence(diffAvg/live)}</td>
         <td>${ts}</td>
     </tr>`;
+    outTable.insertAdjacentHTML('beforeend', avgRow);
 
-    outTable.innerHTML = html;
     statusDiv.textContent="Fertig"; loaderDiv.textContent="–"; progressText.textContent="100%";
 }
 
@@ -255,3 +263,6 @@ document.addEventListener("DOMContentLoaded", async ()=>{
     assetSelect.value = randomAsset;
     await run();
 });
+
+// Analyse-Button
+analyseBtn.addEventListener("click", run);
