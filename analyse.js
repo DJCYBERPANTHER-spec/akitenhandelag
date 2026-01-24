@@ -1,4 +1,4 @@
-// analyse.js - Final: Kryptos über CoinGecko, Aktien über Finnhub
+// analyse.js - Finale Version: Schnelles Lernen & kontinuierlich
 
 const API_KEY = "d5ohqjhr01qjast6qrjgd5ohqjhr01qjast6qrk0";
 
@@ -24,7 +24,7 @@ const outTable = document.getElementById("out");
 const chartCanvas = document.getElementById("chart");
 
 let chart = null;
-let storedModel = null;
+let storedModel = null; // KI merkt sich Wissen
 
 // --- CHF Wechselkurs ---
 async function fetchUsdChf(){
@@ -98,9 +98,9 @@ async function fetchQuote(sym){
     return null;
 }
 
-// --- LSTM KI ---
+// --- LSTM KI: Schnellstart + kontinuierliches Lernen ---
 async function predictLSTM(data, period){
-    if(data.length<period) return data[data.length-1];
+    if(data.length < period) return data[data.length-1];
 
     const noisy = data.map(v => v*(1+(Math.random()-0.5)/100));
     const min = Math.min(...noisy), max = Math.max(...noisy);
@@ -120,13 +120,15 @@ async function predictLSTM(data, period){
         model = storedModel;
     } else {
         model = tf.sequential();
-        model.add(tf.layers.lstm({units:20,inputShape:[period,1]}));
+        model.add(tf.layers.lstm({units:30,inputShape:[period,1]}));
         model.add(tf.layers.dense({units:1}));
-        model.compile({optimizer:"adam",loss:"meanSquaredError"});
+        model.compile({optimizer: tf.train.adam(0.01), loss:"meanSquaredError"}); // höhere Lernrate für schnelleres Lernen
     }
 
-    await model.fit(xs,ys,{epochs:5,verbose:0});
-    storedModel = model;
+    // Mehr kleine Epochen = schnellerer Lernstart
+    await model.fit(xs, ys, {epochs:10, batchSize:8, verbose:0});
+
+    storedModel = model; // kontinuierliches Lernen
 
     const p = model.predict(tf.tensor3d([X[X.length-1]])).dataSync()[0];
     return p*(max-min)+min;
