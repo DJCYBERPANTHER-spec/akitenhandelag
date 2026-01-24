@@ -3,41 +3,59 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AKTIEN KRYPTO HANTEL AG</title>
-<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.9.0/dist/tf.min.js"></script>
+<title>AKTIEN KRYPTO HANTEL AG – Multi-KI Analyse</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<link rel="stylesheet" href="style.css"> <!-- Verlinkung zur CSS-Datei -->
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0/dist/tf.min.js"></script>
+<link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-<h1>AKTIEN KRYPTO HANTEL AG</h1>
+<h1>AKTIEN & KRYPTO HANTEL AG – Multi-KI Analyse</h1>
+<div class="subtitle">Live-Daten & KI-Prognosen (CHF)</div>
+<div class="infoBox" id="currentPrice">Aktueller Kurs: –</div>
+<div class="infoBox" id="warning">Warnungen: –</div>
+<div class="period" id="period">Zeitraum: –</div>
 
-<label for="assetSelect">Asset auswählen:</label>
-<select id="assetSelect"></select>
+<div class="controls">
+  <select id="assetSelect"></select>
+  <select id="timeRange">
+    <option value="20">1 Monat</option>
+    <option value="40">2 Monate</option>
+    <option value="120">6 Monate</option>
+    <option value="240">1 Jahr</option>
+  </select>
+  <button id="analyseBtn">Analyse starten</button>
+  <button onclick="openYahoo()">Yahoo</button>
+  <button onclick="openTradingView()">TradingView</button>
+  <button onclick="openSwissquote()">Swissquote</button>
+</div>
 
-<label for="periodSelect">Analysezeitraum (Tage):</label>
-<select id="periodSelect">
-    <option value="30">30</option>
-    <option value="60">60</option>
-    <option value="90">90</option>
-    <option value="120">120</option>
-</select>
+<div class="status" id="status">Bereit</div>
+<div class="loader" id="loader">–</div>
+<div style="text-align:center;margin-bottom:10px;">
+  <progress id="progressBar" value="0" max="100" style="width:80%;height:18px;"></progress>
+  <div id="progressText">Warte auf Berechnung…</div>
+</div>
 
-<button id="analyseBtn">Analyse starten</button>
+<canvas id="chart" height="280"></canvas>
 
-<progress id="progressBar" value="0" max="100"></progress>
-<div id="progressText"></div>
+<table>
+<thead>
+<tr>
+<th>KI-Modell</th>
+<th>Prognose (CHF)</th>
+<th>Signal</th>
+<th>Δ</th>
+<th>Konfidenz</th>
+<th>Datum/Uhrzeit</th>
+</tr>
+</thead>
+<tbody id="out"></tbody>
+</table>
 
-<div id="currentPrice"></div>
-<div id="hiddenStatus"></div>
+<div class="footer">@ Lern-Tool – keine Anlageberatung</div>
 
-<!-- Tabelle -->
-<div id="out"></div>
-
-<!-- Chart -->
-<canvas id="chart" width="800" height="400"></canvas>
-
-<script src="analyse.js"></script> <!-- Verlinkung zur JS-Datei -->
+<script src="analyse.js"></script>
 
 </body>
 </html>
