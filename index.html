@@ -1,55 +1,52 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Multi Asset KI Analyse – Aktien & Krypto</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Multi-Asset Analyse (Aktien & Krypto) – CHF</title>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
-body{background:#0f172a;color:#e5e7eb;font-family:Arial;padding:15px;margin:0}
+body{background:#0f172a;color:#e5e7eb;font-family:Arial;padding:15px}
 h1{text-align:center}
-.subtitle{text-align:center;color:#94a3b8;font-size:0.9rem;margin-bottom:10px}
+.subtitle{text-align:center;color:#94a3b8;font-size:0.9rem}
 .controls{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin:12px 0}
 select,button{background:#020617;color:#e5e7eb;border:1px solid #22c55e;padding:8px 12px;border-radius:6px}
 button:hover{background:#22c55e;color:#020617;cursor:pointer}
-.status{text-align:center;font-weight:bold;margin:8px}
 canvas{background:#020617;border-radius:10px;margin-top:15px}
 table{width:100%;border-collapse:collapse;margin-top:15px;font-size:0.85rem}
 th,td{border:1px solid #22c55e;padding:6px;text-align:center}
 .buy{color:#22c55e;font-weight:bold}
 .sell{color:#ef4444;font-weight:bold}
 .hold{color:#facc15;font-weight:bold}
-.conf{color:#38bdf8;font-weight:bold}
-.warning{color:#f87171;font-weight:bold}
-.bestKI{background:#22c55e22}
 .footer{text-align:center;font-size:0.75rem;color:#94a3b8;margin-top:12px}
+#currentPrice{text-align:center;margin:8px 0;font-weight:bold}
 progress{width:80%;height:16px}
 </style>
 </head>
 
 <body>
 
-<h1>Multi-KI Aktien & Krypto Analyse</h1>
-<div class="subtitle">Echte Kurse · CHF · Stabil · Keine Endlosschleifen</div>
+<h1>📊 Multi-Asset Analyse</h1>
+<div class="subtitle">Aktien & Kryptowährungen · CHF · echte Marktdaten</div>
 
 <div class="controls">
-  <select id="asset"></select>
-  <select id="range">
-    <option value="5">1 Woche</option>
-    <option value="22">1 Monat</option>
-    <option value="66">3 Monate</option>
-    <option value="132">6 Monate</option>
-  </select>
-  <button onclick="run()">Analyse starten</button>
+<select id="asset"></select>
+<select id="forecastDays">
+  <option value="1">1 Tag</option>
+  <option value="7">7 Tage</option>
+  <option value="30">30 Tage</option>
+  <option value="90">90 Tage</option>
+</select>
+<button onclick="runAnalysis()">Analyse starten</button>
 </div>
 
-<div class="status" id="status">Bereit</div>
-<div class="status" id="currentPrice">–</div>
+<div id="status" style="text-align:center">Bereit</div>
+<div id="currentPrice"></div>
 
 <div style="text-align:center">
-  <progress id="progress" value="0" max="100"></progress>
+<progress id="progress" value="0" max="100"></progress>
 </div>
 
 <canvas id="chart" height="260"></canvas>
@@ -57,248 +54,140 @@ progress{width:80%;height:16px}
 <table>
 <thead>
 <tr>
-<th>KI</th>
+<th>Modell</th>
 <th>Prognose (CHF)</th>
 <th>Signal</th>
-<th>Δ %</th>
-<th>Konfidenz</th>
-<th>Warnung</th>
-<th>Backtest</th>
+<th>Änderung</th>
 <th>Aktion</th>
-<th>Stop / Ziel</th>
 </tr>
 </thead>
-<tbody id="out"></tbody>
+<tbody id="tableBody">
+<tr><td colspan="5">Warte auf Analyse…</td></tr>
+</tbody>
 </table>
 
-<div class="status" id="summary"></div>
-<div class="footer">⚠️ Analyse-Tool – keine Anlageberatung</div>
-<script>
-/* ================= GRUNDLAGEN ================= */
-const API_KEY = "d5ohqjhr01qjast6qrjgd5ohqjhr01qjast6qrk0";
-let fxRate = 0.93;
-let chart = null;
+<div class="footer">⚠️ Keine Anlageberatung – Analysezwecke</div>
 
-/* ================= ASSET LISTE ================= */
+<script>
+/* =========================
+   ASSETS (Aktien + Kryptos)
+========================= */
 const ASSETS = [
-  // Aktien
-  {symbol:"AAPL",name:"Apple"},
-  {symbol:"MSFT",name:"Microsoft"},
-  {symbol:"NVDA",name:"NVIDIA"},
-  {symbol:"AMZN",name:"Amazon"},
-  {symbol:"GOOGL",name:"Alphabet"},
-  {symbol:"META",name:"Meta"},
-  {symbol:"TSLA",name:"Tesla"},
-  // Kryptos
-  {symbol:"BTC-USD",name:"Bitcoin"},
-  {symbol:"ETH-USD",name:"Ethereum"},
-  {symbol:"BNB-USD",name:"Binance Coin"},
-  {symbol:"SOL-USD",name:"Solana"},
-  {symbol:"ADA-USD",name:"Cardano"},
-  {symbol:"XRP-USD",name:"Ripple"}
+  {symbol:"AAPL", name:"Apple", type:"stock"},
+  {symbol:"MSFT", name:"Microsoft", type:"stock"},
+  {symbol:"NVDA", name:"NVIDIA", type:"stock"},
+  {symbol:"BTC-USD", name:"Bitcoin", type:"crypto"},
+  {symbol:"ETH-USD", name:"Ethereum", type:"crypto"},
+  {symbol:"SOL-USD", name:"Solana", type:"crypto"}
 ];
 
-const sel = document.getElementById("asset");
-
-/* ================= ASSETS BEIM START LADEN ================= */
-async function validateAssets(){
-  sel.innerHTML="";
-  document.getElementById("status").textContent="Assets werden geprüft…";
-
-  for(const a of ASSETS){
-    try{
-      const url = a.symbol.includes("USD")
-        ? `https://finnhub.io/api/v1/crypto/candle?symbol=${a.symbol}&resolution=D&from=${Math.floor(Date.now()/1000)-7*86400}&to=${Math.floor(Date.now()/1000)}&token=${API_KEY}`
-        : `https://finnhub.io/api/v1/quote?symbol=${a.symbol}&token=${API_KEY}`;
-      const r = await fetch(url);
-      const j = await r.json();
-
-      if((j.s==="ok" && j.c?.length>0) || j.c){
-        const o=document.createElement("option");
-        o.value=a.symbol;
-        o.textContent=`${a.name} (${a.symbol})`;
-        sel.appendChild(o);
-      }
-    }catch{}
-  }
-  document.getElementById("status").textContent="Bereit";
-}
-
-/* ================= USD → CHF ================= */
-async function fetchUsdChf(){
-  try{
-    const r=await fetch("https://api.exchangerate.host/latest?base=USD&symbols=CHF");
-    const j=await r.json();
-    fxRate = Number(j?.rates?.CHF)||0.93;
-  }catch{ fxRate=0.93; }
-}
-
-/* ================= AKTUELLER KURS ================= */
-async function fetchQuote(sym){
-  try{
-    const url = sym.includes("USD")
-      ? `https://finnhub.io/api/v1/crypto/candle?symbol=${sym}&resolution=D&from=${Math.floor(Date.now()/1000)-2*86400}&to=${Math.floor(Date.now()/1000)}&token=${API_KEY}`
-      : `https://finnhub.io/api/v1/quote?symbol=${sym}&token=${API_KEY}`;
-    const r=await fetch(url);
-    const j=await r.json();
-    if(sym.includes("USD") && j.s==="ok") return j.c.at(-1);
-    if(!sym.includes("USD") && j.c) return j.c;
-  }catch{}
-  return null;
-}
-
-/* ================= HISTORIE (STABIL) ================= */
-async function fetchHistory(sym,days){
-  const now=Math.floor(Date.now()/1000);
-  const from=now-days*86400;
-
-  try{
-    const url=sym.includes("USD")
-      ? `https://finnhub.io/api/v1/crypto/candle?symbol=${sym}&resolution=D&from=${from}&to=${now}&token=${API_KEY}`
-      : `https://finnhub.io/api/v1/stock/candle?symbol=${sym}&resolution=D&from=${from}&to=${now}&token=${API_KEY}`;
-    const r=await fetch(url);
-    const j=await r.json();
-    if(j.s==="ok" && j.c?.length>30){
-      return j.c.map(v=>v*fxRate);
-    }
-  }catch{}
-
-  // Fallback (nie leer!)
-  let base=300;
-  const arr=[];
-  for(let i=0;i<days;i++){
-    base*=1+(Math.sin(i/10)+Math.cos(i/17))*0.002;
-    arr.push(base);
-  }
-  return arr;
-}
-
-/* ================= HILFSFUNKTIONEN ================= */
-function trend(hist){
-  const s=hist.slice(-20).reduce((a,b)=>a+b,0)/20;
-  const l=hist.slice(-60).reduce((a,b)=>a+b,0)/60;
-  return (s-l)/l;
-}
-function volatility(hist){
-  const avg=hist.reduce((a,b)=>a+b,0)/hist.length;
-  return Math.sqrt(hist.reduce((a,b)=>a+Math.pow(b-avg,2),0)/hist.length)/avg;
-}
-function backtest(hist){
-  let ok=0;
-  for(let i=20;i<hist.length-1;i++){
-    if(hist[i+1]>hist[i]) ok++;
-  }
-  return ((ok/(hist.length-21))*100).toFixed(1)+"%";
-}
-function risk(curr,hist){
-  const v=volatility(hist)*curr;
-  return {sl:(curr-2*v).toFixed(2),tp:(curr+3*v).toFixed(2)};
-}
-function trendWord(d){
-  if(d>0.01) return ["STEIGT","buy"];
-  if(d<-0.01) return ["FÄLLT","sell"];
-  return ["NEUTRAL","hold"];
-}
-
-/* ================= INIT ================= */
-window.addEventListener("load",async()=>{
-  await fetchUsdChf();
-  await validateAssets();
+const assetSelect = document.getElementById("asset");
+ASSETS.forEach(a=>{
+  const o=document.createElement("option");
+  o.value=a.symbol;
+  o.textContent=`${a.name} (${a.symbol})`;
+  assetSelect.appendChild(o);
 });
-</script>
-<script>
-/* ================= PROGNOSE (STABIL, REALISTISCH) ================= */
-function predictEnsemble(hist,horizon){
-  const last=hist.at(-1);
-  const avgGrowth=hist.slice(-30).reduce((a,b,i,arr)=>i?a+(b-arr[i-1])/arr[i-1]:a,0)/29;
-  const preds=[];
-  for(let i=0;i<4;i++){
-    preds.push(last*(1+avgGrowth*(horizon/30)*(1+i*0.15)));
-  }
-  return preds;
+
+/* =========================
+   GLOBALE VARIABLEN
+========================= */
+let chart=null;
+let worker=null;
+
+/* =========================
+   YAHOO PRICE FETCH (CHF)
+========================= */
+async function fetchYahoo(symbol){
+  const url=`https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?range=1y&interval=1d`;
+  const res=await fetch(url);
+  const json=await res.json();
+  const r=json.chart.result[0];
+  const prices=r.indicators.quote[0].close.filter(v=>v);
+  return prices;
 }
 
-/* ================= CHART ================= */
-function draw(hist,preds){
-  if(chart) chart.destroy();
-  const labels=[];
-  for(let i=hist.length;i>0;i--) labels.push("-"+i+"d");
-  preds.forEach((_,i)=>labels.push("+"+(i+1)));
+async function fetchCHF(){
+  const r=await fetch("https://api.exchangerate.host/latest?base=USD&symbols=CHF");
+  const j=await r.json();
+  return j.rates.CHF;
+}
 
+/* =========================
+   CHART
+========================= */
+function drawChart(hist, forecast){
+  if(chart) chart.destroy();
+  const labels=[...hist.map((_,i)=>`-${hist.length-i}d`),...forecast.map((_,i)=>`+${i+1}d`)];
   chart=new Chart(document.getElementById("chart"),{
     type:"line",
     data:{
       labels,
       datasets:[
-        {label:"Historie",data:hist,borderColor:"#3b82f6",fill:false},
-        ...preds.map((p,i)=>({
-          label:"KI "+(i+1),
-          data:[...Array(hist.length).fill(null),p],
-          borderColor:["#22c55e","#facc15","#f97316","#38bdf8"][i],
-          fill:false,
-          pointRadius:4
-        }))
+        {label:"Historie",data:hist,borderColor:"#3b82f6"},
+        {label:"Prognose",data:[...Array(hist.length).fill(null),...forecast],borderColor:"#22c55e"}
       ]
     },
     options:{responsive:true,animation:false}
   });
 }
 
-/* ================= RUN ================= */
-async function run(){
-  const sym=sel.value;
-  const days=+document.getElementById("range").value;
+/* =========================
+   ANALYSE START
+========================= */
+async function runAnalysis(){
+  document.getElementById("status").textContent="Lade Marktdaten…";
+  document.getElementById("progress").value=20;
 
-  document.getElementById("status").textContent="Analyse läuft…";
-  progress.value=10;
+  const sym=assetSelect.value;
+  const days=+document.getElementById("forecastDays").value;
 
-  try{
-    await fetchUsdChf();
+  const prices=await fetchYahoo(sym);
+  const chf=await fetchCHF();
+  const pricesCHF=prices.map(p=>p*chf);
 
-    const hist=await fetchHistory(sym,days*2);
-    const q=await fetchQuote(sym);
-    const curr=(q||hist.at(-1)/fxRate)*fxRate;
+  const current=pricesCHF[pricesCHF.length-1];
+  document.getElementById("currentPrice").textContent=
+    `Aktueller Kurs: ${current.toFixed(2)} CHF`;
 
-    document.getElementById("currentPrice").textContent=
-      `Aktueller Kurs: ${curr.toFixed(2)} CHF`;
+  document.getElementById("progress").value=50;
+  document.getElementById("status").textContent="KI wird gestartet…";
 
-    const preds=predictEnsemble(hist,days);
-    draw(hist,preds);
-
-    let html="",up=0,down=0;
-    preds.forEach((p,i)=>{
-      const diff=(p-curr)/curr;
-      const [word,cls]=trendWord(diff);
-      if(word==="STEIGT") up++;
-      if(word==="FÄLLT") down++;
-      const r=risk(curr,hist);
-
-      html+=`<tr>
-        <td>KI${i+1}</td>
-        <td>${p.toFixed(2)}</td>
-        <td class="${cls}">${word}</td>
-        <td>${(diff*100).toFixed(2)}%</td>
-        <td class="conf">${Math.abs(diff)>0.06?"Hoch":"Mittel"}</td>
-        <td class="warning">${Math.abs(diff)>0.08?"Volatil":"–"}</td>
-        <td>${backtest(hist)}</td>
-        <td><b>${word}</b></td>
-        <td>🛑 ${r.sl}<br>🎯 ${r.tp}</td>
-      </tr>`;
-    });
-
-    document.getElementById("out").innerHTML=html;
-    document.getElementById("summary").textContent=
-      up>down ? "🟢 Mehrheit STEIGT" :
-      down>up ? "🔴 Mehrheit FÄLLT" :
-      "🟡 Uneinheitlich";
-
-  } catch(e){
-    document.getElementById("status").textContent="Fehler bei Analyse";
-    console.error(e);
-  } finally {
-    progress.value=100;
-    document.getElementById("status").textContent="Fertig ✔";
+  if(!worker){
+    worker=new Worker("lstm-worker.js");
+    worker.onmessage=e=>{
+      const forecast=e.data;
+      finishAnalysis(pricesCHF,forecast);
+    };
   }
+
+  worker.postMessage({prices:pricesCHF,days});
+}
+
+/* =========================
+   ERGEBNIS
+========================= */
+function finishAnalysis(hist,forecast){
+  drawChart(hist,forecast);
+
+  const last=forecast[forecast.length-1];
+  const curr=hist[hist.length-1];
+  let signal="HALTEN",cls="hold";
+  if(last>curr*1.02){signal="KAUFEN";cls="buy";}
+  if(last<curr*0.98){signal="VERKAUFEN";cls="sell";}
+
+  document.getElementById("tableBody").innerHTML=`
+    <tr>
+      <td>LSTM-KI</td>
+      <td>${last.toFixed(2)}</td>
+      <td class="${cls}">${signal}</td>
+      <td>${((last-curr)/curr*100).toFixed(2)}%</td>
+      <td>${signal}</td>
+    </tr>
+  `;
+
+  document.getElementById("progress").value=100;
+  document.getElementById("status").textContent="Analyse abgeschlossen ✔";
 }
 </script>
 
