@@ -91,7 +91,11 @@ ASSETS.forEach(a=>{
 
 // --- Fetch CHF-Kurs ---
 async function fetchCHF(){ 
-  try{const r=await fetch("https://api.exchangerate.host/latest?base=USD&symbols=CHF");const j=await r.json();return j.rates.CHF||0.93}catch{return 0.93;}
+  try{
+    const r=await fetch("https://api.exchangerate.host/latest?base=USD&symbols=CHF");
+    const j=await r.json();
+    return j.rates.CHF||0.93;
+  }catch{return 0.93;}
 }
 
 // --- Fetch historische Preise ---
@@ -139,7 +143,6 @@ runBtn.addEventListener("click",async()=>{
   const chf=await fetchCHF();
   const histCHF=hist.map(p=>p*chf);
   
-  // Aktuellen Kurs anzeigen
   document.getElementById("currentPrice").textContent=`Aktueller Kurs: ${(histCHF[histCHF.length-1]).toFixed(2)} CHF`;
 
   worker.postMessage({prices:histCHF,days:+forecastRange.value});
@@ -147,10 +150,9 @@ runBtn.addEventListener("click",async()=>{
 
 // --- Worker Ergebnisse empfangen ---
 worker.onmessage=e=>{
-  const {forecasts, tableData}=e.data;
+  const {forecasts, tableData} = e.data;
   drawChart(tableData.hist, forecasts);
 
-  // Tabelle befüllen
   const tbody=document.getElementById("tableBody");
   tbody.innerHTML="";
   tableData.rows.forEach(r=>{
@@ -162,6 +164,9 @@ worker.onmessage=e=>{
   progressBar.value=100; progressText.textContent="Analyse abgeschlossen ✔";
   statusText.textContent="Fertig";
 };
+
+// --- Seite automatisch laden ---
+window.addEventListener("load",()=>{ runBtn.click(); });
 </script>
 </body>
 </html>
