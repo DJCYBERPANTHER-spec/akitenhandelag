@@ -1,4 +1,4 @@
-// analyse.js - Finale Version: Schnelles Lernen & kontinuierlich
+// analyse.js - Finale Version: echte Kurse für Aktien & Kryptos
 
 const API_KEY = "d5ohqjhr01qjast6qrjgd5ohqjhr01qjast6qrk0";
 
@@ -36,7 +36,7 @@ async function fetchUsdChf(){
 }
 
 // --- CoinGecko: historische Kryptos ---
-async function fetchCryptoHistoricalCoinGecko(sym, days = 365){
+async function fetchCryptoHistorical(sym, days=365){
     const mapping = {
         "BTC-USD":"bitcoin","ETH-USD":"ethereum","BNB-USD":"binancecoin",
         "SOL-USD":"solana","ADA-USD":"cardano","DOGE-USD":"dogecoin",
@@ -51,15 +51,32 @@ async function fetchCryptoHistoricalCoinGecko(sym, days = 365){
         if(j.prices && j.prices.length>0) return j.prices.map(p=>p[1]);
     }catch(e){console.warn("CoinGecko Fehler:", e);}
     
-    // Fallback minimal
+    // Fallback = aktueller Livepreis ±1%
+    const live = await fetchCryptoLive(sym);
     const fallback = [];
-    const base = 20000;
-    for(let i=0;i<Math.min(days,10);i++) fallback.push(base*(1+0.01*Math.random()));
+    for(let i=0;i<Math.min(days,10);i++) fallback.push(live*(1+0.01*(Math.random()-0.5)));
     return fallback;
 }
 
+// --- CoinGecko: Live-Kurs ---
+async function fetchCryptoLive(sym){
+    const mapping = {
+        "BTC-USD":"bitcoin","ETH-USD":"ethereum","BNB-USD":"binancecoin",
+        "SOL-USD":"solana","ADA-USD":"cardano","DOGE-USD":"dogecoin",
+        "XRP-USD":"ripple","LTC-USD":"litecoin","DOT-USD":"polkadot"
+    };
+    const id = mapping[sym];
+    if(!id) return 100;
+    try{
+        const r = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${id}&vs_currencies=usd`);
+        const j = await r.json();
+        if(j[id] && j[id].usd) return j[id].usd;
+    }catch(e){console.warn("CoinGecko Live Fehler:", e);}
+    return 100; // minimaler Fallback
+}
+
 // --- Finnhub: historische Aktien ---
-async function fetchStockHistoricalFinnhub(sym, maxDays=365, minDays=10){
+async function fetchStockHistorical(sym, maxDays=365, minDays=10){
     const now = Math.floor(Date.now()/1000);
     let days = maxDays;
     let lastValidPrice = 100;
@@ -78,27 +95,29 @@ async function fetchStockHistoricalFinnhub(sym, maxDays=365, minDays=10){
         days -= 30;
     }
 
+    // Fallback minimal ±0.5%
     const fallback = [];
     for(let i=0;i<minDays;i++) fallback.push(lastValidPrice*(1+0.005*(Math.random()-0.5)));
     return fallback;
 }
 
-// --- Live-Kurs ---
-async function fetchQuote(sym){
+// --- Finnhub: Live-Kurs ---
+async function fetchStockLive(sym){
     try{
-        if(sym.includes("USD")){
-            const hist = await fetchCryptoHistoricalCoinGecko(sym, 1);
-            return hist[hist.length-1];
-        } else {
-            const r = await fetch(`https://finnhub.io/api/v1/quote?symbol=${sym}&token=${API_KEY}`);
-            const j = await r.json();
-            if(j && j.c) return j.c;
-        }
-    }catch{}
-    return null;
+        const r = await fetch(`https://finnhub.io/api/v1/quote?symbol=${sym}&token=${API_KEY}`);
+        const j = await r.json();
+        if(j && j.c) return j.c;
+    }catch(e){console.warn("Finnhub Live Fehler:", e);}
+    return 100;
 }
 
-// --- LSTM KI: Schnellstart + kontinuierliches Lernen ---
+// --- Live-Kurs allgemein ---
+async function fetchQuote(sym){
+    if(sym.includes("USD")) return await fetchCryptoLive(sym);
+    else return await fetchStockLive(sym);
+}
+
+// --- LSTM KI ---
 async function predictLSTM(data, period){
     if(data.length < period) return data[data.length-1];
 
@@ -122,13 +141,11 @@ async function predictLSTM(data, period){
         model = tf.sequential();
         model.add(tf.layers.lstm({units:30,inputShape:[period,1]}));
         model.add(tf.layers.dense({units:1}));
-        model.compile({optimizer: tf.train.adam(0.01), loss:"meanSquaredError"}); // höhere Lernrate für schnelleres Lernen
+        model.compile({optimizer: tf.train.adam(0.01), loss:"meanSquaredError"});
     }
 
-    // Mehr kleine Epochen = schnellerer Lernstart
     await model.fit(xs, ys, {epochs:10, batchSize:8, verbose:0});
-
-    storedModel = model; // kontinuierliches Lernen
+    storedModel = model;
 
     const p = model.predict(tf.tensor3d([X[X.length-1]])).dataSync()[0];
     return p*(max-min)+min;
@@ -186,8 +203,8 @@ analyseBtn.addEventListener("click", async()=>{
 
     const period = parseInt(periodSelect.value);
     let hist = [];
-    if(sym.includes("USD")) hist = await fetchCryptoHistoricalCoinGecko(sym, 365);
-    else hist = await fetchStockHistoricalFinnhub(sym, 365);
+    if(sym.includes("USD")) hist = await fetchCryptoHistorical(sym, 365);
+    else hist = await fetchStockHistorical(sym, 365);
 
     const fx = await fetchUsdChf();
     const live = await fetchQuote(sym);
