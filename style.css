@@ -1,48 +1,58 @@
 /* ==============================
-   style.css – finale Version
+   style.css – Modernes Design
    ============================== */
 
 body {
-  margin: 0;
-  padding: 20px;
-  font-family: Arial, sans-serif;
+  font-family: 'Arial', sans-serif;
   background-color: #121212;
   color: #ffffff;
+  margin: 0;
+  padding: 20px;
+}
+
+header {
+  text-align: center;
+  margin-bottom: 30px;
 }
 
 h1 {
   font-size: 2rem;
-  text-align: center;
-  margin-bottom: 5px;
+  color: #facc15;
 }
 
 .subtitle {
-  text-align: center;
   font-size: 1rem;
   color: #9ca3af;
+  margin-top: 5px;
+}
+
+.info {
+  display: flex;
+  justify-content: space-between;
   margin-bottom: 20px;
 }
 
 .infoBox {
   background-color: #1f1f1f;
-  padding: 10px 15px;
-  margin: 10px 0;
+  padding: 10px 20px;
   border-radius: 8px;
+  width: 48%;
+  text-align: center;
 }
 
 .controls {
   display: flex;
   justify-content: center;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 10px;
+  gap: 20px;
+  margin-bottom: 20px;
 }
 
 select, button {
-  padding: 8px 12px;
+  padding: 12px 20px;
   font-size: 1rem;
-  border-radius: 5px;
+  border-radius: 8px;
   border: none;
+  cursor: pointer;
 }
 
 select {
@@ -53,36 +63,48 @@ select {
 button {
   background-color: #3b82f6;
   color: #ffffff;
-  cursor: pointer;
-  transition: background-color 0.2s;
+  transition: background-color 0.3s;
 }
 
 button:hover {
   background-color: #2563eb;
 }
 
+.statusSection {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
 .status {
-  text-align: center;
+  font-size: 1.2rem;
+  color: #f97316;
   margin-bottom: 10px;
 }
 
 .loader {
+  width: 100%;
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin-bottom: 15px;
+  justify-content: center;
+  gap: 15px;
 }
 
 progress {
-  width: 80%;
+  width: 70%;
   height: 15px;
-  border-radius: 5px;
-  background-color: #1f1f1f;
-}
-
-canvas {
   background-color: #1f1f1f;
   border-radius: 8px;
+  border: none;
+}
+
+#progressText {
+  font-size: 1rem;
+  color: #facc15;
+}
+
+.chartSection {
   margin-bottom: 20px;
 }
 
@@ -93,7 +115,7 @@ table {
 }
 
 th, td {
-  padding: 8px;
+  padding: 10px;
   text-align: center;
   border-bottom: 1px solid #333333;
 }
@@ -120,8 +142,9 @@ td.halten {
   color: #9ca3af;
 }
 
-.footer {
+footer {
   text-align: center;
   font-size: 0.8rem;
   color: #9ca3af;
+  margin-top: 40px;
 }
