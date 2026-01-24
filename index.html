@@ -3,14 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AKTIEN & KRYPTO HANDEL AG – KI</title>
+<title>AKTIEN & KRYPTO HANTEL AG – KI</title>
 <link rel="stylesheet" href="style.css">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0/dist/tf.min.js"></script>
 </head>
 <body>
 
-<h1>AKTIEN & KRYPTO HANDEL AG 2026</h1>
+<h1>AKTIEN & KRYPTO HANTEL AG</h1>
 <div class="subtitle">Live-Daten & Multi-KI Prognosen (CHF / USD)</div>
 
 <div class="infoBox" id="currentPrice">Aktueller Kurs: –</div>
@@ -25,6 +25,10 @@
 </div>
 
 <div class="status" id="status">Bereit</div>
+<div style="text-align:center;margin-bottom:10px;">
+  <progress id="progressBar" value="0" max="100" style="width:80%;height:18px;"></progress>
+  <div id="progressText">Warte auf Berechnung…</div>
+</div>
 
 <canvas id="chart" height="280"></canvas>
 
@@ -44,10 +48,6 @@
 
 <div class="footer">@ Analyse-Tool – keine Anlageberatung</div>
 
-<!-- JS-Dateien laden -->
-<script src="analyse_core.js"></script>
-<script src="analyse_ui.js"></script>
+<script src="analyse.js"></script>
 </body>
 </html>
-
-
