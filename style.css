@@ -1,93 +1,23 @@
-/* ==============================
-   style.css – Layout & Design
-   ============================== */
-
-body {
-  background: #0f172a;
-  color: #e5e7eb;
-  font-family: Arial, sans-serif;
-  margin: 0;
-  padding: 15px;
+/* style.css – Layout & Design für Multi-KI Analyse */
+body{
+  background:#0f172a;
+  color:#e5e7eb;
+  font-family:Arial,sans-serif;
+  margin:0;
+  padding:15px;
 }
-
-h1 {
-  text-align: center;
-  font-size: 1.5rem;
-}
-
-.subtitle {
-  text-align: center;
-  color: #94a3b8;
-  font-size: 0.9rem;
-  margin-bottom: 10px;
-}
-
-.infoBox {
-  text-align: center;
-  margin: 8px;
-  font-size: 0.9rem;
-  font-weight: bold;
-}
-
-.controls {
-  display: flex;
-  justify-content: center;
-  gap: 8px;
-  flex-wrap: wrap;
-  margin: 12px 0;
-}
-
-select, button {
-  background: #020617;
-  color: #e5e7eb;
-  border: 1px solid #22c55e;
-  padding: 8px 12px;
-  border-radius: 6px;
-  font-size: 0.85rem;
-}
-
-button:hover {
-  background: #22c55e;
-  color: #020617;
-  cursor: pointer;
-}
-
-.status {
-  text-align: center;
-  margin: 10px;
-  font-weight: bold;
-  font-size: 0.9rem;
-}
-
-canvas {
-  max-width: 100%;
-  margin: 18px auto;
-  display: block;
-  background: #020617;
-  border-radius: 10px;
-}
-
-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-top: 10px;
-  font-size: 0.85rem;
-}
-
-th, td {
-  border: 1px solid #22c55e;
-  padding: 6px;
-  text-align: center;
-}
-
-.buy { color: #22c55e; font-weight: bold; }
-.sell { color: #ef4444; font-weight: bold; }
-.hold { color: #facc15; font-weight: bold; }
-.conf { color: #38bdf8; font-weight: bold; }
-
-.footer {
-  text-align: center;
-  margin-top: 14px;
-  font-size: 0.7rem;
-  color: #94a3b8;
-}
+h1{text-align:center;font-size:1.5rem;}
+.subtitle{text-align:center;color:#94a3b8;font-size:0.9rem;}
+.infoBox{text-align:center;margin:8px;font-size:0.9rem;font-weight:bold;}
+.controls{display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin:12px 0;}
+select,button{background:#020617;color:#e5e7eb;border:1px solid #22c55e;padding:8px 12px;border-radius:6px;font-size:0.85rem;}
+button:hover{background:#22c55e;color:#020617;cursor:pointer;}
+.status{text-align:center;margin:10px;font-weight:bold;font-size:0.9rem;}
+canvas{max-width:100%;margin:18px auto;display:block;background:#020617;border-radius:10px;}
+table{width:100%;border-collapse:collapse;margin-top:10px;font-size:0.85rem;}
+th,td{border:1px solid #22c55e;padding:6px;text-align:center;}
+.buy{color:#22c55e;font-weight:bold;}
+.sell{color:#ef4444;font-weight:bold;}
+.hold{color:#facc15;font-weight:bold;}
+.conf{color:#38bdf8;font-weight:bold;}
+.footer{text-align:center;margin-top:14px;font-size:0.7rem;color:#94a3b8;}
