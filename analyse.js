@@ -2,7 +2,7 @@
 // analyse.js – Teil 1 von 3 – Assets, Basisfunktionen, KI-Modelle
 // ==============================
 
-const API_KEY = "HIER_DEIN_FINNHUB_KEY"; // Finnhub Key einsetzen
+const API_KEY = "d5qi0c9r01qhn30fr1r0d5qi0c9r01qhn30fr1rg"; // Finnhub Key einsetzen
 
 // -----------------
 // Assets
@@ -344,3 +344,4 @@ document.addEventListener("DOMContentLoaded", async ()=>{
   const asset = getRandomAsset();
   await runFutureAnalysis(asset.symbol);
 });
+
