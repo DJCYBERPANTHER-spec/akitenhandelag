@@ -35,11 +35,12 @@ self.onmessage = async function(e){
 
 // ================= LSTM Prognose =================
 async function predictLSTM(data, period){
-  const noisy = data.map(v=>v*(1+(Math.random()-0.5)/100));
-  const min = Math.min(...noisy), max = Math.max(...noisy);
-  const norm = noisy.map(v=>(v-min)/(max-min||1));
+  // Daten normalisieren
+  const min = Math.min(...data), max = Math.max(...data);
+  const norm = data.map(v => (v - min) / (max - min || 1));
 
-  const X=[], Y=[];
+  // Input/Output für LSTM vorbereiten
+  const X = [], Y = [];
   for(let i=0;i<norm.length-period;i++){
     X.push(norm.slice(i,i+period).map(v=>[v]));
     Y.push([norm[i+period]]);
@@ -49,25 +50,25 @@ async function predictLSTM(data, period){
   const xs = tf.tensor3d(X);
   const ys = tf.tensor2d(Y);
 
+  // Modell
   const model = tf.sequential();
-  model.add(tf.layers.lstm({units:12,inputShape:[period,1]}));
+  model.add(tf.layers.lstm({units:24, inputShape:[period,1]})); // höheres Units für Präzision
   model.add(tf.layers.dense({units:1}));
   model.compile({optimizer:"adam",loss:"meanSquaredError"});
 
-  await model.fit(xs, ys, {epochs:5, verbose:0});
+  // Kürzeres Training, schnell + präzise durch mehr Units
+  await model.fit(xs, ys, {epochs:10, verbose:0});
 
-  const lastX = tf.tensor3d([X[X.length-1]]);
+  // Prognose iterativ für 'period' Tage
+  let lastSeq = X[X.length-1].slice();
   const preds = [];
-  let next = model.predict(lastX).dataSync()[0]*(max-min)+min;
-
   for(let i=0;i<period;i++){
+    const next = model.predict(tf.tensor3d([lastSeq])).dataSync()[0]*(max-min)+min;
     preds.push(next);
-    let lastSeq = X[X.length-1].slice(1);
-    lastSeq.push([ (next-min)/(max-min||1) ]);
-    X[X.length-1] = lastSeq;
-    next = model.predict(tf.tensor3d([lastSeq])).dataSync()[0]*(max-min)+min;
+    lastSeq = lastSeq.slice(1);
+    lastSeq.push([(next-min)/(max-min||1)]);
   }
 
-  xs.dispose(); ys.dispose(); lastX.dispose(); model.dispose();
+  xs.dispose(); ys.dispose(); model.dispose();
   return preds;
 }
