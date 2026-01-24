@@ -3,59 +3,50 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AKTIEN & KRYPTO HANTEL AG – KI Analyse</title>
+<title>AKTIEN & KRYPTO HANTEL AG – KI</title>
 <link rel="stylesheet" href="style.css">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0/dist/tf.min.js"></script>
 </head>
 <body>
 
-<header>
-  <h1>AKTIEN & KRYPTO HANTEL AG</h1>
-  <div class="subtitle">Live-Daten & Multi-KI Prognosen (CHF)</div>
-</header>
+<h1>AKTIEN & KRYPTO HANTEL AG</h1>
+<div class="subtitle">Live-Daten & Multi-KI Prognosen (CHF)</div>
 
-<section class="info">
-  <div class="infoBox" id="currentPrice">Aktueller Kurs: –</div>
-  <div class="infoBox" id="warning">Warnungen: –</div>
-</section>
+<div class="infoBox" id="currentPrice">Aktueller Kurs: –</div>
+<div class="infoBox" id="warning">Warnungen: –</div>
 
-<section class="controls">
+<div class="controls">
   <select id="assetSelect"></select>
   <button id="analyseBtn">Analyse starten</button>
   <button onclick="openYahoo()">Yahoo</button>
   <button onclick="openTradingView()">TradingView</button>
   <button onclick="openSwissquote()">Swissquote</button>
-</section>
+</div>
 
 <div class="status" id="status">Bereit</div>
-
-<section class="progress-section">
-  <progress id="progressBar" value="0" max="100"></progress>
+<div style="text-align:center;margin-bottom:10px;">
+  <progress id="progressBar" value="0" max="100" style="width:80%;height:18px;"></progress>
   <div id="progressText">Warte auf Berechnung…</div>
-</section>
+</div>
 
-<section class="chart-container">
-  <canvas id="chart" height="300"></canvas>
-</section>
+<canvas id="chart" height="280"></canvas>
 
-<section class="forecast-table">
-  <table>
-    <thead>
-      <tr>
-        <th>Zeitraum</th>
-        <th>Prognose (CHF)</th>
-        <th>Signal</th>
-        <th>Δ</th>
-        <th>Konfidenz</th>
-        <th>Datum/Uhrzeit</th>
-      </tr>
-    </thead>
-    <tbody id="out"></tbody>
-  </table>
-</section>
+<table>
+  <thead>
+    <tr>
+      <th>KI-Modell</th>
+      <th>Prognose (CHF)</th>
+      <th>Signal</th>
+      <th>Δ</th>
+      <th>Konfidenz</th>
+      <th>Datum/Uhrzeit</th>
+    </tr>
+  </thead>
+  <tbody id="out"></tbody>
+</table>
 
-<footer class="footer">@ Analyse-Tool – keine Anlageberatung</footer>
+<div class="footer">@ Analyse-Tool – keine Anlageberatung</div>
 
 <script src="analyse.js"></script>
 </body>
