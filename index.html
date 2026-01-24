@@ -10,36 +10,29 @@
 </head>
 <body>
 
-<!-- Header -->
 <h1>AKTIEN & KRYPTO HANTEL AG</h1>
-<div class="subtitle">Live-Daten & Multi-KI Prognosen (CHF / USD)</div>
+<div class="subtitle">Live-Daten & Multi-KI Prognosen (CHF)</div>
 
-<!-- Info Boxen -->
 <div class="infoBox" id="currentPrice">Aktueller Kurs: –</div>
 <div class="infoBox" id="warning">Warnungen: –</div>
 
-<!-- Controls -->
 <div class="controls">
-  <select id="assetSelect">
-    <!-- JS füllt alle Assets (Aktien + Kryptos) -->
-  </select>
+  <select id="assetSelect"></select>
   <button id="analyseBtn">Analyse starten</button>
   <button onclick="openYahoo()">Yahoo</button>
   <button onclick="openTradingView()">TradingView</button>
   <button onclick="openSwissquote()">Swissquote</button>
 </div>
 
-<!-- Status & Fortschritt -->
 <div class="status" id="status">Bereit</div>
+
 <div style="text-align:center;margin-bottom:10px;">
-  <progress id="progressBar" value="0" max="100"></progress>
+  <progress id="progressBar" value="0" max="100" style="width:80%;height:18px;"></progress>
   <div id="progressText">Warte auf Berechnung…</div>
 </div>
 
-<!-- Chart -->
 <canvas id="chart" height="280"></canvas>
 
-<!-- Prognosen Tabelle -->
 <table>
   <thead>
     <tr>
@@ -51,19 +44,13 @@
       <th>Datum/Uhrzeit</th>
     </tr>
   </thead>
-  <tbody id="out">
-    <!-- JS fügt Prognosen dynamisch ein -->
-  </tbody>
+  <tbody id="out"></tbody>
 </table>
 
-<!-- Footer -->
 <div class="footer">@ Analyse-Tool – keine Anlageberatung</div>
 
-<!-- JS -->
 <script src="analyse.js"></script>
-
 <script>
-// Externe Links Funktionen
 function openYahoo() {
   const sym = document.getElementById("assetSelect").value;
   window.open(`https://finance.yahoo.com/quote/${sym}`, '_blank');
