@@ -1,200 +1,163 @@
-/* =====================================================
-   style.css – Profi KI Aktien & Krypto Analyse
-   Dark Finance Dashboard
-===================================================== */
-
-:root{
-  --bg-main:#0f172a;
-  --bg-panel:#020617;
-  --border:#22c55e;
-
-  --text-main:#e5e7eb;
-  --text-muted:#94a3b8;
-
-  --green:#22c55e;
-  --red:#ef4444;
-  --yellow:#facc15;
-  --blue:#38bdf8;
-  --orange:#f97316;
+/* ----------------------------
+   GLOBAL
+---------------------------- */
+body {
+  background: #0f172a;
+  color: #e5e7eb;
+  font-family: Arial, sans-serif;
+  margin: 0;
+  padding: 15px;
 }
 
-/* ===================== BASE ===================== */
-
-*{
-  box-sizing:border-box;
+h1 {
+  text-align: center;
+  font-size: 1.5rem;
 }
 
-body{
-  margin:0;
-  padding:16px;
-  background:var(--bg-main);
-  color:var(--text-main);
-  font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;
+.subtitle {
+  text-align: center;
+  color: #94a3b8;
+  font-size: 0.9rem;
+  margin-bottom: 10px;
 }
 
-/* ===================== HEADER ===================== */
-
-h1{
-  text-align:center;
-  margin:4px 0;
-  font-size:1.6rem;
+/* ----------------------------
+   INFO BOXEN
+---------------------------- */
+.infoBox {
+  text-align: center;
+  margin: 8px 0;
+  font-size: 0.9rem;
+  font-weight: bold;
+  padding: 6px 0;
+  border-radius: 6px;
+  background-color: #1e293b;
 }
 
-.subtitle{
-  text-align:center;
-  font-size:0.85rem;
-  color:var(--text-muted);
-  margin-bottom:12px;
+/* ----------------------------
+   CONTROLS
+---------------------------- */
+.controls {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 12px 0;
 }
 
-/* ===================== INFO BOX ===================== */
-
-.infoBox{
-  text-align:center;
-  background:var(--bg-panel);
-  border:1px solid var(--border);
-  border-radius:8px;
-  padding:8px;
-  margin:6px auto;
-  width:fit-content;
-  min-width:220px;
-  font-size:0.9rem;
-  font-weight:600;
+select, button {
+  background: #020617;
+  color: #e5e7eb;
+  border: 1px solid #22c55e;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 0.85rem;
 }
 
-.warningBox{
-  border-color:var(--yellow);
-  color:var(--yellow);
+button:hover {
+  background: #22c55e;
+  color: #020617;
+  cursor: pointer;
 }
 
-/* ===================== CONTROLS ===================== */
-
-.controls{
-  display:flex;
-  justify-content:center;
-  align-items:center;
-  flex-wrap:wrap;
-  gap:8px;
-  margin:14px 0;
+/* ----------------------------
+   STATUS & WARNUNG
+---------------------------- */
+.status {
+  text-align: center;
+  margin: 10px;
+  font-weight: bold;
+  font-size: 0.9rem;
 }
 
-select,button{
-  background:var(--bg-panel);
-  color:var(--text-main);
-  border:1px solid var(--border);
-  padding:8px 12px;
-  border-radius:6px;
-  font-size:0.85rem;
-  transition:0.2s ease;
+.loader {
+  margin-top: 6px;
+  font-size: 0.85rem;
+  color: #a8dadc;
 }
 
-select{
-  min-width:170px;
+#warning {
+  color: #facc15;
+  font-weight: bold;
 }
 
-button:hover{
-  background:var(--border);
-  color:#020617;
-  cursor:pointer;
-  transform:translateY(-1px);
+/* ----------------------------
+   CHART
+---------------------------- */
+canvas {
+  max-width: 100%;
+  margin: 18px auto;
+  display: block;
+  background: #020617;
+  border-radius: 10px;
+  padding: 10px;
 }
 
-/* ===================== STATUS ===================== */
-
-.status{
-  text-align:center;
-  font-weight:600;
-  font-size:0.9rem;
-  margin-top:6px;
+/* ----------------------------
+   TABELLE
+---------------------------- */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+  font-size: 0.85rem;
 }
 
-.loader{
-  text-align:center;
-  font-size:0.8rem;
-  color:var(--blue);
-  margin-bottom:6px;
+th, td {
+  border: 1px solid #22c55e;
+  padding: 6px;
+  text-align: center;
 }
 
-/* ===================== PROGRESS ===================== */
-
-.progressWrap{
-  text-align:center;
-  margin:10px 0;
+.buy {
+  color: #22c55e;
+  font-weight: bold;
 }
 
-progress{
-  width:80%;
-  height:16px;
-  border-radius:6px;
-  overflow:hidden;
+.sell {
+  color: #ef4444;
+  font-weight: bold;
 }
 
-/* ===================== CHART ===================== */
-
-canvas{
-  max-width:100%;
-  margin:18px auto;
-  display:block;
-  background:var(--bg-panel);
-  border-radius:12px;
-  padding:6px;
+.hold {
+  color: #facc15;
+  font-weight: bold;
 }
 
-/* ===================== TABLE ===================== */
-
-table{
-  width:100%;
-  border-collapse:collapse;
-  margin-top:14px;
-  font-size:0.85rem;
+.conf {
+  color: #38bdf8;
+  font-weight: bold;
 }
 
-th,td{
-  border:1px solid var(--border);
-  padding:7px 6px;
-  text-align:center;
+/* ----------------------------
+   FUSSZEILE
+---------------------------- */
+.footer {
+  text-align: center;
+  margin-top: 14px;
+  font-size: 0.7rem;
+  color: #94a3b8;
 }
 
-th{
-  background:#020617;
-  font-weight:700;
-}
+/* ----------------------------
+   RESPONSIVE
+---------------------------- */
+@media screen and (max-width: 600px) {
+  .controls {
+    flex-direction: column;
+    gap: 6px;
+  }
 
-/* ===================== SIGNALS ===================== */
+  th, td {
+    font-size: 0.75rem;
+    padding: 4px;
+  }
 
-.buy{
-  color:var(--green);
-  font-weight:700;
-}
+  h1 {
+    font-size: 1.3rem;
+  }
 
-.sell{
-  color:var(--red);
-  font-weight:700;
-}
-
-.hold{
-  color:var(--yellow);
-  font-weight:700;
-}
-
-.conf{
-  color:var(--blue);
-  font-weight:700;
-}
-
-/* ===================== FOOTER ===================== */
-
-.footer{
-  text-align:center;
-  margin-top:16px;
-  font-size:0.7rem;
-  color:var(--text-muted);
-}
-
-/* ===================== RESPONSIVE ===================== */
-
-@media (max-width:600px){
-  h1{font-size:1.3rem;}
-  select{min-width:140px;}
-  table{font-size:0.75rem;}
+  .subtitle {
+    font-size: 0.8rem;
+  }
 }
