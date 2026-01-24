@@ -2,401 +2,421 @@
 <html lang="de">
 <head>
 <meta charset="UTF-8">
-<title>Futuristische Asset Analyse</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Multi-KI Asset Analyse – Zukunft</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0/dist/tf.min.js"></script>
 <style>
 body {
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  background: #0d0f17;
-  color: #e5e7eb;
-  padding: 20px;
-  margin:0;
+    background: #0d0f17;
+    color: #e5e7eb;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    margin:0; padding:20px;
 }
-#app { max-width: 1000px; margin:auto; }
+h1 { text-align:center; font-size:1.8rem; margin-bottom:4px; }
+.subtitle { text-align:center; color:#94a3b8; font-size:1rem; margin-bottom:10px; }
 
 .card {
-  background: #11151f;
-  border: 1px solid #1f2937;
-  border-radius: 12px;
-  padding: 20px;
-  margin-bottom: 20px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+    background:#11151f;
+    border:1px solid #1f2937;
+    border-radius:12px;
+    padding:20px;
+    margin-bottom:20px;
+    box-shadow:0 4px 12px rgba(0,0,0,0.4);
 }
 
-h2 { margin-top:0; }
-
-select, button {
-  padding: 12px;
-  margin-top: 8px;
-  width: 100%;
-  border-radius: 8px;
-  border:1px solid #1f2937;
-  background:#0e111b;
-  color:#e5e7eb;
-  font-size: 16px;
-  cursor:pointer;
-  transition: 0.2s;
-}
+.controls { display:flex; gap:10px; flex-wrap:wrap; justify-content:center; margin-bottom:12px; }
+select, button { padding:10px; border-radius:8px; border:1px solid #22c55e; background:#0e111b; color:#e5e7eb; font-size:0.9rem; cursor:pointer; transition:0.2s; }
 select:hover, button:hover { background:#161b2c; }
 
-.progress {
-  height: 10px;
-  background: #1f2937;
-  border-radius: 5px;
-  overflow: hidden;
-  margin-top: 10px;
-}
-.progress div {
-  height: 100%;
-  width: 0%;
-  background: #38bdf8;
-  transition: width 0.3s;
-}
+.progress { height:12px; background:#1f2937; border-radius:6px; overflow:hidden; margin-top:8px; width:80%; margin-left:auto; margin-right:auto; }
+.progress div { height:100%; width:0%; background:#38bdf8; transition:width 0.3s; }
 
-.small { font-size:12px; color:#aaa; }
+.status { text-align:center; margin:10px 0; font-weight:bold; }
+.loader { text-align:center; font-size:0.9rem; color:#a8dadc; margin-bottom:10px; }
 
-.ok { color:#22c55e; font-weight:bold; }
-.warn { color:#facc15; font-weight:bold; }
-.danger { color:#ef4444; font-weight:bold; }
+canvas { background:#0e111b; border-radius:10px; display:block; margin:15px auto; max-width:100%; }
 
-canvas { background:#0d0f17; border-radius:10px; margin-top:15px; }
+table { width:100%; border-collapse:collapse; margin-top:15px; font-size:0.85rem; }
+th,td { border:1px solid #22c55e; padding:6px; text-align:center; }
+.buy { color:#22c55e; font-weight:bold; }
+.sell { color:#ef4444; font-weight:bold; }
+.hold { color:#facc15; font-weight:bold; }
+.conf { color:#38bdf8; font-weight:bold; }
+.footer { text-align:center; margin-top:14px; font-size:0.75rem; color:#94a3b8; }
+
 </style>
 </head>
-
 <body>
-<div id="app">
 
-<!-- BLOCK: ASSET SCANNER -->
+<h1>🔮 Multi-KI Asset Analyse</h1>
+<div class="subtitle">Aktien & Kryptowährungen – Live & Präzise</div>
+
 <div class="card">
-<h2>🔍 Asset-Scanner</h2>
-<div id="status">
-<b>Status:</b> <span id="searchStatus">Suche Assets…</span><br>
-Geprüft: <span id="checked">0</span> |
-Gefunden: <span id="found">0</span> |
-ETA: <span id="eta">–</span>
+    <h2>📌 Asset Scanner</h2>
+    <div class="status" id="status">Status: Bereit</div>
+    <div class="loader" id="loader">–</div>
+
+    <div class="controls">
+        <select id="assetSelect"><option>Lade Assets…</option></select>
+        <select id="timeRange">
+            <option value="10">10 Tage</option>
+            <option value="30">30 Tage</option>
+            <option value="200">200 Tage</option>
+            <option value="365">365 Tage</option>
+        </select>
+        <button onclick="loadAsset()">📊 Analyse</button>
+    </div>
+
+    <div class="progress"><div id="progressBar"></div></div>
+    <div class="status" id="progressText">Warte auf Daten…</div>
 </div>
-<div class="progress"><div id="bar"></div></div>
 
-<select id="assetSelect">
-<option>Lade Assets…</option>
-</select>
-
-<button onclick="loadAsset()">📊 Analysieren</button>
-</div>
-
-<!-- BLOCK: ASSET ANALYSE -->
 <div class="card">
-<h2>📈 Analyse</h2>
-<div id="info"></div>
-<div id="warnings"></div>
-<canvas id="chart" height="150"></canvas>
+    <h2>💹 Live-Kurs & Analyse</h2>
+    <div id="currentPrice">Aktueller Kurs: –</div>
+    <div id="period">Zeitraum: –</div>
+    <canvas id="chart" height="220"></canvas>
+</div>
 
-<div style="display:flex; gap:10px; margin-top:10px;">
-<button onclick="openTradingView()">TradingView öffnen</button>
-<button onclick="openBuy()">Kaufen / Infos</button>
-<button onclick="refreshAsset()">🔄 Aktualisieren</button>
+<div class="card">
+    <h2>🧠 KI-Prognosen</h2>
+    <table>
+        <thead>
+            <tr><th>KI-Modell</th><th>Prognose</th><th>Signal</th><th>Δ</th><th>Konfidenz</th><th>Datum/Uhrzeit</th></tr>
+        </thead>
+        <tbody id="out"></tbody>
+    </table>
 </div>
-</div>
+
+<div class="footer">@ Analyse Tool – keine Anlageberatung</div>
 
 <script>
 // ================== GRUNDKONFIG ==================
-const FINNHUB_KEY = "DEIN_API_KEY_HIER"; // Finnhub API
-const MIN_DAYS = 10; // minimale Historie
-const TARGET_ASSETS = 10; // Mindestanzahl gefundener Assets
-const DELAY = 1200; // ms Pause zwischen Requests
+const FINNHUB_KEY="DEIN_API_KEY_HIER"; // API Key
+let chart=null;
+let liveInterval=null;
+let validAssets=[];
+let checkedCount=0;
+let startTime=Date.now();
 
-// Finanzkrisen (für spätere Visualisierung)
-const CRISES = [
-  { name:"Finanzkrise 2008", from:"2008-09-01", to:"2009-03-01" },
-  { name:"Eurokrise", from:"2010-05-01", to:"2012-07-01" },
-  { name:"Covid-Crash", from:"2020-02-15", to:"2020-04-15" },
-  { name:"Zins/Tech-Crash", from:"2022-01-01", to:"2022-10-01" }
-];
-// ================== STATE ==================
-let validAssets = [];
-let checkedCount = 0;
-let startTime = Date.now();
+const STOCKS=["AAPL","MSFT","GOOGL","AMZN","TSLA","META","NVDA","JNJ","KO"];
+const CRYPTOS=["BTCUSDT","ETHUSDT","BNBUSDT","ADAUSDT","SOLUSDT"];
 
-// ================== ASSETS ==================
-const STOCKS = ["AAPL","MSFT","GOOGL","AMZN","META","NVDA","TSLA","JPM","V","JNJ","KO","PEP","ADBE","ORCL","INTC"];
-const CRYPTOS = ["BTCUSDT","ETHUSDT","BNBUSDT","SOLUSDT","XRPUSDT","ADAUSDT","DOGEUSDT"];
-const ALL_ASSETS = [
-  ...STOCKS.map(s=>({symbol:s,type:"stock"})),
-  ...CRYPTOS.map(c=>({symbol:c,type:"crypto"}))
+const ALL_ASSETS=[
+    ...STOCKS.map(s=>({symbol:s,type:"stock"})),
+    ...CRYPTOS.map(c=>({symbol:c,type:"crypto"}))
 ];
+
+const assetSelect=document.getElementById("assetSelect");
+</script>
+<script>
+// ================== KONFIG ==================
+const MIN_DAYS=10;
+const TARGET_ASSETS=20;  // Anzahl Assets, die mindestens gefunden werden sollen
+const DELAY=600; // ms zwischen Abfragen
 
 // ================== HILFSFUNKTIONEN ==================
 function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
-function updateUI(){
-  document.getElementById("checked").textContent = checkedCount;
-  document.getElementById("found").textContent = validAssets.length;
-  document.getElementById("bar").style.width = Math.min(100,(validAssets.length/TARGET_ASSETS)*100) + "%";
-  let elapsed = (Date.now()-startTime)/1000;
-  let avg = checkedCount ? elapsed/checkedCount : 0;
-  let remaining = Math.max((TARGET_ASSETS-validAssets.length)*avg,0);
-  document.getElementById("eta").textContent = Math.ceil(remaining)+"s";
+function updateProgress(){
+    const progressBar=document.getElementById("progressBar");
+    const progressText=document.getElementById("progressText");
+    const percent=Math.min((validAssets.length/TARGET_ASSETS)*100,100);
+    progressBar.style.width=percent+"%";
+
+    const elapsed=(Date.now()-startTime)/1000;
+    const avg=checkedCount?elapsed/checkedCount:0;
+    const remaining=Math.max((TARGET_ASSETS-validAssets.length)*avg,0);
+    progressText.textContent=`Gefunden: ${validAssets.length}/${TARGET_ASSETS} | Prüft: ${checkedCount} | ETA: ${Math.ceil(remaining)}s`;
 }
 
 // ================== HISTORIE ABRUF ==================
-async function fetchStockHistory(symbol, days=MIN_DAYS){
-  const to = Math.floor(Date.now()/1000);
-  const from = to - days*86400;
-  const url = `https://finnhub.io/api/v1/stock/candle?symbol=${symbol}&resolution=D&from=${from}&to=${to}&token=${FINNHUB_KEY}`;
-  const res = await fetch(url).then(r=>r.json());
-  if(res.s!=="ok" || !res.c || res.c.length<MIN_DAYS) throw "no data";
-  return {symbol,type:"stock",prices:res.c,dates:res.t.map(t=>new Date(t*1000))};
+async function fetchStockHistory(symbol,days=MIN_DAYS){
+    const to=Math.floor(Date.now()/1000);
+    const from=to-days*86400;
+    const url=`https://finnhub.io/api/v1/stock/candle?symbol=${symbol}&resolution=D&from=${from}&to=${to}&token=${FINNHUB_KEY}`;
+    const res=await fetch(url).then(r=>r.json());
+    if(res.s!=="ok" || !res.c || res.c.length<MIN_DAYS) throw "Keine Daten";
+    return {symbol,type:"stock",prices:res.c,dates:res.t.map(t=>new Date(t*1000))};
 }
 
-async function fetchCryptoHistory(symbol, days=MIN_DAYS){
-  const url = `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=1d&limit=${days}`;
-  const res = await fetch(url).then(r=>r.json());
-  if(!Array.isArray(res) || res.length<MIN_DAYS) throw "no data";
-  return {symbol,type:"crypto",prices:res.map(x=>parseFloat(x[4])),dates:res.map(x=>new Date(x[0]))};
+async function fetchCryptoHistory(symbol,days=MIN_DAYS){
+    const url=`https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=1d&limit=${days}`;
+    const res=await fetch(url).then(r=>r.json());
+    if(!Array.isArray(res) || res.length<MIN_DAYS) throw "Keine Daten";
+    return {symbol,type:"crypto",prices:res.map(x=>parseFloat(x[4])),dates:res.map(x=>new Date(x[0]))};
 }
 
 // ================== ASSET SUCHE ==================
 async function searchAssets(){
-  const periods = [365,200,MIN_DAYS]; // Multi-Zeitraum Fallback
-  for(const days of periods){
-    for(const a of ALL_ASSETS){
-      if(validAssets.length>=TARGET_ASSETS) break;
-      if(validAssets.find(v=>v.symbol===a.symbol)) continue; // schon gefunden
-      checkedCount++;
-      try{
-        let data = a.type==="stock" 
-          ? await fetchStockHistory(a.symbol,days)
-          : await fetchCryptoHistory(a.symbol,days);
-        validAssets.push(data);
-        addOption(data);
-      }catch(e){}
-      updateUI();
-      await sleep(DELAY);
+    const periods=[365,200,MIN_DAYS]; // Multi-Zeitraum Fallback
+    for(const days of periods){
+        for(const a of ALL_ASSETS){
+            if(validAssets.length>=TARGET_ASSETS) break;
+            if(validAssets.find(v=>v.symbol===a.symbol)) continue;
+            checkedCount++;
+            try{
+                let data=a.type==="stock" 
+                    ? await fetchStockHistory(a.symbol,days)
+                    : await fetchCryptoHistory(a.symbol,days);
+                validAssets.push(data);
+                addOption(data);
+            }catch(e){}
+            updateProgress();
+            await sleep(DELAY);
+        }
+        if(validAssets.length>=TARGET_ASSETS) break;
     }
-    if(validAssets.length>=TARGET_ASSETS) break;
-  }
 
-  // Automatische fortlaufende Suche, falls < TARGET_ASSETS
-  while(validAssets.length<TARGET_ASSETS){
-    for(const a of ALL_ASSETS){
-      if(validAssets.length>=TARGET_ASSETS) break;
-      if(validAssets.find(v=>v.symbol===a.symbol)) continue;
-      checkedCount++;
-      try{
-        let data = a.type==="stock" 
-          ? await fetchStockHistory(a.symbol,MIN_DAYS)
-          : await fetchCryptoHistory(a.symbol,MIN_DAYS);
-        validAssets.push(data);
-        addOption(data);
-      }catch(e){}
-      updateUI();
-      await sleep(DELAY);
+    // Fortlaufende Suche, falls < TARGET_ASSETS
+    while(validAssets.length<TARGET_ASSETS){
+        for(const a of ALL_ASSETS){
+            if(validAssets.length>=TARGET_ASSETS) break;
+            if(validAssets.find(v=>v.symbol===a.symbol)) continue;
+            checkedCount++;
+            try{
+                let data=a.type==="stock"
+                    ? await fetchStockHistory(a.symbol,MIN_DAYS)
+                    : await fetchCryptoHistory(a.symbol,MIN_DAYS);
+                validAssets.push(data);
+                addOption(data);
+            }catch(e){}
+            updateProgress();
+            await sleep(DELAY);
+        }
     }
-  }
-  document.getElementById("searchStatus").textContent = "✅ Suche abgeschlossen";
+    document.getElementById("status").textContent="✅ Alle Assets gefunden";
 }
 
 // ================== DROPDOWN ==================
-const assetSelect = document.getElementById("assetSelect");
 function addOption(asset){
-  if(validAssets.length===1) assetSelect.innerHTML = "";
-  const o = document.createElement("option");
-  o.value = validAssets.length-1;
-  o.textContent = `${asset.symbol} (${asset.type})`;
-  assetSelect.appendChild(o);
+    if(validAssets.length===1) assetSelect.innerHTML="";
+    const o=document.createElement("option");
+    o.value=validAssets.length-1;
+    o.textContent=`${asset.symbol} (${asset.type})`;
+    assetSelect.appendChild(o);
 }
 
 // ======= AUTOMATISCH START =======
 searchAssets();
-// ================== ANALYSE ==================
-let chart;
-const infoDiv = document.getElementById("info");
-const warningsDiv = document.getElementById("warnings");
-
-function loadAsset(){
-  const idx = assetSelect.value;
-  if(idx===null) return;
-  const a = validAssets[idx];
-  renderChart(a);
-  analyse(a);
+</script>
+<script>
+// ================== LIVE-KURSE ==================
+async function fetchUsdChf(){
+    try{
+        const r=await fetch("https://api.exchangerate.host/latest?base=USD&symbols=CHF");
+        const j=await r.json();
+        return Number(j?.rates?.CHF)||0.93;
+    }catch{return 0.93;}
 }
 
-// ================== MULTI-ZEITRAUM + KENNZAHLEN ==================
-function analyse(a){
-  const p = a.prices;
-  const dates = a.dates;
-  const last = p[p.length-1];
+async function fetchQuote(sym){
+    try{
+        const url=sym.includes("USDT") 
+            ? `https://api.binance.com/api/v3/ticker/price?symbol=${sym}`
+            : `https://finnhub.io/api/v1/quote?symbol=${sym}&token=${FINNHUB_KEY}`;
+        const r=await fetch(url);
+        const j=await r.json();
+        if(sym.includes("USDT")) return parseFloat(j.price);
+        if(j.c!==undefined) return Number(j.c);
+        throw "Keine Kursdaten";
+    }catch(e){throw e;}
+}
 
-  // Performance über 10,30,200,365 Tage
-  const perf10 = p.length>10 ? ((last-p[p.length-11])/p[p.length-11]*100).toFixed(2) : "-";
-  const perf30 = p.length>30 ? ((last-p[p.length-31])/p[p.length-31]*100).toFixed(2) : "-";
-  const perf200 = p.length>200 ? ((last-p[p.length-201])/p[p.length-201]*100).toFixed(2) : "-";
-  const perf365 = p.length>365 ? ((last-p[p.length-366])/p[p.length-366]*100).toFixed(2) : "-";
-
-  // Volatilität 10/30 Tage
-  const vol10 = p.length>10 ? stdDev(p.slice(-10)).toFixed(2) : "-";
-  const vol30 = p.length>30 ? stdDev(p.slice(-30)).toFixed(2) : "-";
-
-  // Drawdown
-  const dd = maxDrawdown(p).toFixed(2);
-
-  // Trendanalyse (gleitender Durchschnitt 20 Tage)
-  const ma20 = p.slice(-20).reduce((x,y)=>x+y,0)/20;
-  const trend = last>ma20 ? "Trend: steigend" : "Trend: fallend";
-
-  // Warnungen
-  let warnHtml = "";
-  if(dd<-20) warnHtml += "<div class='danger'>🔴 Starker Drawdown</div>";
-  if(vol30>(a.type==="crypto"?6:3)) warnHtml += "<div class='warn'>🟠 Hohe Volatilität</div>";
-
-  // Finanzkrisen Hinweise
-  CRISES.forEach(c=>{
-    const from = new Date(c.from);
-    const to = new Date(c.to);
-    if(dates[0]<=to && dates[dates.length-1]>=from){
-      warnHtml += `<div class='warn'>⚠️ Zeitraum ${c.name} enthalten</div>`;
+async function startLivePrice(idx){
+    const currentDiv=document.getElementById("currentPrice");
+    const asset=validAssets[idx];
+    async function updatePrice(){
+        try{
+            const usd=await fetchQuote(asset.symbol);
+            const fx=asset.type==="crypto"?1:await fetchUsdChf();
+            currentDiv.textContent=`Aktueller Kurs: ${(usd*fx).toFixed(2)} ${asset.type==="crypto"?"USDT":"CHF"}`;
+        }catch(err){currentDiv.textContent=`Fehler: ${err}`;}
     }
-  });
-
-  infoDiv.innerHTML = `
-    <b>${a.symbol}</b><br>
-    Aktueller Kurs: ${last.toFixed(2)}<br>
-    ${trend}<br>
-    Performance 10T: ${perf10}% | 30T: ${perf30}% | 200T: ${perf200}% | 365T: ${perf365}%<br>
-    Volatilität 10T: ${vol10} | 30T: ${vol30}<br>
-    Max Drawdown: ${dd}%
-  `;
-  warningsDiv.innerHTML = warnHtml || "<div class='ok'>🟢 Keine akute Warnung</div>";
+    await updatePrice();
+    if(liveInterval) clearInterval(liveInterval);
+    liveInterval=setInterval(updatePrice,5000);
 }
 
-// ================== HILFSFUNKTIONEN ==================
-function stdDev(arr){
-  const mean = arr.reduce((a,b)=>a+b)/arr.length;
-  return Math.sqrt(arr.reduce((a,b)=>a+(b-mean)**2,0)/arr.length);
-}
+// ================== KI-PROGNOSE ==================
+async function predictModelVaried(data, basePeriod, kiIndex){
+    const period=basePeriod + kiIndex*2;
+    const noisyData=data.prices.map(v=>v*(1+(Math.random()-0.5)/100));
 
-function maxDrawdown(prices){
-  let peak = prices[0], dd=0;
-  prices.forEach(p=>{
-    if(p>peak) peak=p;
-    dd = Math.min(dd,(p-peak)/peak*100);
-  });
-  return dd;
-}
+    const min=Math.min(...noisyData);
+    const max=Math.max(...noisyData);
+    const norm=noisyData.map(v=>(v-min)/(max-min||1));
 
-// ================== REFRESH ==================
-function refreshAsset(){
-  const idx = assetSelect.value;
-  if(idx===null) return;
-  const a = validAssets[idx];
-  searchAssets(); // Option: komplettes Update neu laden
-}
-// ================== CHART + FINANZKRISEN ==================
-function renderChart(a){
-  if(chart) chart.destroy();
-
-  // Daten für Chart
-  const labels = a.dates.map(d=>d.toISOString().slice(0,10));
-  const datasets = [
-    {
-      label: a.symbol,
-      data: a.prices,
-      borderColor: "#38bdf8",
-      backgroundColor: "rgba(56, 223, 248,0.1)",
-      pointRadius: 0,
-      fill: true
+    let X=[],Y=[];
+    for(let i=0;i<norm.length-period;i++){
+        X.push(norm.slice(i,i+period).map(v=>[v]));
+        Y.push([norm[i+period]]);
     }
-  ];
 
-  // Finanzkrisen als farbige Hintergründe
-  const crisisAnnotations = [];
-  CRISES.forEach(c=>{
-    const from = new Date(c.from);
-    const to = new Date(c.to);
-    const startIdx = labels.findIndex(d=>new Date(d)>=from);
-    const endIdx = labels.findIndex(d=>new Date(d)>=to);
-    if(startIdx>=0 && endIdx>=0){
-      crisisAnnotations.push({start:startIdx,end:endIdx});
-    }
-  });
+    if(X.length===0 || Y.length===0) return data.prices[data.prices.length-1];
 
-  chart = new Chart(document.getElementById("chart"), {
-    type: "line",
-    data: { labels, datasets },
-    options: {
-      plugins: { legend:{display:true} },
-      responsive:true,
-      maintainAspectRatio:false,
-      scales:{
-        x:{ display:true },
-        y:{ display:true }
-      }
-    }
-  });
+    const xs=tf.tensor3d(X);
+    const ys=tf.tensor2d(Y);
 
-  // Overlay für Finanzkrisen (optional)
-  crisisAnnotations.forEach(ca=>{
-    const ctx = chart.ctx;
-    const xStart = chart.scales.x.getPixelForValue(ca.start);
-    const xEnd = chart.scales.x.getPixelForValue(ca.end);
-    ctx.fillStyle = "rgba(255,165,0,0.2)";
-    ctx.fillRect(xStart, chart.chartArea.top, xEnd-xStart, chart.chartArea.bottom-chart.chartArea.top);
-  });
+    const units=12+kiIndex*2;
+    const model=tf.sequential();
+    model.add(tf.layers.lstm({units,inputShape:[period,1]}));
+    model.add(tf.layers.dense({units:1}));
+    model.compile({optimizer:"adam",loss:"meanSquaredError"});
+
+    await model.fit(xs,ys,{epochs:5,verbose:0});
+    const p=model.predict(tf.tensor3d([X.at(-1)])).dataSync()[0];
+    return p*(max-min)+min;
 }
 
-// ================== TRADINGVIEW + KAUF ==================
+// ================== KONFIDENZ ==================
+function getConfidence(diff){
+    return Math.abs(diff)>0.1?"Hoch":Math.abs(diff)>0.05?"Mittel":"Niedrig";
+}
+
+// ================== ASSET LADEN ==================
+async function loadAsset(){
+    const idx=assetSelect.value;
+    if(idx===null) return;
+    const asset=validAssets[idx];
+    document.getElementById("period").textContent=`Zeitraum: ${document.getElementById("timeRange").value} Tage`;
+    await startLivePrice(idx);
+
+    const basePeriod=parseInt(document.getElementById("timeRange").value);
+    const hist=asset;
+
+    const prognosen=[];
+    for(let i=0;i<4;i++){
+        try{ prognosen[i]=await predictModelVaried(hist, basePeriod, i); }
+        catch(e){ prognosen[i]=hist.prices[hist.prices.length-1]; }
+    }
+
+    drawChart(hist,prognosen);
+    displayTable(hist,prognosen);
+}
+
+// ================== CHART ZEICHNEN ==================
+function drawChart(hist,prognosen){
+    if(chart) chart.destroy();
+    const labels=hist.dates.map(d=>d.toISOString().slice(0,10));
+    const avg=prognosen.reduce((a,b)=>a+b,0)/prognosen.length;
+    chart=new Chart(document.getElementById("chart"),{
+        type:"line",
+        data:{
+            labels,
+            datasets:[
+                {label:"KI1",data:[...Array(hist.prices.length-1).fill(null),prognosen[0]],borderColor:"#22c55e",fill:false},
+                {label:"KI2",data:[...Array(hist.prices.length-1).fill(null),prognosen[1]],borderColor:"#3b82f6",fill:false},
+                {label:"KI3",data:[...Array(hist.prices.length-1).fill(null),prognosen[2]],borderColor:"#f97316",fill:false},
+                {label:"KI4",data:[...Array(hist.prices.length-1).fill(null),prognosen[3]],borderColor:"#facc15",fill:false},
+                {label:"Durchschnitt",data:[...Array(hist.prices.length-1).fill(null),avg],borderColor:"#ffffff",fill:false}
+            ]
+        },
+        options:{responsive:true,maintainAspectRatio:false}
+    });
+}
+
+// ================== TABELLE ==================
+function displayTable(hist,prognosen){
+    const out=document.getElementById("out");
+    const current=hist.prices[hist.prices.length-1];
+    const now=new Date().toLocaleString();
+    let html="";
+    prognosen.forEach((p,i)=>{
+        const diff=(p-current)/current;
+        const sig=diff>0.05?"buy":diff<-0.05?"sell":"hold";
+        html+=`<tr><td>KI${i+1}</td><td>${p.toFixed(2)}</td><td class="${sig}">${sig.toUpperCase()}</td><td>${(diff*100).toFixed(1)}%</td><td class="conf">${getConfidence(diff)}</td><td>${now}</td></tr>`;
+    });
+    const avg=prognosen.reduce((a,b)=>a+b,0)/prognosen.length;
+    const diff=(avg-current)/current;
+    const sig=diff>0.05?"buy":diff<-0.05?"sell":"hold";
+    html+=`<tr><td>Durchschnitt</td><td>${avg.toFixed(2)}</td><td class="${sig}">${sig.toUpperCase()}</td><td>${(diff*100).toFixed(1)}%</td><td class="conf">${getConfidence(diff)}</td><td>${now}</td></tr>`;
+    out.innerHTML=html;
+}
+</script>
+<script>
+// ================== KAUF-/INFO-LINKS ==================
+function openYahoo(){
+    const idx=assetSelect.value;
+    if(idx===null) return;
+    const sym=validAssets[idx].symbol;
+    window.open(`https://finance.yahoo.com/quote/${sym}`,"_blank");
+}
+
 function openTradingView(){
-  const idx = assetSelect.value;
-  if(idx===null) return;
-  const a = validAssets[idx];
-  const sym = a.type==="crypto" ? `BINANCE:${a.symbol}` : `NASDAQ:${a.symbol}`;
-  window.open(`https://www.tradingview.com/chart/?symbol=${sym}`,"_blank");
+    const idx=assetSelect.value;
+    if(idx===null) return;
+    const a=validAssets[idx];
+    const sym=a.type==="crypto" ? `BINANCE:${a.symbol}` : a.symbol;
+    window.open(`https://www.tradingview.com/chart/?symbol=${sym}`,"_blank");
 }
 
-function openBuy(){
-  const idx = assetSelect.value;
-  if(idx===null) return;
-  const a = validAssets[idx];
-  const url = a.type==="crypto"
-    ? `https://www.binance.com/en/trade/${a.symbol}`
-    : `https://www.nasdaq.com/market-activity/stocks/${a.symbol.toLowerCase()}`;
-  window.open(url,"_blank");
+function openSwissquote(){
+    const idx=assetSelect.value;
+    if(idx===null) return;
+    const sym=validAssets[idx].symbol;
+    window.open(`https://www.swissquote.ch/sqw-en/private/trading/instruments/search?query=${sym}`,"_blank");
 }
 
-// ================== VERGLEICH MEHRERER ASSETS ==================
-function compareAssets(selectedSymbols){
-  // selectedSymbols = Array von Symbolen
-  const compareDatasets = [];
-  selectedSymbols.forEach(sym=>{
-    const asset = validAssets.find(v=>v.symbol===sym);
-    if(asset){
-      compareDatasets.push({
-        label: asset.symbol,
-        data: asset.prices,
-        borderColor: getRandomColor(),
-        pointRadius:0,
-        fill:false
-      });
-    }
-  });
+// ================== MULTI-ASSET VERGLEICH ==================
+async function compareAssets(selectedIndices){
+    const compareDatasets=[];
+    selectedIndices.forEach(idx=>{
+        const asset=validAssets[idx];
+        compareDatasets.push({
+            label: asset.symbol,
+            data: asset.prices,
+            borderColor:getRandomColor(),
+            pointRadius:0,
+            fill:false
+        });
+    });
+    if(chart) chart.destroy();
+    const labels=validAssets[0].dates.map(d=>d.toISOString().slice(0,10));
+    chart=new Chart(document.getElementById("chart"),{
+        type:"line",
+        data:{labels,datasets:compareDatasets},
+        options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true}}}
+    });
+}
 
-  if(chart) chart.destroy();
-  const labels = validAssets[0].dates.map(d=>d.toISOString().slice(0,10));
-  chart = new Chart(document.getElementById("chart"),{
-    type:"line",
-    data:{labels, datasets:compareDatasets},
-    options:{plugins:{legend:{display:true}},responsive:true, maintainAspectRatio:false}
-  });
+// ================== FINANZKRISEN-MARKIERUNG ==================
+const CRISES=[
+    {name:"Finanzkrise 2008",from:"2008-09-01",to:"2009-06-30"},
+    {name:"COVID-19 Crash",from:"2020-02-15",to:"2020-04-30"}
+];
+
+function markCrises(){
+    if(!chart) return;
+    const ctx=chart.ctx;
+    CRISES.forEach(c=>{
+        const from=new Date(c.from);
+        const to=new Date(c.to);
+        const startIdx=chart.data.labels.findIndex(d=>new Date(d)>=from);
+        const endIdx=chart.data.labels.findIndex(d=>new Date(d)>=to);
+        if(startIdx>=0 && endIdx>=0){
+            const xStart=chart.scales.x.getPixelForValue(startIdx);
+            const xEnd=chart.scales.x.getPixelForValue(endIdx);
+            ctx.fillStyle="rgba(255,165,0,0.2)";
+            ctx.fillRect(xStart,chart.chartArea.top,xEnd-xStart,chart.chartArea.bottom-chart.chartArea.top);
+        }
+    });
 }
 
 // ================== HILFSFUNKTION ==================
 function getRandomColor(){
-  const r=Math.floor(Math.random()*200+30);
-  const g=Math.floor(Math.random()*200+30);
-  const b=Math.floor(Math.random()*200+30);
-  return `rgb(${r},${g},${b})`;
+    const r=Math.floor(Math.random()*200+30);
+    const g=Math.floor(Math.random()*200+30);
+    const b=Math.floor(Math.random()*200+30);
+    return `rgb(${r},${g},${b})`;
 }
-</script>
 
+// ================== OPTIONAL: AUTO-UPDATE ==================
+setInterval(()=>{
+    const idx=assetSelect.value;
+    if(idx!==null) startLivePrice(idx);
+},300000); // alle 5 Minuten
+
+</script>
 </body>
 </html>
