@@ -1,5 +1,5 @@
 // ==============================
-// analyse.js – finale Version – alle Funktionen + 100+ Assets
+// analyse.js – finale Version Teil 1 – Assets, KI-Modelle & Helper
 // ==============================
 
 const API_KEY = "HIER_DEIN_FINNHUB_KEY"; // Finnhub API Key einsetzen
@@ -40,7 +40,6 @@ const ASSETS = [
   {symbol:"LLY",name:"Eli Lilly"},{symbol:"BMY",name:"Bristol-Myers Squibb"},{symbol:"AMT",name:"American Tower"},
   {symbol:"PLD",name:"Prologis"},{symbol:"CCI",name:"Crown Castle"},{symbol:"EQIX",name:"Equinix"},
   {symbol:"DLR",name:"Digital Realty"},{symbol:"SBAC",name:"SBA Communications"}
-  // …weitere falls benötigt
 ];
 
 const CRYPTOS = [
@@ -62,10 +61,9 @@ const CRYPTOS = [
   {symbol:"ETC-USD",name:"Ethereum Classic"},{symbol:"OMG-USD",name:"OMG Network"},{symbol:"QTUM-USD",name:"Qtum"},
   {symbol:"ICX-USD",name:"ICON"},{symbol:"KNC-USD",name:"Kyber Network"},{symbol:"ZRX-USD",name:"0x"},
   {symbol:"REN-USD",name:"Ren Protocol"}
-  // …weitere falls benötigt
 ];
 
-const ALL_ASSETS = [...ASSETS, ...CRYPTOS];
+const ALL_ASSETS = [...ASSETS,...CRYPTOS];
 
 // -----------------
 // DOM Elemente
@@ -78,7 +76,6 @@ const statusDiv = document.getElementById("status");
 const chartCanvas = document.getElementById("chart");
 const outTable = document.getElementById("out");
 let chart = null;
-let liveInterval = null;
 
 // -----------------
 // Hilfsfunktionen
@@ -98,7 +95,7 @@ async function fetchUsdChf(){
 }
 
 // -----------------
-// Live-Kurs
+// Live-Kurse
 // -----------------
 async function fetchStock(sym){
   try{
@@ -121,13 +118,13 @@ async function fetchCrypto(sym){
 async function fetchCurrentPrice(sym){
   const fx = await fetchUsdChf();
   const price = isCrypto(sym)? await fetchCrypto(sym) : await fetchStock(sym);
-  return price * fx;
+  return price*fx;
 }
 
 // -----------------
-// Historische Daten 365 Tage
+// Historische Daten
 // -----------------
-async function fetchHistoricalData(sym, days=365){
+async function fetchHistoricalData(sym,days=365){
   const fx = await fetchUsdChf();
   let hist = [];
   if(isCrypto(sym)){
@@ -153,35 +150,37 @@ async function fetchHistoricalData(sym, days=365){
 // -----------------
 // KI-Modelle
 // -----------------
-function trendModel(hist){ return hist.at(-1) + (hist.at(-1)-hist[0])/hist.length*7; }
-function momentumModel(hist){ return hist.at(-1) + (hist.at(-1)-hist.at(Math.max(0,hist.length-5)))*1.5; }
-function volatilityModel(hist){ const avg = hist.reduce((a,b)=>a+b,0)/hist.length; return avg + (hist.at(-1)-avg)*0.5; }
+function trendModel(hist){ return hist.at(-1)+(hist.at(-1)-hist[0])/hist.length*7; }
+function momentumModel(hist){ return hist.at(-1)+(hist.at(-1)-hist.at(Math.max(0,hist.length-5)))*1.5; }
+function volatilityModel(hist){ const avg = hist.reduce((a,b)=>a+b,0)/hist.length; return avg+(hist.at(-1)-avg)*0.5; }
 
 let lstmModel = null;
-async function trainOrUpdateLSTM(hist, period=7){
+async function trainOrUpdateLSTM(hist,period=7){
   const X=[],Y=[];
   for(let i=0;i<hist.length-period;i++){ X.push(hist.slice(i,i+period).map(v=>[v])); Y.push([hist[i+period]]); }
   if(X.length===0) return hist.at(-1);
-  const xs=tf.tensor3d(X), ys=tf.tensor2d(Y);
+  const xs=tf.tensor3d(X),ys=tf.tensor2d(Y);
   if(!lstmModel){
     lstmModel = tf.sequential();
     lstmModel.add(tf.layers.lstm({units:20,inputShape:[period,1]}));
     lstmModel.add(tf.layers.dense({units:1}));
     lstmModel.compile({optimizer:"adam",loss:"meanSquaredError"});
     await lstmModel.fit(xs,ys,{epochs:10,verbose:0});
-  } else { await lstmModel.fit(xs,ys,{epochs:5,verbose:0}); }
+  } else {
+    await lstmModel.fit(xs,ys,{epochs:5,verbose:0});
+  }
   return lstmModel.predict(tf.tensor3d([X.at(-1)])).dataSync()[0];
 }
 
 async function ensemble(hist){
-  const ki1 = trendModel(hist);
-  const ki2 = momentumModel(hist);
-  const ki3 = volatilityModel(hist);
-  const ki4 = await trainOrUpdateLSTM(hist,7);
+  const ki1=trendModel(hist);
+  const ki2=momentumModel(hist);
+  const ki3=volatilityModel(hist);
+  const ki4=await trainOrUpdateLSTM(hist,7);
   return {ki1,ki2,ki3,ki4};
 }
 // ==============================
-// analyse.js – Teil 2 von 3 – UI, Chart, Signale, Analyse
+// analyse.js – finale Version Teil 2 – UI, Chart, Signale & Analyse
 // ==============================
 
 // -----------------
@@ -195,18 +194,20 @@ ALL_ASSETS.forEach(a=>{
 });
 
 // -----------------
-// Signale
+// Signale & Konfidenz
 // -----------------
 function getSignal(diff){
   if(diff>0.05) return "KAUFEN";
   if(diff<-0.05) return "VERKAUFEN";
   return "HALTEN";
 }
+
 function getSignalClass(diff){
   if(diff>0.05) return "buy";
   if(diff<-0.05) return "sell";
   return "hold";
 }
+
 function getConfidence(diff){
   const d = Math.abs(diff);
   if(d>0.1) return "Hoch";
@@ -231,6 +232,7 @@ function checkWarnings(hist){
 function drawChart(hist, prognosen){
   if(chart) chart.destroy();
   const avg = (prognosen.ki1 + prognosen.ki2 + prognosen.ki3 + prognosen.ki4)/4;
+
   chart = new Chart(chartCanvas, {
     type:"line",
     data:{
@@ -261,7 +263,6 @@ async function runAnalysis(){
   warningDiv.textContent = checkWarnings(hist);
 
   const prognosen = await ensemble(hist);
-
   drawChart(hist, prognosen);
 
   // Tabelle erstellen
@@ -291,6 +292,7 @@ analyseBtn.addEventListener("click", runAnalysis);
 // -----------------
 // Live-Update (optional, alle 5s)
 // -----------------
+let liveInterval = null;
 assetSelect.addEventListener("change", async e=>{
   if(liveInterval) clearInterval(liveInterval);
   const sym = e.target.value;
@@ -300,21 +302,7 @@ assetSelect.addEventListener("change", async e=>{
 });
 
 // -----------------
-// Automatische 7-Tage Prognose beim Start
-// -----------------
-document.addEventListener("DOMContentLoaded", async ()=>{
-  const asset = getRandomAsset();
-  assetSelect.value = asset.symbol;
-  await runAnalysis();
-});
-// ==============================
-// analyse.js – Teil 3 von 3 – 7-Tage Prognose & Genauigkeit
-// ==============================
-
-let liveInterval = null;
-
-// -----------------
-// 7-Tage Prognose erstellen & prüfen
+// 7-Tage Prognose & Genauigkeit
 // -----------------
 async function sevenDayForecast(sym){
   const period = 7;
@@ -322,23 +310,19 @@ async function sevenDayForecast(sym){
   const currentPrice = hist.at(-1);
 
   const prognosen = await ensemble(hist);
-  const avgForecast = (prognosen.ki1 + prognosen.ki2 + prognosen.ki3 + prognosen.ki4)/4;
+  const avgForecast = (prognosen.ki1+prognosen.ki2+prognosen.ki3+prognosen.ki4)/4;
 
-  // Genauigkeit berechnen
-  const accuracy = ((1 - Math.abs(avgForecast - currentPrice)/currentPrice)*100).toFixed(2);
-
+  const accuracy = ((1-Math.abs(avgForecast-currentPrice)/currentPrice)*100).toFixed(2);
   console.log(`7-Tage Prognose für ${sym}: ${(avgForecast).toFixed(2)} CHF – Genauigkeit aktuell: ${accuracy}%`);
 
-  // Warnung bei starkem Anstieg oder Rückgang
-  if(avgForecast > currentPrice*1.2) console.warn(`⚠️ Hoher Anstieg prognostiziert für ${sym}`);
-  if(avgForecast < currentPrice*0.85) console.warn(`⚠️ Starker Rückgang prognostiziert für ${sym}`);
+  if(avgForecast>currentPrice*1.2) console.warn(`⚠️ Hoher Anstieg prognostiziert für ${sym}`);
+  if(avgForecast<currentPrice*0.85) console.warn(`⚠️ Starker Rückgang prognostiziert für ${sym}`);
 
-  // Nach 7 Tagen erneut prüfen
   setTimeout(async ()=>{
     const newPrice = await fetchCurrentPrice(sym);
-    const newAccuracy = ((1 - Math.abs(avgForecast - newPrice)/newPrice)*100).toFixed(2);
+    const newAccuracy = ((1-Math.abs(avgForecast-newPrice)/newPrice)*100).toFixed(2);
     console.log(`Prognose für ${sym} nach 7 Tagen: neuer Kurs ${(newPrice).toFixed(2)} CHF – Abweichung ${newAccuracy}%`);
-  }, period*24*60*60*1000); // 7 Tage
+  }, period*24*60*60*1000);
 }
 
 // -----------------
@@ -355,19 +339,19 @@ async function runFullAnalysis(sym){
 // -----------------
 async function continuousLearning(){
   for(const a of ALL_ASSETS){
-    const hist = await fetchHistoricalData(a.symbol, 30); // letzte 30 Tage
+    const hist = await fetchHistoricalData(a.symbol,30);
     await trainOrUpdateLSTM(hist,7);
   }
   console.log("Kontinuelles LSTM-Training abgeschlossen für alle Assets");
 }
 
-// Starte kontinuierliches Lernen alle 24h
-setInterval(continuousLearning, 24*60*60*1000);
+// Alle 24h starten
+setInterval(continuousLearning,24*60*60*1000);
 
 // -----------------
-// Automatische 7-Tage Prognose beim Laden
+// Start: 1 Asset auswählen & analysieren
 // -----------------
 document.addEventListener("DOMContentLoaded", async ()=>{
-  const randomAsset = getRandomAsset();
-  runFullAnalysis(randomAsset.symbol);
+  const asset = getRandomAsset();
+  await runFullAnalysis(asset.symbol);
 });
