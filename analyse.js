@@ -1,8 +1,9 @@
 // ==============================
-// analyse_core.js – Kernlogik & Multi-KI inkl. kontinuierlichem Lernen
+// analyse.js – Teil 1: Kernlogik & Dropdown + Multi-KI
 // ==============================
 
-const API_KEY = "HIER_DEIN_FINNHUB_KEY"; // Finnhub API Key
+// --- API Key
+const API_KEY = "d5ohqjhr01qjast6qrjgd5ohqjhr01qjast6qrk0"; // Finnhub API Key einsetzen
 
 // --- Assets (Aktien + Kryptos)
 const ASSETS = [
@@ -63,7 +64,7 @@ async function fetchHistory(sym, days=60){
   }catch(e){ console.error("fetchHistory error:", e); return []; }
 }
 
-// --- Klassische Modelle (Trend, Momentum, Volatilität)
+// --- Klassische Modelle
 function trendModel(p){ return p.at(-1) + (p.at(-1)-p[0])/p.length*7; }
 function momentumModel(p){ return p.at(-1) + (p.at(-1)-p.at(Math.max(0,p.length-5)))*1.5; }
 function volatilityModel(p){ 
@@ -89,18 +90,14 @@ async function trainLSTM(hist, period=7, assetKey="default"){
   model.add(tf.layers.dense({units:1}));
   model.compile({optimizer:"adam",loss:"meanSquaredError"});
 
-  // Bestehende Gewichte laden
-  try{
-    await model.loadWeights(`localstorage://${assetKey}_lstm`);
-  }catch(e){}
+  // Gewichte aus localStorage laden
+  try{ await model.loadWeights(`localstorage://${assetKey}_lstm`); }catch(e){}
 
   await model.fit(xs,ys,{epochs:10,verbose:0});
 
-  // Vorhersage
   const lastX = tf.tensor3d([tfHist.slice(-period)]);
   const pred = model.predict(lastX).dataSync()[0];
 
-  // Gewichte speichern
   await model.save(`localstorage://${assetKey}_lstm`);
 
   return pred;
@@ -115,7 +112,7 @@ async function ensemble(hist, assetKey){
   return {ki1, ki2, ki3, ki4};
 }
 
-// --- Signal, Konfidenz & Dreieck
+// --- Signal & Konfidenz
 function getSignal(pred, live){
   const diff = (pred-live)/live;
   if(diff>0.05) return "KAUFEN 🔼";
@@ -135,7 +132,7 @@ function strongRiseWarning(preds, live){
   return "Keine Warnung";
 }
 
-// --- Chart zeichnen
+// --- Chart
 function drawChart(hist, preds, chartCanvas){
   if(window.chart) window.chart.destroy();
   const avg = (preds.ki1+preds.ki2+preds.ki3+preds.ki4)/4;
@@ -151,11 +148,28 @@ function drawChart(hist, preds, chartCanvas){
     options:{responsive:true}
   });
 }
+
+// --- Dropdown füllen
+function fillDropdown(){
+  const assetSelect = document.getElementById("assetSelect");
+  if(!assetSelect) return;
+  assetSelect.innerHTML = "";
+  ASSETS.forEach(a => {
+    const option = document.createElement("option");
+    option.value = a.symbol;
+    option.textContent = `${a.name} (${a.symbol})`;
+    assetSelect.appendChild(option);
+  });
+  const randomAsset = getRandomAsset();
+  assetSelect.value = randomAsset.symbol;
+}
 // ==============================
-// analyse_ui.js – UI, Start-Prognose, Live-Kurs, Tabelle, Kauf-Links
+// analyse.js – Teil 2: UI, Analyse starten, 7-Tage-Check, Tabelle, Kauf-Links
 // ==============================
 
 document.addEventListener("DOMContentLoaded", async () => {
+  fillDropdown(); // Dropdown korrekt füllen
+
   const assetSelect = document.getElementById("assetSelect");
   const analyseBtn = document.getElementById("analyseBtn");
   const currentPriceDiv = document.getElementById("currentPrice");
@@ -166,19 +180,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   let liveInterval = null;
 
-  // --- Dropdown füllen
-  ASSETS.forEach(a => {
-    const o = document.createElement("option");
-    o.value = a.symbol;
-    o.textContent = `${a.name} (${a.symbol})`;
-    assetSelect.appendChild(o);
-  });
-
-  // --- Zufälliges Start-Asset wählen
-  const randomAsset = getRandomAsset();
-  assetSelect.value = randomAsset.symbol;
-
-  // --- Live-Kurs Aktualisierung
+  // --- Live-Kurs aktualisieren
   async function updateLivePrice(sym){
     const live = await fetchQuote(sym);
     currentPriceDiv.textContent = `Aktueller Kurs: ${live.toFixed(2)} ${isCrypto(sym)?"USD":"CHF"}`;
@@ -198,16 +200,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     const live = await fetchQuote(sym);
     const hist = await fetchHistory(sym,60);
 
-    // Multi-KI Vorhersage
     const preds = await ensemble(hist, sym);
-
-    // Chart
     drawChart(hist, preds, chartCanvas);
-
-    // Warnung
     warningDiv.textContent = strongRiseWarning(preds, live);
 
-    // Tabelle
     const now = new Date().toLocaleString();
     const avg = (preds.ki1 + preds.ki2 + preds.ki3 + preds.ki4)/4;
 
@@ -225,7 +221,6 @@ document.addEventListener("DOMContentLoaded", async () => {
       </tr>`;
     });
 
-    // Durchschnitt
     const diffAvg = ((avg-live)/live*100).toFixed(1);
     const sigAvg = getSignal(avg, live);
     const confAvg = getConfidence(avg, live);
@@ -252,7 +247,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   analyseBtn.addEventListener("click",()=>runAnalysis());
 
   // --- Start-Prognose direkt beim Laden
-  await runAnalysis(randomAsset.symbol);
+  await runAnalysis(assetSelect.value);
 
   // --- Kauf-Links
   window.openYahoo = ()=>window.open(`https://finance.yahoo.com/quote/${assetSelect.value}`,"_blank");
