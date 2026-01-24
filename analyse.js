@@ -1,4 +1,4 @@
-// analyse.js - Finale Version: echte Kurse für Aktien & Kryptos
+// analyse.js - Live-Kurs integriert für realistische Prognosen
 
 const API_KEY = "d5ohqjhr01qjast6qrjgd5ohqjhr01qjast6qrk0";
 
@@ -24,7 +24,7 @@ const outTable = document.getElementById("out");
 const chartCanvas = document.getElementById("chart");
 
 let chart = null;
-let storedModel = null; // KI merkt sich Wissen
+let storedModel = null;
 
 // --- CHF Wechselkurs ---
 async function fetchUsdChf(){
@@ -35,7 +35,7 @@ async function fetchUsdChf(){
     }catch{return 0.93;}
 }
 
-// --- CoinGecko: historische Kryptos ---
+// --- CoinGecko historische Kryptos ---
 async function fetchCryptoHistorical(sym, days=365){
     const mapping = {
         "BTC-USD":"bitcoin","ETH-USD":"ethereum","BNB-USD":"binancecoin",
@@ -58,7 +58,7 @@ async function fetchCryptoHistorical(sym, days=365){
     return fallback;
 }
 
-// --- CoinGecko: Live-Kurs ---
+// --- CoinGecko Live-Kurs ---
 async function fetchCryptoLive(sym){
     const mapping = {
         "BTC-USD":"bitcoin","ETH-USD":"ethereum","BNB-USD":"binancecoin",
@@ -72,10 +72,10 @@ async function fetchCryptoLive(sym){
         const j = await r.json();
         if(j[id] && j[id].usd) return j[id].usd;
     }catch(e){console.warn("CoinGecko Live Fehler:", e);}
-    return 100; // minimaler Fallback
+    return 100;
 }
 
-// --- Finnhub: historische Aktien ---
+// --- Finnhub historische Aktien ---
 async function fetchStockHistorical(sym, maxDays=365, minDays=10){
     const now = Math.floor(Date.now()/1000);
     let days = maxDays;
@@ -95,13 +95,12 @@ async function fetchStockHistorical(sym, maxDays=365, minDays=10){
         days -= 30;
     }
 
-    // Fallback minimal ±0.5%
     const fallback = [];
     for(let i=0;i<minDays;i++) fallback.push(lastValidPrice*(1+0.005*(Math.random()-0.5)));
     return fallback;
 }
 
-// --- Finnhub: Live-Kurs ---
+// --- Finnhub Live-Kurs ---
 async function fetchStockLive(sym){
     try{
         const r = await fetch(`https://finnhub.io/api/v1/quote?symbol=${sym}&token=${API_KEY}`);
@@ -111,7 +110,7 @@ async function fetchStockLive(sym){
     return 100;
 }
 
-// --- Live-Kurs allgemein ---
+// --- Allgemeine Live-Kurs-Funktion ---
 async function fetchQuote(sym){
     if(sym.includes("USD")) return await fetchCryptoLive(sym);
     else return await fetchStockLive(sym);
@@ -202,12 +201,17 @@ analyseBtn.addEventListener("click", async()=>{
     progressBar.value=0; progressText.textContent="Analyse startet…";
 
     const period = parseInt(periodSelect.value);
+
+    // Historische Daten laden
     let hist = [];
     if(sym.includes("USD")) hist = await fetchCryptoHistorical(sym, 365);
     else hist = await fetchStockHistorical(sym, 365);
 
-    const fx = await fetchUsdChf();
+    // Live-Kurs laden und in die historische Serie einfügen
     const live = await fetchQuote(sym);
+    if(live) hist[hist.length-1] = live; // ersetzt letzten Punkt mit Live-Kurs
+
+    const fx = await fetchUsdChf();
     currentPriceDiv.textContent = live ? `Aktueller Kurs: ${(live*fx).toFixed(2)} CHF` : "Kursdaten nicht verfügbar";
 
     const preds=[];
