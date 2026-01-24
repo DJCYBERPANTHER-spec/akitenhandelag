@@ -4,168 +4,49 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>AKTIEN KRYPTO HANDEL AG</title>
-
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0/dist/tf.min.js"></script>
-
-<style>
-body { background:#0f172a; color:#e5e7eb; font-family:Arial,sans-serif; margin:0; padding:15px; }
-h1{text-align:center;font-size:1.5rem;margin-bottom:2px;}
-.subtitle{text-align:center;color:#94a3b8;font-size:0.9rem;margin-bottom:8px;}
-.controls{display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin:12px 0;}
-select,button{background:#020617;color:#e5e7eb;border:1px solid #22c55e;padding:8px 12px;border-radius:6px;font-size:0.85rem;}
-button:hover{background:#22c55e;color:#020617;cursor:pointer;}
-#status{margin:10px;text-align:center;font-weight:bold;font-size:0.9rem;}
-#currentPrice{text-align:center;margin:8px;font-weight:bold;font-size:1rem;}
-progress{border-radius:5px;width:80%;height:18px;display:block;margin:0 auto;}
-canvas{max-width:100%;margin:18px auto;display:block;background:#020617;border-radius:10px;}
-table{width:100%;border-collapse:collapse;font-size:0.85rem;margin-top:15px;}
-th,td{border:1px solid #22c55e;padding:6px;text-align:center;}
-.buy{color:#22c55e;font-weight:bold;}
-.sell{color:#ef4444;font-weight:bold;}
-.hold{color:#facc15;font-weight:bold;}
-.conf{color:#38bdf8;font-weight:bold;}
-.warning{color:#f87171;font-weight:bold;}
-.bestKI{background-color:#22c55e33;}
-.footer{text-align:center;margin-top:14px;font-size:0.75rem;color:#94a3b8;}
-</style>
+<link rel="stylesheet" href="style.css">
 </head>
-
 <body>
+
 <h1>AKTIEN KRYPTO HANDEL AG</h1>
-<div class="subtitle">Live-Kurse & KI-Prognosen (CHF)</div>
+<div class="subtitle">Live-Kurse & LSTM KI-Prognose in CHF</div>
 
 <div class="controls">
   <select id="assetSelect"></select>
-  <select id="timeRange">
-    <option value="20">1 Monat</option>
-    <option value="40">2 Monate</option>
-    <option value="120">6 Monate</option>
-    <option value="240">1 Jahr</option>
-  </select>
   <button id="analyseBtn">Analyse starten</button>
 </div>
 
-<div id="status">Bereit</div>
 <div id="currentPrice">–</div>
+<div id="status">Bereit</div>
+
 <progress id="progressBar" value="0" max="100"></progress>
-<div id="progressText" style="text-align:center;">–</div>
+<div id="progressText">–</div>
 
 <canvas id="chart" height="280"></canvas>
 
-<div class="scrollable-table">
 <table>
 <thead>
 <tr>
-<th>KI</th>
-<th>Prognose (CHF)</th>
-<th>Signal</th>
-<th>Δ %</th>
-<th>Konfidenz</th>
-<th>Warnung</th>
-<th>Backtest</th>
-<th>Stop / Ziel</th>
+  <th>KI</th>
+  <th>Prognose (CHF)</th>
+  <th>Signal</th>
+  <th>Δ %</th>
+  <th>Konfidenz</th>
+  <th>Warnung</th>
+  <th>Backtest</th>
+  <th>Aktion</th>
+  <th>Stop/Ziel</th>
 </tr>
 </thead>
 <tbody id="out"></tbody>
 </table>
-</div>
 
 <div class="footer">@ AKTIEN KRYPTO HANDEL AG – Keine Anlageberatung</div>
-<script>
-const API_KEY = "d5ohqjhr01qjast6qrjgd5ohqjhr01qjast6qrk0";
 
-const ASSETS = [
-  // Aktien
-  {symbol:"AAPL",name:"Apple Inc."},{symbol:"MSFT",name:"Microsoft Corp."},{symbol:"NVDA",name:"NVIDIA Corp."},
-  {symbol:"AMZN",name:"Amazon.com Inc."},{symbol:"GOOGL",name:"Alphabet Inc."},{symbol:"TSLA",name:"Tesla Inc."},
-  {symbol:"META",name:"Meta Platforms"},{symbol:"NVS",name:"Novartis AG"},{symbol:"NESN.SW",name:"Nestlé AG"},
-  {symbol:"ORCL",name:"Oracle Corp."},{symbol:"INTC",name:"Intel Corp."},{symbol:"ADBE",name:"Adobe Inc."},
-  // Kryptos Finnhub Binance-Symbole
-  {symbol:"BINANCE:BTCUSDT",name:"Bitcoin"},{symbol:"BINANCE:ETHUSDT",name:"Ethereum"},{symbol:"BINANCE:BNBUSDT",name:"Binance Coin"},
-  {symbol:"BINANCE:SOLUSDT",name:"Solana"},{symbol:"BINANCE:ADAUSDT",name:"Cardano"},{symbol:"BINANCE:DOGEUSDT",name:"Dogecoin"},
-  {symbol:"BINANCE:XRPUSDT",name:"Ripple"},{symbol:"BINANCE:LTCUSDT",name:"Litecoin"},{symbol:"BINANCE:DOTUSDT",name:"Polkadot"}
-];
+<!-- JS-Datei -->
+<script src="app.js"></script>
 
-const assetSelect = document.getElementById("assetSelect");
-let liveInterval = null;
-
-// --- Wechselkurs USD→CHF abrufen ---
-async function fetchUsdChf(){
-    try{
-        const r = await fetch("https://api.exchangerate.host/latest?base=USD&symbols=CHF");
-        const j = await r.json();
-        return Number(j?.rates?.CHF)||0.93;
-    }catch{return 0.93;}
-}
-
-// --- Live-Kurs für Aktien oder Kryptos ---
-async function fetchQuote(symbol){
-    const now = Math.floor(Date.now()/1000);
-    try{
-        if(symbol.startsWith("BINANCE")){
-            const res = await fetch(`https://finnhub.io/api/v1/crypto/candle?symbol=${symbol}&resolution=D&from=${now-2*24*60*60}&to=${now}&token=${API_KEY}`);
-            const data = await res.json();
-            if(data.s==="ok" && data.c.length>0) return Number(data.c.at(-1));
-        }else{
-            const res = await fetch(`https://finnhub.io/api/v1/quote?symbol=${symbol}&token=${API_KEY}`);
-            const data = await res.json();
-            if(data.c!==undefined) return Number(data.c);
-        }
-    }catch{}
-    return null;
-}
-
-// --- Assets prüfen und Dropdown füllen ---
-async function validateAssets(){
-    assetSelect.innerHTML="";
-    const loader = document.getElementById("progressText");
-    loader.textContent = "Prüfe Assets…";
-    const fx = await fetchUsdChf();
-
-    for(let i=0;i<ASSETS.length;i++){
-        const a = ASSETS[i];
-        loader.textContent=`Prüfe ${a.name}…`;
-        try{
-            const price = await fetchQuote(a.symbol);
-            if(price){
-                const option = document.createElement("option");
-                option.value=a.symbol;
-                option.textContent=`${a.name} (${a.symbol})`;
-                assetSelect.appendChild(option);
-            }
-        }catch{}
-    }
-    loader.textContent="Fertig! Bitte Asset auswählen.";
-}
-
-// --- Aktuellen Preis live anzeigen ---
-async function startLivePrice(symbol){
-    const currentDiv = document.getElementById("currentPrice");
-    if(liveInterval) clearInterval(liveInterval);
-
-    async function updatePrice(){
-        const fx = await fetchUsdChf();
-        const price = await fetchQuote(symbol);
-        if(price!==null){
-            currentDiv.textContent=`Aktueller Kurs: ${(price*fx).toFixed(2)} CHF`;
-        }else{
-            currentDiv.textContent=`Kursdaten nicht verfügbar`;
-        }
-    }
-
-    await updatePrice();
-    liveInterval = setInterval(updatePrice,5000);
-}
-
-// --- Wenn Asset ausgewählt ---
-assetSelect.addEventListener("change",()=>{
-    const sym = assetSelect.value;
-    if(sym) startLivePrice(sym);
-});
-
-// --- Dropdown beim Laden prüfen ---
-window.addEventListener("load", validateAssets);
-</script>
 </body>
 </html>
