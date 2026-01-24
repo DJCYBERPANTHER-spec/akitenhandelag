@@ -1,69 +1,41 @@
-
 <!DOCTYPE html>
 <html lang="de">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>KI Aktien & Krypto Analyse</title>
-
+<title>AKTIEN & KRYPTO HANTEL AG – KI</title>
 <link rel="stylesheet" href="style.css">
-
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0/dist/tf.min.js"></script>
 </head>
-
 <body>
 
-<h1>AKTIEN KRYPTO HANDEL AG 2026</h1>
-<div class="subtitle">Live-Daten · 7-Tage-KI-Prognose · CHF</div>
+<h1>AKTIEN & KRYPTO HANTEL AG</h1>
+<div class="subtitle">Live-Daten & Multi-KI Prognosen (CHF / USD)</div>
 
 <div class="infoBox" id="currentPrice">Aktueller Kurs: –</div>
-<div class="infoBox warningBox" id="warning">Warnungen: –</div>
+<div class="infoBox" id="warning">Warnungen: –</div>
 
 <div class="controls">
   <select id="assetSelect"></select>
-
-  <select id="timeRange">
-    <option value="20">1 Monat</option>
-    <option value="40">2 Monate</option>
-    <option value="120">6 Monate</option>
-    <option value="240">1 Jahr</option>
-  </select>
-
   <button id="analyseBtn">Analyse starten</button>
-  <button onclick="openYahoo()">Yahoo</button>
-  <button onclick="openTradingView()">TradingView</button>
 </div>
 
 <div class="status" id="status">Bereit</div>
-<div class="loader" id="loader">–</div>
 
-<div class="progressWrap">
-  <progress id="progressBar" value="0" max="100"></progress>
-  <div id="progressText">Warte auf Analyse…</div>
-</div>
-
-<canvas id="chart" height="300"></canvas>
+<canvas id="chart" height="280"></canvas>
 
 <table>
-<thead>
-<tr>
-  <th>KI</th>
-  <th>Prognose (CHF)</th>
-  <th>Signal</th>
-  <th>Abweichung</th>
-  <th>Konfidenz</th>
-  <th>Zeit</th>
-</tr>
-</thead>
-<tbody id="out"></tbody>
+  <thead>
+    <tr>
+      <th>KI-Modell</th>
+      <th>Prognose</th>
+    </tr>
+  </thead>
+  <tbody id="out"></tbody>
 </table>
 
-<div class="footer">
-⚠️ Keine Anlageberatung · KI-Analyse-Tool
-</div>
+<div class="footer">@ Analyse-Tool – keine Anlageberatung</div>
 
 <script src="analyse.js"></script>
-
 </body>
 </html>
