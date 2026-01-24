@@ -1,23 +1,18 @@
-/* style.css – Episches Layout & Dark Mode */
+/* style.css – episches Layout & Design */
 body {
-  margin: 0;
-  padding: 0;
-  font-family: "Segoe UI", Arial, sans-serif;
-  background: linear-gradient(160deg,#0f172a,#1e293b);
+  background: linear-gradient(160deg,#0f172a,#020617);
   color: #e5e7eb;
-}
-
-.container {
-  max-width: 1200px;
-  margin: auto;
+  font-family: "Segoe UI", Arial, sans-serif;
+  margin: 0;
   padding: 15px;
 }
 
 header h1 {
   text-align: center;
   font-size: 2rem;
-  font-weight: 700;
   color: #22c55e;
+  margin-bottom: 5px;
+  text-shadow: 0 0 10px #22c55e;
 }
 
 .subtitle {
@@ -37,12 +32,13 @@ header h1 {
 
 .infoBox {
   background: #020617;
-  border: 1px solid #22c55e;
-  padding: 10px 15px;
+  border: 2px solid #22c55e;
   border-radius: 8px;
+  padding: 10px 15px;
   font-weight: bold;
   min-width: 180px;
   text-align: center;
+  box-shadow: 0 0 15px rgba(34,197,94,0.4);
 }
 
 .controls {
@@ -50,17 +46,17 @@ header h1 {
   justify-content: center;
   gap: 10px;
   flex-wrap: wrap;
-  margin-bottom: 15px;
+  margin: 15px 0;
 }
 
 select, button {
   background: #020617;
   color: #e5e7eb;
-  border: 1px solid #22c55e;
-  padding: 10px 15px;
+  border: 2px solid #22c55e;
   border-radius: 6px;
+  padding: 8px 14px;
   font-size: 0.9rem;
-  transition: 0.2s;
+  transition: all 0.2s ease;
 }
 
 button:hover, select:hover {
@@ -71,42 +67,58 @@ button:hover, select:hover {
 
 .status {
   text-align: center;
+  margin: 10px;
   font-weight: bold;
-  margin-bottom: 10px;
+  font-size: 1rem;
+  color: #facc15;
 }
 
-.progressContainer {
+.progress-section {
   text-align: center;
-  margin-bottom: 15px;
+  margin: 10px 0;
 }
 
 progress {
   width: 80%;
   height: 20px;
   border-radius: 10px;
-  background: #1e293b;
+  overflow: hidden;
+  appearance: none;
 }
 
-.chartContainer {
+progress::-webkit-progress-bar { background: #020617; }
+progress::-webkit-progress-value { background: #22c55e; }
+
+.chart-container {
+  max-width: 95%;
+  margin: 20px auto;
   background: #020617;
   border-radius: 12px;
-  padding: 15px;
-  margin-bottom: 20px;
+  padding: 10px;
+  box-shadow: 0 0 20px rgba(34,197,94,0.5);
+}
+
+canvas {
+  display: block;
+  max-width: 100%;
+  border-radius: 10px;
 }
 
 table {
   width: 100%;
   border-collapse: collapse;
+  margin-top: 15px;
+  font-size: 0.9rem;
   background: #020617;
   border-radius: 8px;
   overflow: hidden;
+  box-shadow: 0 0 15px rgba(34,197,94,0.3);
 }
 
 th, td {
   border: 1px solid #22c55e;
   padding: 8px;
   text-align: center;
-  font-size: 0.85rem;
 }
 
 .buy { color: #22c55e; font-weight: bold; }
@@ -114,9 +126,9 @@ th, td {
 .hold { color: #facc15; font-weight: bold; }
 .conf { color: #38bdf8; font-weight: bold; }
 
-footer {
+.footer {
   text-align: center;
   margin-top: 20px;
-  color: #94a3b8;
   font-size: 0.75rem;
+  color: #94a3b8;
 }
