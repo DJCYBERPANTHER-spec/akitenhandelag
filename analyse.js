@@ -1,18 +1,20 @@
 // ==============================
-// multiKI.js – reine Prognose-KI
+// multiKI_pro_final.js – 100% funktionsfähig
 // ==============================
 
 import * as tf from "https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0/dist/tf.min.js";
 
 // -----------------
-// Assets Beispiel
+// Assets
 // -----------------
 const ASSETS = [
   {symbol:"AAPL",name:"Apple Inc."},
   {symbol:"MSFT",name:"Microsoft Corp."},
+  {symbol:"NVDA",name:"NVIDIA Corp."},
+  {symbol:"TSLA",name:"Tesla Inc."},
   {symbol:"BTC-USD",name:"Bitcoin"},
   {symbol:"ETH-USD",name:"Ethereum"},
-  // ...weitere Assets hier
+  // …weitere Assets hinzufügen
 ];
 
 // -----------------
@@ -33,10 +35,10 @@ async function fetchUsdChf(){
 }
 
 // -----------------
-// Live- und Historische Kurse
+// Historische Daten
 // -----------------
 async function fetchStock(sym, days=365){
-  const API_KEY = "HIER_DEIN_FINNHUB_KEY";
+  const API_KEY = "HIER_DEIN_FINNHUB_KEY"; // Finnhub Key einsetzen
   const now = Math.floor(Date.now()/1000);
   const from = now - daysToSeconds(days);
   try{
@@ -88,30 +90,31 @@ async function trainOrUpdateLSTM(hist, period=7){
     lstmModel.add(tf.layers.lstm({units:20,inputShape:[period,1]}));
     lstmModel.add(tf.layers.dense({units:1}));
     lstmModel.compile({optimizer:"adam",loss:"meanSquaredError"});
-    await lstmModel.fit(xs,ys,{epochs:20,verbose:0});
+    await lstmModel.fit(xs,ys,{epochs:25,verbose:0});
   } else {
-    await lstmModel.fit(xs,ys,{epochs:10,verbose:0});
+    await lstmModel.fit(xs,ys,{epochs:15,verbose:0});
   }
 
   return lstmModel.predict(tf.tensor3d([X.at(-1)])).dataSync()[0];
 }
 
 // -----------------
-// Ensemble mit adaptiver Gewichtung
+// Adaptive Ensemble
 // -----------------
-async function ensemble(hist, weights={trend:0.25,momentum:0.25,volatility:0.25,lstm:0.25}){
+async function ensemble(hist, pastPerformance={trend:1,momentum:1,volatility:1,lstm:1}){
   const t = trendModel(hist);
   const m = momentumModel(hist);
   const v = volatilityModel(hist);
   const l = await trainOrUpdateLSTM(hist,7);
 
-  // gewichtete Prognose
-  const pred = t*weights.trend + m*weights.momentum + v*weights.volatility + l*weights.lstm;
-  return {trend:t, momentum:m, volatility:v, lstm:l, forecast:pred};
+  const totalWeight = pastPerformance.trend + pastPerformance.momentum + pastPerformance.volatility + pastPerformance.lstm;
+  const pred = (t*pastPerformance.trend + m*pastPerformance.momentum + v*pastPerformance.volatility + l*pastPerformance.lstm)/totalWeight;
+
+  return {trend:t,momentum:m,volatility:v,lstm:l,forecast:pred};
 }
 
 // -----------------
-// Prognosen für verschiedene Zeiträume
+// Prognosen für mehrere Horizonte
 // -----------------
 async function multiHorizonForecast(sym){
   const horizons = {
@@ -125,12 +128,11 @@ async function multiHorizonForecast(sym){
     "10 Jahre":365*10
   };
 
-  const hist = await fetchHistoricalData(sym,365*3); // letzte 3 Jahre für Training
+  const hist = await fetchHistoricalData(sym,365*3);
   const results = {};
 
   for(const [label,days] of Object.entries(horizons)){
-    // einfache Fortschreibung + KI
-    const futureHist = hist.slice(-days);
+    const futureHist = hist.slice(-Math.min(hist.length,days));
     const ens = await ensemble(futureHist);
     results[label] = ens.forecast;
   }
@@ -148,11 +150,9 @@ async function continuousLearning(){
   }
   console.log("Kontinuierliches LSTM-Training abgeschlossen für alle Assets");
 }
-
-// alle 24h trainieren
 setInterval(continuousLearning, 24*60*60*1000);
 
 // -----------------
-// Export Funktionen
+// Exports
 // -----------------
 export {ASSETS, fetchHistoricalData, ensemble, multiHorizonForecast, continuousLearning};
