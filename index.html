@@ -71,7 +71,7 @@ footer {
 <body>
 
 <header>
-    <h1> Multi-KI Asset Analyse</h1>
+    <h1>🔮 Multi-KI Asset Analyse</h1>
     <div class="subtitle">Für Aktien Handel AG – Live & Professionell</div>
 </header>
 
@@ -120,7 +120,7 @@ footer {
 <footer>@ Aktien Handel AG – Professionelle Analyse</footer>
 <script>
 // ================== KONFIG ==================
-const FINNHUB_KEY="d5ohqjhr01qjast6qrjgd5ohqjhr01qjast6qrk0"; // Dein Key
+const FINNHUB_KEY="d5ohqjhr01qjast6qrjgd5ohqjhr01qjast6qrk0"; // API Key
 let chart=null;
 let liveInterval=null;
 let validAssets=[];
@@ -129,7 +129,7 @@ let startTime=Date.now();
 
 const MIN_DAYS=10;
 const TARGET_ASSETS=20;
-const DELAY=600; // ms zwischen Abfragen
+const DELAY=600; // ms zwischen Asset-Abfragen
 
 const STOCKS=["AAPL","MSFT","GOOGL","AMZN","TSLA","META","NVDA","JNJ","KO"];
 const CRYPTOS=["BTCUSDT","ETHUSDT","BNBUSDT","ADAUSDT","SOLUSDT"];
@@ -370,4 +370,3 @@ assetSelect.addEventListener("change",()=>{loadAsset();});
 </script>
 </body>
 </html>
-
