@@ -1,110 +1,113 @@
-/* style.css – Layout & Design für Multi-KI Analyse */
+/* ==============================
+   style.css – Finale Version
+   ============================== */
 
-body {
-  background: #0f172a;
-  color: #e5e7eb;
-  font-family: Arial, sans-serif;
-  margin: 0;
-  padding: 15px;
+body{
+  background:#0f172a;
+  color:#e5e7eb;
+  font-family:Arial,sans-serif;
+  margin:0;
+  padding:15px;
 }
 
-h1 {
-  text-align: center;
-  font-size: 1.5rem;
+h1{
+  text-align:center;
+  font-size:1.8rem;
 }
 
-.subtitle {
-  text-align: center;
-  color: #94a3b8;
-  font-size: 0.9rem;
-  margin-bottom: 10px;
+.subtitle{
+  text-align:center;
+  color:#94a3b8;
+  font-size:0.9rem;
+  margin-bottom:12px;
 }
 
-.infoBox {
-  text-align: center;
-  margin: 8px;
-  font-size: 0.9rem;
-  font-weight: bold;
+.infoBox{
+  text-align:center;
+  margin:8px 0;
+  font-size:0.9rem;
+  font-weight:bold;
+  padding:6px;
+  border-radius:6px;
+  background:#020617;
 }
 
-.controls {
-  display: flex;
-  justify-content: center;
-  gap: 8px;
-  flex-wrap: wrap;
-  margin: 12px 0;
+.controls{
+  display:flex;
+  justify-content:center;
+  gap:8px;
+  flex-wrap:wrap;
+  margin:12px 0;
 }
 
-select, button {
-  background: #020617;
-  color: #e5e7eb;
-  border: 1px solid #22c55e;
-  padding: 8px 12px;
-  border-radius: 6px;
-  font-size: 0.85rem;
+select,button{
+  background:#020617;
+  color:#e5e7eb;
+  border:1px solid #22c55e;
+  padding:8px 12px;
+  border-radius:6px;
+  font-size:0.85rem;
 }
 
-button:hover {
-  background: #22c55e;
-  color: #020617;
-  cursor: pointer;
+button:hover{
+  background:#22c55e;
+  color:#020617;
+  cursor:pointer;
 }
 
-.status {
-  text-align: center;
-  margin: 10px;
-  font-weight: bold;
-  font-size: 0.9rem;
+.status{
+  text-align:center;
+  margin:10px;
+  font-weight:bold;
+  font-size:0.9rem;
 }
 
-progress {
-  border-radius: 5px;
+.loader{
+  margin-top:6px;
+  font-size:0.85rem;
+  color:#a8dadc;
 }
 
-canvas {
-  max-width: 100%;
-  margin: 18px auto;
-  display: block;
-  background: #020617;
-  border-radius: 10px;
+progress{
+  border-radius:5px;
+  height:18px;
 }
 
-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-top: 10px;
-  font-size: 0.85rem;
+canvas{
+  max-width:100%;
+  margin:18px auto;
+  display:block;
+  background:#020617;
+  border-radius:10px;
 }
 
-th, td {
-  border: 1px solid #22c55e;
-  padding: 6px;
-  text-align: center;
+table{
+  width:100%;
+  border-collapse:collapse;
+  margin-top:10px;
+  font-size:0.85rem;
+  background:#020617;
 }
 
-.buy {
-  color: #22c55e;
-  font-weight: bold;
+th,td{
+  border:1px solid #22c55e;
+  padding:6px;
+  text-align:center;
 }
 
-.sell {
-  color: #ef4444;
-  font-weight: bold;
+.buy{color:#22c55e;font-weight:bold;}
+.sell{color:#ef4444;font-weight:bold;}
+.hold{color:#facc15;font-weight:bold;}
+.conf{color:#38bdf8;font-weight:bold;}
+
+.footer{
+  text-align:center;
+  margin-top:14px;
+  font-size:0.7rem;
+  color:#94a3b8;
 }
 
-.hold {
-  color: #facc15;
-  font-weight: bold;
-}
-
-.conf {
-  color: #38bdf8;
-  font-weight: bold;
-}
-
-.footer {
-  text-align: center;
-  margin-top: 14px;
-  font-size: 0.7rem;
-  color: #94a3b8;
-}
+/* Signale farblich hervorheben */
+.kaufen{color:#22c55e;font-weight:bold;}
+.verkaufen{color:#ef4444;font-weight:bold;}
+.halten{color:#facc15;font-weight:bold}
