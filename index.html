@@ -10,75 +10,73 @@
 </head>
 <body>
 
-<!-- =======================
-      Header
-======================= -->
-<header>
-  <h1>AKTIEN & KRYPTO HANTEL AG</h1>
-  <div class="subtitle">Live-Daten & Multi-KI Prognosen (CHF / USD)</div>
-</header>
+<!-- Header -->
+<h1>AKTIEN & KRYPTO HANTEL AG</h1>
+<div class="subtitle">Live-Daten & Multi-KI Prognosen (CHF / USD)</div>
 
-<!-- =======================
-      Info Boxen
-======================= -->
-<section class="info-section">
-  <div class="infoBox" id="currentPrice">Aktueller Kurs: –</div>
-  <div class="infoBox" id="warning">Warnungen: –</div>
-</section>
+<!-- Info Boxen -->
+<div class="infoBox" id="currentPrice">Aktueller Kurs: –</div>
+<div class="infoBox" id="warning">Warnungen: –</div>
 
-<!-- =======================
-      Controls
-======================= -->
-<section class="controls">
+<!-- Controls -->
+<div class="controls">
   <select id="assetSelect">
-    <!-- Optionen werden dynamisch per JS eingefügt -->
+    <!-- JS füllt alle Assets (Aktien + Kryptos) -->
   </select>
   <button id="analyseBtn">Analyse starten</button>
-</section>
+  <button onclick="openYahoo()">Yahoo</button>
+  <button onclick="openTradingView()">TradingView</button>
+  <button onclick="openSwissquote()">Swissquote</button>
+</div>
 
-<!-- =======================
-      Statusanzeige
-======================= -->
+<!-- Status & Fortschritt -->
 <div class="status" id="status">Bereit</div>
+<div style="text-align:center;margin-bottom:10px;">
+  <progress id="progressBar" value="0" max="100"></progress>
+  <div id="progressText">Warte auf Berechnung…</div>
+</div>
 
-<!-- =======================
-      Chart
-======================= -->
-<section class="chart-section">
-  <canvas id="chart" height="300"></canvas>
-</section>
+<!-- Chart -->
+<canvas id="chart" height="280"></canvas>
 
-<!-- =======================
-      Tabelle
-======================= -->
-<section class="table-section">
-  <table>
-    <thead>
-      <tr>
-        <th>KI-Modell</th>
-        <th>Prognose (CHF)</th>
-        <th>Signal</th>
-        <th>Δ</th>
-        <th>Konfidenz</th>
-        <th>Datum/Uhrzeit</th>
-      </tr>
-    </thead>
-    <tbody id="out">
-      <!-- Zeilen werden dynamisch per JS eingefügt -->
-    </tbody>
-  </table>
-</section>
+<!-- Prognosen Tabelle -->
+<table>
+  <thead>
+    <tr>
+      <th>KI-Modell</th>
+      <th>Prognose (CHF)</th>
+      <th>Signal</th>
+      <th>Δ</th>
+      <th>Konfidenz</th>
+      <th>Datum/Uhrzeit</th>
+    </tr>
+  </thead>
+  <tbody id="out">
+    <!-- JS fügt Prognosen dynamisch ein -->
+  </tbody>
+</table>
 
-<!-- =======================
-      Footer
-======================= -->
-<footer class="footer">
-  @ Analyse-Tool – keine Anlageberatung
-</footer>
+<!-- Footer -->
+<div class="footer">@ Analyse-Tool – keine Anlageberatung</div>
 
-<!-- =======================
-      JS einbinden
-======================= -->
+<!-- JS -->
 <script src="analyse.js"></script>
+
+<script>
+// Externe Links Funktionen
+function openYahoo() {
+  const sym = document.getElementById("assetSelect").value;
+  window.open(`https://finance.yahoo.com/quote/${sym}`, '_blank');
+}
+function openTradingView() {
+  const sym = document.getElementById("assetSelect").value;
+  window.open(`https://www.tradingview.com/symbols/${sym}`, '_blank');
+}
+function openSwissquote() {
+  const sym = document.getElementById("assetSelect").value;
+  window.open(`https://www.swissquote.ch/sqwebapp/instrument-detail/${sym}`, '_blank');
+}
+</script>
+
 </body>
 </html>
