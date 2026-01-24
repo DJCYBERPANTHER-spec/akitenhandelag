@@ -18,10 +18,12 @@ th,td{border:1px solid #22c55e;padding:6px;text-align:center}
 .buy{color:#22c55e;font-weight:bold}
 .sell{color:#ef4444;font-weight:bold}
 .hold{color:#facc15;font-weight:bold}
+.warning{color:#f87171;font-weight:bold}
+.conf{color:#38bdf8;font-weight:bold}
+.bestKI{background-color:#22c55e33;}
 .footer{text-align:center;margin-top:12px;font-size:0.75rem;color:#94a3b8}
 canvas{max-width:100%;margin:15px auto;display:block;background:#020617;border-radius:10px}
 progress{width:80%;height:16px}
-.bestKI{background-color:#22c55e33;}
 </style>
 </head>
 <body>
@@ -53,147 +55,151 @@ progress{width:80%;height:16px}
 <table>
 <thead>
 <tr>
-<th>KI</th><th>Prognose (CHF)</th><th>Signal</th><th>Δ %</th><th>Aktion</th>
+<th>KI</th><th>Prognose (CHF)</th><th>Signal</th><th>Δ %</th><th>Aktion</th><th>Stop</th><th>Ziel</th><th>Warnung</th><th>Backtest</th>
 </tr>
 </thead>
 <tbody id="tableBody">
-<tr><td colspan="5">Bitte Asset auswählen</td></tr>
+<tr><td colspan="9">Bitte Asset auswählen</td></tr>
 </tbody>
 </table>
 
 <div class="footer">@ AKTIEN KRYPTO HANDEL AG – Keine Anlageberatung</div>
-
 <script>
-const API_KEY="d5ohqjhr01qjast6qrjgd5ohqjhr01qjast6qrk0";
-let chart=null;
-let priceInterval=null;
+// --- API-Key Finnhub ---
+const API_KEY = "d5ohqjhr01qjast6qrjgd5ohqjhr01qjast6qrk0";
 
-const assetSelect=document.getElementById("assetSelect");
-const forecastRange=document.getElementById("forecastRange");
-const runBtn=document.getElementById("runBtn");
-const progressBar=document.getElementById("progress");
-const progressText=document.getElementById("progressText");
-const statusText=document.getElementById("status");
-const tableBody=document.getElementById("tableBody");
-
-// --- Aktien + Krypto ---
-const ASSETS=[
-{name:"Apple",symbol:"AAPL"},{name:"Microsoft",symbol:"MSFT"},
-{name:"Tesla",symbol:"TSLA"},{name:"Bitcoin",symbol:"BTC-USD"},
-{name:"Ethereum",symbol:"ETH-USD"},{name:"BNB",symbol:"BNB-USD"},
-{name:"Cardano",symbol:"ADA-USD"},{name:"Dogecoin",symbol:"DOGE-USD"}
+// --- Asset-Liste: Aktien + Kryptos ---
+const ASSETS = [
+  // Aktien
+  {symbol:"AAPL",name:"Apple Inc."},{symbol:"MSFT",name:"Microsoft Corp."},{symbol:"NVDA",name:"NVIDIA Corp."},
+  {symbol:"AMZN",name:"Amazon.com Inc."},{symbol:"GOOGL",name:"Alphabet Inc."},{symbol:"TSLA",name:"Tesla Inc."},
+  {symbol:"META",name:"Meta Platforms"},{symbol:"NVS",name:"Novartis AG"},{symbol:"NESN.SW",name:"Nestlé AG"},
+  {symbol:"ORCL",name:"Oracle Corp."},{symbol:"INTC",name:"Intel Corp."},{symbol:"ADBE",name:"Adobe Inc."},
+  // Kryptos
+  {symbol:"BTC-USD",name:"Bitcoin"},{symbol:"ETH-USD",name:"Ethereum"},{symbol:"BNB-USD",name:"Binance Coin"},
+  {symbol:"SOL-USD",name:"Solana"},{symbol:"ADA-USD",name:"Cardano"},{symbol:"DOGE-USD",name:"Dogecoin"},
+  {symbol:"XRP-USD",name:"Ripple"},{symbol:"LTC-USD",name:"Litecoin"},{symbol:"DOT-USD",name:"Polkadot"}
 ];
 
-// --- Select befüllen ---
-ASSETS.forEach(a=>{
-  const o=document.createElement("option");
-  o.value=a.symbol;
-  o.textContent=`${a.name} (${a.symbol})`;
-  assetSelect.appendChild(o);
-});
+const selectAsset = document.getElementById("assetSelect");
+const runBtn = document.getElementById("runBtn");
+const progressBar = document.getElementById("progress");
+const progressText = document.getElementById("progressText");
+const tableBody = document.getElementById("tableBody");
+const currentPriceDiv = document.getElementById("currentPrice");
+const chartCanvas = document.getElementById("chart");
+let chart = null;
 
-// --- Fetch USD→CHF ---
-async function fetchCHF(){ 
+// --- USD → CHF Kurs abrufen ---
+async function fetchUsdChf(){
   try{
-    const r=await fetch("https://api.exchangerate.host/latest?base=USD&symbols=CHF");
-    const j=await r.json();
-    return j.rates.CHF||0.93;
+    const res = await fetch("https://api.exchangerate.host/latest?base=USD&symbols=CHF");
+    const data = await res.json();
+    return Number(data.rates.CHF)||0.93;
   }catch{return 0.93;}
 }
 
-// --- Fetch historische Preise ---
-async function fetchHist(sym){
-  const now=Math.floor(Date.now()/1000);
-  const from=now-365*86400;
+// --- Einzelkurs abrufen (Aktien oder Krypto) ---
+async function fetchQuote(symbol){
   try{
-    const url=sym.includes("USD")?
-      `https://finnhub.io/api/v1/crypto/candle?symbol=${sym}&resolution=D&from=${from}&to=${now}&token=${API_KEY}`:
-      `https://finnhub.io/api/v1/stock/candle?symbol=${sym}&resolution=D&from=${from}&to=${now}&token=${API_KEY}`;
-    const res=await fetch(url); const data=await res.json();
-    if(data.s==="ok"&&data.c&&data.c.length>30)return data.c.map(v=>v);
+    if(symbol.includes("USD")){
+      const now = Math.floor(Date.now()/1000);
+      const res = await fetch(`https://finnhub.io/api/v1/crypto/candle?symbol=${symbol}&resolution=D&from=${now-2*24*60*60}&to=${now}&token=${API_KEY}`);
+      const data = await res.json();
+      if(data.s==="ok" && data.c.length>0) return Number(data.c.at(-1));
+    }else{
+      const res = await fetch(`https://finnhub.io/api/v1/quote?symbol=${symbol}&token=${API_KEY}`);
+      const data = await res.json();
+      if(data.c!==undefined) return Number(data.c);
+    }
   }catch{}
-  return Array(365).fill(100);
+  return null;
 }
 
-// --- Fetch aktueller Kurs ---
-async function fetchPrice(sym){
-  const chf=await fetchCHF();
+// --- Historische Daten abrufen ---
+async function fetchHistoricalData(symbol, days){
+  const now = Math.floor(Date.now()/1000);
+  const from = now - days*24*60*60;
   try{
-    const url=sym.includes("USD")?
-      `https://finnhub.io/api/v1/crypto/candle?symbol=${sym}&resolution=D&from=${Math.floor(Date.now()/1000)-86400}&to=${Math.floor(Date.now()/1000)}&token=${API_KEY}`:
-      `https://finnhub.io/api/v1/quote?symbol=${sym}&token=${API_KEY}`;
-    const r=await fetch(url); const j=await r.json();
-    let price=sym.includes("USD")?j.c?.at(-1):j.c;
-    return price?price*chf:0;
-  }catch{return 0;}
+    if(symbol.includes("USD")){
+      const res = await fetch(`https://finnhub.io/api/v1/crypto/candle?symbol=${symbol}&resolution=D&from=${from}&to=${now}&token=${API_KEY}`);
+      const data = await res.json();
+      if(data.s==="ok" && data.c.length>0) return data.c.map(Number);
+    }else{
+      const res = await fetch(`https://finnhub.io/api/v1/stock/candle?symbol=${symbol}&resolution=D&from=${from}&to=${now}&token=${API_KEY}`);
+      const data = await res.json();
+      if(data.s==="ok" && data.c.length>0) return data.c.map(Number);
+    }
+  }catch{}
+  return [];
 }
 
-// --- Chart ---
+// --- Dropdown mit Assets füllen ---
+async function initAssets(){
+  const fx = await fetchUsdChf();
+  selectAsset.innerHTML="";
+  for(let a of ASSETS){
+    const quote = await fetchQuote(a.symbol);
+    if(quote!==null){
+      const opt = document.createElement("option");
+      const priceCHF = (quote*fx).toFixed(2);
+      opt.value=a.symbol;
+      opt.textContent=`${a.name} (${a.symbol}) - ${priceCHF} CHF`;
+      selectAsset.appendChild(opt);
+    }
+  }
+}
+initAssets();
+
+// --- Fortschrittsanzeige ---
+function updateProgress(p,text){progressBar.value=p;progressText.textContent=text;}
+
+// --- Tabelle leeren ---
+function clearTable(){tableBody.innerHTML='<tr><td colspan="9">Bitte Asset auswählen</td></tr>';}
+
+// --- Chart zeichnen ---
 function drawChart(hist, forecasts){
   if(chart) chart.destroy();
-  const labels=[];
-  for(let i=hist.length;i>0;i--)labels.push("-"+i+"d");
-  for(let i=1;i<=forecasts[0].length;i++)labels.push("+"+i+"d");
-
-  const datasets=[{label:"Historie",data:hist,borderColor:"#3b82f6",fill:false}];
-  const colors=["#22c55e","#facc15","#f97316","#38bdf8"];
-  forecasts.forEach((f,i)=>datasets.push({label:"KI "+(i+1),data:[...Array(hist.length).fill(null),...f],borderColor:colors[i],fill:false,pointRadius:2}));
-
-  chart=new Chart(document.getElementById("chart"),{
-    type:"line",
-    data:{labels,datasets},
-    options:{responsive:true,animation:false}
-  });
+  const labels = hist.map((_,i)=>`T-${hist.length-i}d`);
+  const datasets = [{label:"Historie",data:hist,borderColor:"#3b82f6",fill:false}];
+  const colors = ["#22c55e","#facc15","#f97316","#38bdf8"];
+  forecasts.forEach((f,i)=>datasets.push({label:`KI${i+1}`,data:[...Array(hist.length).fill(null),...f],borderColor:colors[i],fill:false,pointRadius:2}));
+  chart = new Chart(chartCanvas,{type:"line",data:{labels,datasets},options:{responsive:true}});
 }
-
-// --- Worker ---
-const worker=new Worker("lstm-worker.js");
-worker.onmessage=e=>{
-  if(e.data.progressText) progressText.textContent=e.data.progressText;
-  if(e.data.forecasts){
-    drawChart(e.data.tableData.hist,e.data.forecasts);
-    // Tabelle
-    tableBody.innerHTML="";
-    let bestValue=-Infinity,bestRow=null;
-    e.data.tableData.rows.forEach(r=>{
-      const tr=document.createElement("tr");
-      tr.innerHTML=`<td>${r.name}</td><td>${r.forecast.toFixed(2)}</td><td class="${r.cls}">${r.signal}</td><td>${r.delta}</td><td>${r.action}</td>`;
-      tableBody.appendChild(tr);
-      if(r.forecast>bestValue){bestValue=r.forecast; bestRow=tr;}
-    });
-    if(bestRow) bestRow.classList.add("bestKI");
-    statusText.textContent="Fertig";
-  }
-};
 
 // --- Analyse starten ---
-async function runAnalysis(){
-  const asset=assetSelect.value;
-  if(!asset){alert("Bitte Asset auswählen");return;}
-  progressBar.value=0; progressText.textContent="Lade Preise…"; statusText.textContent="Analyse läuft…";
+runBtn.addEventListener("click", async ()=>{
+  const symbol = selectAsset.value;
+  if(!symbol){alert("Bitte Asset auswählen!");return;}
+  clearTable();
+  updateProgress(5,"Lade Kursdaten...");
+  const fx = await fetchUsdChf();
+  const hist = await fetchHistoricalData(symbol, 365);
+  const quote = await fetchQuote(symbol);
+  if(!hist.length || quote===null){alert("Kursdaten nicht verfügbar");return;}
+  const priceCHF = (quote*fx).toFixed(2);
+  currentPriceDiv.textContent=`Aktueller Kurs: ${priceCHF} CHF`;
 
-  const hist=await fetchHist(asset);
-  const chf=await fetchCHF();
-  const histCHF=hist.map(p=>p*chf);
-  document.getElementById("currentPrice").textContent=`Aktueller Kurs: ${(histCHF[histCHF.length-1]).toFixed(2)} CHF`;
-
-  worker.postMessage({prices:histCHF,days:+forecastRange.value});
-}
-
-// --- Live Kurs alle 5 Sekunden ---
-function startPriceInterval(){
-  if(priceInterval) clearInterval(priceInterval);
-  priceInterval=setInterval(async()=>{
-    const asset=assetSelect.value;
-    if(!asset) return;
-    const price=await fetchPrice(asset);
-    if(price) document.getElementById("currentPrice").textContent=`Aktueller Kurs: ${price.toFixed(2)} CHF`;
-  },5000);
-}
-
-// --- Event ---
-runBtn.addEventListener("click",()=>{runAnalysis(); startPriceInterval();});
+  updateProgress(10,"Starte LSTM-Prognose...");
+  const worker = new Worker('lstm-worker.js');
+  worker.postMessage({prices:hist.map(p=>p*fx), days:+document.getElementById("forecastRange").value});
+  worker.onmessage = e=>{
+    if(e.data.progressText) updateProgress(progressBar.value+20,e.data.progressText);
+    if(e.data.tableData){
+      // Tabelle füllen
+      tableBody.innerHTML="";
+      e.data.tableData.rows.forEach(r=>{
+        const tr = document.createElement("tr");
+        tr.innerHTML=`<td>${r.name}</td><td>${r.forecast.toFixed(2)}</td><td class="${r.cls}">${r.signal}</td><td>${r.delta}%</td>
+        <td>${r.action}</td><td>–</td><td>–</td><td>–</td><td>–</td>`;
+        tableBody.appendChild(tr);
+      });
+      // Chart zeichnen
+      drawChart(e.data.tableData.hist,e.data.forecasts);
+      updateProgress(100,"Analyse abgeschlossen ✔");
+    }
+  };
+});
 </script>
-
 </body>
 </html>
