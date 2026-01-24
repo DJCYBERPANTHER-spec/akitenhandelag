@@ -1,6 +1,5 @@
 // ==============================
-// analyse.js – Finale Version (alle Funktionen)
-// Multi-KI Analyse + Kontinuierliches LSTM-Lernen
+// analyse.js – finale Version, alle Funktionen
 // ==============================
 
 const API_KEY = "d5qi0c9r01qhn30fr1r0d5qi0c9r01qhn30fr1rg"; // Finnhub API Key einsetzen
@@ -42,19 +41,10 @@ const ASSETS = [
 ];
 
 // --- DOM Elemente
-const assetSelect = document.getElementById("assetSelect");
-const analyseBtn = document.getElementById("analyseBtn");
-const currentPriceDiv = document.getElementById("currentPrice");
-const warningDiv = document.getElementById("warning");
-const progressBar = document.getElementById("progressBar");
-const progressText = document.getElementById("progressText");
-const statusDiv = document.getElementById("status");
-const outTable = document.getElementById("out");
-const chartCanvas = document.getElementById("chart");
-
+let assetSelect, analyseBtn, currentPriceDiv, warningDiv, progressBar, progressText, statusDiv, outTable, chartCanvas;
 let chart = null;
 let liveInterval = null;
-let lstmModel = null; // Kontinuierliches LSTM-Modell
+let lstmModel = null;
 
 // --- Helfer
 function isCrypto(sym){ return sym.includes("USD"); }
@@ -228,41 +218,45 @@ async function runAnalysis(sym){
   },7*24*60*60*1000);
 }
 
-// --- Dropdown & Buttons
-ASSETS.forEach(a=>{
-  const o = document.createElement("option");
-  o.value = a.symbol;
-  o.textContent = `${a.name} (${a.symbol})`;
-  assetSelect.appendChild(o);
-});
+// --- DOMContentLoaded Setup
+document.addEventListener("DOMContentLoaded", async ()=>{
+  assetSelect = document.getElementById("assetSelect");
+  analyseBtn = document.getElementById("analyseBtn");
+  currentPriceDiv = document.getElementById("currentPrice");
+  warningDiv = document.getElementById("warning");
+  progressBar = document.getElementById("progressBar");
+  progressText = document.getElementById("progressText");
+  statusDiv = document.getElementById("status");
+  outTable = document.getElementById("out");
+  chartCanvas = document.getElementById("chart");
 
-assetSelect.addEventListener("change",async e=>{
-  if(liveInterval) clearInterval(liveInterval);
-  const sym = e.target.value;
+  // --- Dropdown befüllen
+  ASSETS.forEach(a=>{
+    const o = document.createElement("option");
+    o.value = a.symbol;
+    o.textContent = `${a.name} (${a.symbol})`;
+    assetSelect.appendChild(o);
+  });
+
+  // --- Zufälliges Asset auswählen und Analyse starten
+  const randomAsset = getRandomAsset().symbol;
+  assetSelect.value = randomAsset;
+  await runAnalysis(randomAsset);
+
+  // --- Live-Preis Intervall
   liveInterval = setInterval(async ()=>{
-    const live = await fetchCurrentPrice(sym);
+    const live = await fetchCurrentPrice(assetSelect.value);
     currentPriceDiv.textContent=`Aktueller Kurs: ${live.toFixed(2)} CHF`;
   },5000);
 });
 
-analyseBtn.addEventListener("click", async ()=>{
+// --- Buttons
+analyseBtn?.addEventListener("click", async ()=>{
   const sym = assetSelect.value;
   if(!sym){ alert("Bitte Asset auswählen!"); return; }
   await runAnalysis(sym);
 });
 
-// --- Kauf-Links
 function openYahoo(){ window.open(`https://finance.yahoo.com/quote/${assetSelect.value}`,"_blank"); }
 function openTradingView(){ window.open(`https://www.tradingview.com/symbols/${assetSelect.value}/`,"_blank"); }
 function openSwissquote(){ window.open(`https://www.swissquote.ch/sqw-en/private/trading/instruments/search?query=${assetSelect.value}`,"_blank"); }
-
-// --- Start-Prognose zufälliges Asset
-document.addEventListener("DOMContentLoaded", async ()=>{
-  const randomAsset = getRandomAsset().symbol;
-  assetSelect.value = randomAsset;
-  await runAnalysis(randomAsset);
-  liveInterval = setInterval(async ()=>{
-    const live = await fetchCurrentPrice(randomAsset);
-    currentPriceDiv.textContent=`Aktueller Kurs: ${live.toFixed(2)} CHF`;
-  },5000);
-});
