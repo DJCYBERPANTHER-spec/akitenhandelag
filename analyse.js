@@ -1,8 +1,8 @@
 // ==============================
-// analyse.js – Teil 1 von 3 – Assets, Basisfunktionen, KI-Modelle
+// analyse.js – Teil 1/3 – Assets & Daten
 // ==============================
 
-const API_KEY = "d5qi0c9r01qhn30fr1r0d5qi0c9r01qhn30fr1rg"; // Finnhub Key einsetzen
+const API_KEY = "DEIN_FINNHUB_KEY"; // Finnhub Key hier einsetzen
 
 // -----------------
 // Assets
@@ -10,30 +10,23 @@ const API_KEY = "d5qi0c9r01qhn30fr1r0d5qi0c9r01qhn30fr1rg"; // Finnhub Key einse
 const ASSETS = [
   {symbol:"AAPL",name:"Apple Inc."},{symbol:"MSFT",name:"Microsoft Corp."},{symbol:"NVDA",name:"NVIDIA Corp."},
   {symbol:"AMZN",name:"Amazon.com Inc."},{symbol:"GOOGL",name:"Alphabet Inc."},{symbol:"TSLA",name:"Tesla Inc."},
-  {symbol:"META",name:"Meta Platforms"},{symbol:"NFLX",name:"Netflix"},{symbol:"INTC",name:"Intel Corp."}
-  // …weitere Aktien hier einfügen, bis 100+
+  {symbol:"META",name:"Meta Platforms"},{symbol:"NFLX",name:"Netflix"},{symbol:"INTC",name:"Intel Corp."},
+  {symbol:"ORCL",name:"Oracle Corp."},{symbol:"IBM",name:"IBM"},{symbol:"DIS",name:"Disney"},
+  {symbol:"ADBE",name:"Adobe Inc."},{symbol:"PYPL",name:"PayPal Holdings"},{symbol:"SAP",name:"SAP SE"},
+  {symbol:"BABA",name:"Alibaba"},{symbol:"CSCO",name:"Cisco Systems"},{symbol:"CRM",name:"Salesforce"},
+  {symbol:"QCOM",name:"Qualcomm"},{symbol:"TXN",name:"Texas Instruments"},{symbol:"BA",name:"Boeing"},
+  {symbol:"NKE",name:"Nike Inc."},{symbol:"PEP",name:"PepsiCo"},{symbol:"KO",name:"Coca-Cola"},
+  {symbol:"V",name:"Visa Inc."},{symbol:"MA",name:"Mastercard"}
 ];
 
 const CRYPTOS = [
   {symbol:"BTC-USD",name:"Bitcoin"},{symbol:"ETH-USD",name:"Ethereum"},{symbol:"BNB-USD",name:"Binance Coin"},
-  {symbol:"SOL-USD",name:"Solana"},{symbol:"ADA-USD",name:"Cardano"},{symbol:"DOGE-USD",name:"Dogecoin"}
-  // …weitere Kryptos hier einfügen, bis 100+
+  {symbol:"SOL-USD",name:"Solana"},{symbol:"ADA-USD",name:"Cardano"},{symbol:"DOGE-USD",name:"Dogecoin"},
+  {symbol:"XRP-USD",name:"Ripple"},{symbol:"LTC-USD",name:"Litecoin"},{symbol:"DOT-USD",name:"Polkadot"},
+  {symbol:"LINK-USD",name:"Chainlink"},{symbol:"AVAX-USD",name:"Avalanche"},{symbol:"MATIC-USD",name:"Polygon"}
 ];
 
 const ALL_ASSETS = [...ASSETS, ...CRYPTOS];
-
-// -----------------
-// DOM Elemente
-// -----------------
-const assetSelect = document.getElementById("assetSelect");
-const analyseBtn = document.getElementById("analyseBtn");
-const currentPriceDiv = document.getElementById("currentPrice");
-const warningDiv = document.getElementById("warning");
-const statusDiv = document.getElementById("status");
-const chartCanvas = document.getElementById("chart");
-const outTable = document.getElementById("out");
-let chart = null;
-let liveInterval = null;
 
 // -----------------
 // Hilfsfunktionen
@@ -53,7 +46,7 @@ async function fetchUsdChf(){
 }
 
 // -----------------
-// Live-Kurs abrufen
+// Live-Kurs
 // -----------------
 async function fetchStock(sym){
   try{
@@ -80,7 +73,7 @@ async function fetchCurrentPrice(sym){
 }
 
 // -----------------
-// Historische Daten abrufen (365 Tage Standard)
+// Historische Daten
 // -----------------
 async function fetchHistoricalData(sym, days=365){
   const fx = await fetchUsdChf();
@@ -104,33 +97,51 @@ async function fetchHistoricalData(sym, days=365){
   }
   return hist.map(v=>v*fx);
 }
+// ==============================
+// analyse.js – Teil 2/3 – KI, Signale, Chart
+// ==============================
 
 // -----------------
-// KI-Modelle – Trend, Momentum, Volatilität, LSTM
+// KI-Modelle
 // -----------------
-function trendModel(hist){ return hist.at(-1) + (hist.at(-1)-hist[0])/hist.length*7; }
-function momentumModel(hist){ return hist.at(-1) + (hist.at(-1)-hist.at(Math.max(0,hist.length-5)))*1.5; }
-function volatilityModel(hist){ const avg = hist.reduce((a,b)=>a+b,0)/hist.length; return avg + (hist.at(-1)-avg)*0.5; }
+function trendModel(hist){ 
+  return hist.at(-1) + (hist.at(-1) - hist[0])/hist.length*7; 
+}
+
+function momentumModel(hist){ 
+  return hist.at(-1) + (hist.at(-1) - hist.at(Math.max(0,hist.length-5)))*1.5; 
+}
+
+function volatilityModel(hist){ 
+  const avg = hist.reduce((a,b)=>a+b,0)/hist.length; 
+  return avg + (hist.at(-1)-avg)*0.5; 
+}
 
 let lstmModel = null;
 async function trainOrUpdateLSTM(hist, period=7){
   const X=[],Y=[];
-  for(let i=0;i<hist.length-period;i++){ X.push(hist.slice(i,i+period).map(v=>[v])); Y.push([hist[i+period]]); }
+  for(let i=0;i<hist.length-period;i++){ 
+    X.push(hist.slice(i,i+period).map(v=>[v])); 
+    Y.push([hist[i+period]]); 
+  }
   if(X.length===0) return hist.at(-1);
+
   const xs=tf.tensor3d(X), ys=tf.tensor2d(Y);
+
   if(!lstmModel){
     lstmModel = tf.sequential();
     lstmModel.add(tf.layers.lstm({units:20,inputShape:[period,1]}));
     lstmModel.add(tf.layers.dense({units:1}));
     lstmModel.compile({optimizer:"adam",loss:"meanSquaredError"});
-    await lstmModel.fit(xs,ys,{epochs:10,verbose:0});
-  } else { await lstmModel.fit(xs,ys,{epochs:5,verbose:0}); }
-  return lstmModel.predict(tf.tensor3d([X.at(-1)])).dataSync()[0];
+    await lstmModel.fit(xs,ys,{epochs:15,verbose:0});
+  } else { 
+    await lstmModel.fit(xs,ys,{epochs:7,verbose:0}); 
+  }
+
+  const pred = lstmModel.predict(tf.tensor3d([X.at(-1)])).dataSync()[0];
+  return pred;
 }
 
-// -----------------
-// Ensemble KI
-// -----------------
 async function ensemble(hist){
   const ki1 = trendModel(hist);
   const ki2 = momentumModel(hist);
@@ -138,22 +149,9 @@ async function ensemble(hist){
   const ki4 = await trainOrUpdateLSTM(hist,7);
   return {ki1,ki2,ki3,ki4};
 }
-// ==============================
-// analyse.js – Teil 2 von 3 – UI, Chart, Signale & Prognosen
-// ==============================
 
 // -----------------
-// Asset Dropdown initialisieren
-// -----------------
-ALL_ASSETS.forEach(a=>{
-  const opt = document.createElement("option");
-  opt.value = a.symbol;
-  opt.textContent = `${a.name} (${a.symbol})`;
-  assetSelect.appendChild(opt);
-});
-
-// -----------------
-// Signale & Konfidenz
+// Signale
 // -----------------
 function getSignal(diff){
   if(diff>0.05) return "KAUFEN";
@@ -186,25 +184,47 @@ function checkWarnings(hist){
 }
 
 // -----------------
+// DOM Elemente vorbereiten
+// -----------------
+const assetSelect = document.getElementById("assetSelect");
+const analyseBtn = document.getElementById("analyseBtn");
+const currentPriceDiv = document.getElementById("currentPrice");
+const warningDiv = document.getElementById("warning");
+const statusDiv = document.getElementById("status");
+const chartCanvas = document.getElementById("chart");
+const outTable = document.getElementById("out");
+let chart = null;
+let liveInterval = null;
+
+// Dropdown mit allen Assets füllen
+ALL_ASSETS.forEach(a=>{
+  const opt = document.createElement("option");
+  opt.value = a.symbol;
+  opt.textContent = `${a.name} (${a.symbol})`;
+  assetSelect.appendChild(opt);
+});
+
+// -----------------
 // Chart zeichnen
 // -----------------
 function drawChart(hist, prognosen){
   if(chart) chart.destroy();
   const avg = (prognosen.ki1 + prognosen.ki2 + prognosen.ki3 + prognosen.ki4)/4;
+
   chart = new Chart(chartCanvas, {
     type:"line",
     data:{
       labels:hist.map((_,i)=>`T${i+1}`),
       datasets:[
         {label:"Historisch", data:hist, borderColor:"#3b82f6", fill:false},
-        {label:"Trend-KI", data:[...Array(hist.length-1).fill(null), prognosen.ki1], borderColor:"#22c55e", fill:false},
-        {label:"Momentum-KI", data:[...Array(hist.length-1).fill(null), prognosen.ki2], borderColor:"#f97316", fill:false},
-        {label:"Volatilität-KI", data:[...Array(hist.length-1).fill(null), prognosen.ki3], borderColor:"#facc15", fill:false},
-        {label:"LSTM-KI", data:[...Array(hist.length-1).fill(null), prognosen.ki4], borderColor:"#8b5cf6", fill:false},
+        {label:"KI1 (Trend)", data:[...Array(hist.length-1).fill(null), prognosen.ki1], borderColor:"#22c55e", fill:false},
+        {label:"KI2 (Momentum)", data:[...Array(hist.length-1).fill(null), prognosen.ki2], borderColor:"#f97316", fill:false},
+        {label:"KI3 (Volatilität)", data:[...Array(hist.length-1).fill(null), prognosen.ki3], borderColor:"#facc15", fill:false},
+        {label:"KI4 (LSTM)", data:[...Array(hist.length-1).fill(null), prognosen.ki4], borderColor:"#8b5cf6", fill:false},
         {label:"Durchschnitt", data:[...Array(hist.length-1).fill(null), avg], borderColor:"#ffffff", fill:false}
       ]
     },
-    options:{responsive:true, plugins:{legend:{position:'bottom'}}}
+    options:{responsive:true}
   });
 }
 
@@ -216,6 +236,7 @@ async function runAnalysis(){
   if(!sym){ alert("Bitte Asset auswählen!"); return; }
 
   statusDiv.textContent = "Analyse läuft…";
+
   const hist = await fetchHistoricalData(sym,365);
   const currentPrice = await fetchCurrentPrice(sym);
   currentPriceDiv.textContent = `Aktueller Kurs: ${currentPrice.toFixed(2)} CHF`;
@@ -237,8 +258,8 @@ async function runAnalysis(){
       <td>${now}</td>
     </tr>`;
   }).join('');
-  outTable.innerHTML = html;
 
+  outTable.innerHTML = html;
   statusDiv.textContent = "Analyse abgeschlossen";
 }
 
@@ -247,9 +268,6 @@ async function runAnalysis(){
 // -----------------
 analyseBtn.addEventListener("click", runAnalysis);
 
-// -----------------
-// Live-Update optional (5s)
-// -----------------
 assetSelect.addEventListener("change", async e=>{
   if(liveInterval) clearInterval(liveInterval);
   const sym = e.target.value;
@@ -259,7 +277,7 @@ assetSelect.addEventListener("change", async e=>{
 });
 
 // -----------------
-// Automatische Analyse beim Start (ein Asset)
+// Automatische Analyse beim Start
 // -----------------
 document.addEventListener("DOMContentLoaded", async ()=>{
   const asset = getRandomAsset();
@@ -267,81 +285,100 @@ document.addEventListener("DOMContentLoaded", async ()=>{
   await runAnalysis();
 });
 // ==============================
-// analyse.js – Teil 3 von 3 – Prognosen 24h → 10 Jahre + kontinuierliches Lernen
+// analyse.js – Teil 3/3 – Zukunftsprognosen & kontinuierliches Lernen
 // ==============================
 
 // -----------------
-// Zukunftsprognosen
+// Zukunftsprognosen erstellen
 // -----------------
+const FORECAST_PERIODS = {
+  "24h": 1,
+  "1M": 30,
+  "3M": 90,
+  "6M": 180,
+  "1J": 365,
+  "3J": 365*3,
+  "5J": 365*5,
+  "10J": 365*10
+};
+
 async function futureForecast(sym){
-  const horizons = {
-    "24h": 1,
-    "1 Monat": 30,
-    "3 Monate": 90,
-    "6 Monate": 180,
-    "1 Jahr": 365,
-    "3 Jahre": 365*3,
-    "5 Jahre": 365*5,
-    "10 Jahre": 365*10
-  };
-
-  const hist = await fetchHistoricalData(sym, 365); // 1 Jahr Basis
+  const hist = await fetchHistoricalData(sym, 365); // Letztes Jahr für Training
   const currentPrice = hist.at(-1);
-  const prognosen = await ensemble(hist);
+  const results = {};
 
-  const avgKI = (prognosen.ki1 + prognosen.ki2 + prognosen.ki3 + prognosen.ki4)/4;
+  for(const [label, days] of Object.entries(FORECAST_PERIODS)){
+    // KI-Prognosen für die jeweilige Zukunft
+    const extendedHist = [...hist]; // kopiere bisherige Daten
+    let kiForecasts = {ki1:0,ki2:0,ki3:0,ki4:0};
 
-  const forecasts = {};
+    for(let d=0; d<days; d++){
+      kiForecasts = await ensemble(extendedHist);
+      const avgForecast = (kiForecasts.ki1 + kiForecasts.ki2 + kiForecasts.ki3 + kiForecasts.ki4)/4;
+      extendedHist.push(avgForecast); // In die Zukunft fortschreiben
+    }
 
-  Object.entries(horizons).forEach(([label,days])=>{
-    // Lineare Prognose basierend auf avgKI und historischem Trend
-    const rate = (avgKI - hist[0])/hist.length;
-    forecasts[label] = currentPrice + rate * days;
-  });
+    // Letztes Vorhersageergebnis als Prognose für diese Periode
+    const finalForecast = (kiForecasts.ki1 + kiForecasts.ki2 + kiForecasts.ki3 + kiForecasts.ki4)/4;
+    results[label] = {
+      price: finalForecast,
+      diff: (finalForecast-currentPrice)/currentPrice,
+      signal: getSignal((finalForecast-currentPrice)/currentPrice),
+      confidence: getConfidence((finalForecast-currentPrice)/currentPrice)
+    };
+  }
 
-  console.log(`Prognosen für ${sym}:`, forecasts);
-
-  return forecasts;
+  return results;
 }
 
 // -----------------
-// Kontinuierliches LSTM-Training
+// Anzeige aller Prognosen in Tabelle
+// -----------------
+async function displayFutureForecast(sym){
+  const forecasts = await futureForecast(sym);
+  let html = "";
+
+  for(const [period, f] of Object.entries(forecasts)){
+    html += `<tr>
+      <td colspan="1">${period}</td>
+      <td>${f.price.toFixed(2)}</td>
+      <td class="${getSignalClass(f.diff)}">${f.signal}</td>
+      <td>Δ ${(f.diff*100).toFixed(1)}%</td>
+      <td class="conf">${f.confidence}</td>
+      <td>${new Date().toLocaleString()}</td>
+    </tr>`;
+  }
+
+  outTable.innerHTML = html;
+}
+
+// -----------------
+// Vollständige Analyse + Zukunftsprognosen
+// -----------------
+async function runFullAnalysis(sym){
+  assetSelect.value = sym;
+  await runAnalysis();          // Historische Analyse
+  await displayFutureForecast(sym); // Zukunftsprognosen
+}
+
+// -----------------
+// Kontinuierliches Lernen (LSTM) für alle Assets
 // -----------------
 async function continuousLearning(){
-  console.log("Starte kontinuierliches LSTM-Training...");
   for(const a of ALL_ASSETS){
-    try{
-      const hist = await fetchHistoricalData(a.symbol, 180); // letzte 6 Monate
-      await trainOrUpdateLSTM(hist,7);
-    }catch(err){
-      console.warn(`Fehler beim Training für ${a.symbol}:`, err);
-    }
+    const hist = await fetchHistoricalData(a.symbol, 365);
+    await trainOrUpdateLSTM(hist, 7);
   }
-  console.log("Kontinuierliches LSTM-Training abgeschlossen");
+  console.log("Kontinuelles LSTM-Training abgeschlossen für alle Assets");
 }
 
-// Starte kontinuierliches Training alle 24h
+// Starte kontinuierliches Lernen alle 24h
 setInterval(continuousLearning, 24*60*60*1000);
 
 // -----------------
-// Manuelle Zukunftsanalyse
-// -----------------
-async function runFutureAnalysis(sym){
-  assetSelect.value = sym;
-  await runAnalysis();
-  const forecasts = await futureForecast(sym);
-  
-  // Anzeige in Konsole, später UI-Integration möglich
-  Object.entries(forecasts).forEach(([horizon,price])=>{
-    console.log(`${horizon}: ${price.toFixed(2)} CHF`);
-  });
-}
-
-// -----------------
-// Automatische Startanalyse (ein zufälliges Asset)
+// Automatische Analyse beim Laden
 // -----------------
 document.addEventListener("DOMContentLoaded", async ()=>{
-  const asset = getRandomAsset();
-  await runFutureAnalysis(asset.symbol);
+  const randomAsset = getRandomAsset();
+  await runFullAnalysis(randomAsset.symbol);
 });
-
