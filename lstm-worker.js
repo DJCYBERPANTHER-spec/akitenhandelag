@@ -1,16 +1,11 @@
-// lstm-worker.js
 importScripts('https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0/dist/tf.min.js');
 
-let model = null; // persistent für wiederholte Analysen
-
-// Normalisierung
 function normalize(data){
   const min = Math.min(...data), max = Math.max(...data);
   const norm = data.map(v=>(v-min)/(max-min||1));
   return {norm,min,max};
 }
 
-// LSTM trainieren und vorhersagen
 async function trainLSTM(prices, period=20){
   const {norm,min,max} = normalize(prices);
   const X = [], Y = [];
@@ -30,25 +25,22 @@ async function trainLSTM(prices, period=20){
   return p*(max-min)+min;
 }
 
-// Nachricht vom Hauptthread
 onmessage = async e=>{
   const prices = e.data.prices;
   const days = e.data.days;
   const forecasts = [];
-  const hist = prices.slice(-365); // für Chart
+  const hist = prices.slice(-365);
   for(let i=0;i<4;i++){
     postMessage({progressText:`KI ${i+1} wird berechnet...`});
     const forecast = [];
     let lastPrice = prices[prices.length-1];
     for(let d=0;d<days;d++){
       const p = await trainLSTM(prices, 20+i*2);
-      lastPrice = p*(1+(Math.random()-0.5)/50); // leichte Variation
+      lastPrice = p*(1+(Math.random()-0.5)/50);
       forecast.push(lastPrice);
     }
     forecasts.push(forecast);
   }
-
-  // Tabelle vorbereiten
   const tableData = {rows:[], hist, forecasts};
   forecasts.forEach((f,i)=>{
     const last = f[f.length-1];
@@ -56,9 +48,7 @@ onmessage = async e=>{
     const delta = ((last-prev)/prev*100).toFixed(2);
     const signal = delta>0?"KAUFEN":delta<0?"VERKAUFEN":"HALTEN";
     const cls = signal==="KAUFEN"?"buy":signal==="VERKAUFEN"?"sell":"hold";
-    const action = signal;
-    tableData.rows.push({name:`KI${i+1}`,forecast:last,signal,cls,delta,action});
+    tableData.rows.push({name:`KI${i+1}`,forecast:last,signal,cls,delta,action:signal});
   });
-
   postMessage({tableData,forecasts});
 };
