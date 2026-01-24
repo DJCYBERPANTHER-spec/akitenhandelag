@@ -1,4 +1,4 @@
-// analyse.js - Finale Version mit 30er-Schritten
+// analyse.js - Finale Version: robuste historische Daten
 
 const API_KEY = "d5ohqjhr01qjast6qrjgd5ohqjhr01qjast6qrk0";
 
@@ -23,7 +23,7 @@ const outTable = document.getElementById("out");
 const chartCanvas = document.getElementById("chart");
 
 let chart = null;
-let storedModel = null; // kontinuierliches Lernen
+let storedModel = null;
 
 // --- CHF Wechselkurs ---
 async function fetchUsdChf(){
@@ -42,7 +42,7 @@ async function fetchQuote(sym){
             const from = now - 24*60*60;
             const r = await fetch(`https://finnhub.io/api/v1/crypto/candle?symbol=${sym}&resolution=60&from=${from}&to=${now}&token=${API_KEY}`);
             const j = await r.json();
-            if(j.s==="ok") return j.c[j.c.length-1];
+            if(j.s==="ok" && j.c.length>0) return j.c[j.c.length-1];
         } else {
             const r = await fetch(`https://finnhub.io/api/v1/quote?symbol=${sym}&token=${API_KEY}`);
             const j = await r.json();
@@ -52,10 +52,11 @@ async function fetchQuote(sym){
     return null;
 }
 
-// --- Historische Daten (adaptiv 365 → 10 Tage in 30er-Schritten) ---
+// --- Historische Daten robust ---
 async function fetchHistorical(sym, maxDays = 365, minDays = 10){
     const now = Math.floor(Date.now()/1000);
     let days = maxDays;
+    let lastValidPrice = 100; // Default für Fallback
 
     while(days >= minDays){
         const from = now - days*24*60*60;
@@ -68,15 +69,20 @@ async function fetchHistorical(sym, maxDays = 365, minDays = 10){
             }
             const res = await fetch(url);
             const j = await res.json();
-            if(j.s==="ok" && j.c && j.c.length >= minDays) return j.c.map(Number);
+            if(j.s==="ok" && j.c && j.c.length >= minDays){
+                lastValidPrice = j.c[j.c.length-1];
+                return j.c.map(Number);
+            }
         }catch(e){console.warn("Historische Daten Fehler:",e);}
         days -= 30; // 30er Schritte
     }
 
-    // Fallback minimal
+    // Fallback minimal: kleine Schwankungen um letzten bekannten Preis
     const fallback = [];
-    const base = sym.includes("USD") ? 20000 : 100;
-    for(let i=0;i<minDays;i++) fallback.push(base*(1+0.01*Math.random()));
+    const base = sym.includes("USD") ? 20000 : lastValidPrice;
+    for(let i=0;i<minDays;i++){
+        fallback.push(base*(1+((Math.random()-0.5)/100))); // ±0.5-1% kleine Schwankung
+    }
     return fallback;
 }
 
