@@ -1,5 +1,5 @@
 // ==============================
-// analyse.js – Komplette Version
+// analyse.js – Debug, KI und historische Daten
 // ==============================
 
 const API_KEY = "d5qi0c9r01qhn30fr1r0d5qi0c9r01qhn30fr1rg";
@@ -69,37 +69,58 @@ async function fetchCurrentPrice(sym){
 }
 
 // ---------------------
-// Historische Daten
+// Historische Daten mit Debug
 // ---------------------
 async function fetchHistoricalData(sym, days=365) {
   const fx = await fetchUsdChf();
   let hist = [];
 
-  if (isCrypto(sym)) {
-    const map = { "BTC-USD": "bitcoin", "ETH-USD": "ethereum", "BNB-USD": "binancecoin", "SOL-USD": "solana", "ADA-USD": "cardano", "DOGE-USD": "dogecoin", "XRP-USD": "ripple", "LTC-USD": "litecoin" };
-    try {
+  if(isCrypto(sym)){
+    const map = { "BTC-USD":"bitcoin","ETH-USD":"ethereum","BNB-USD":"binancecoin","SOL-USD":"solana","ADA-USD":"cardano","DOGE-USD":"dogecoin","XRP-USD":"ripple","LTC-USD":"litecoin" };
+    try{
       const r = await fetch(`https://api.coingecko.com/api/v3/coins/${map[sym]}/market_chart?vs_currency=usd&days=${days}`);
       const j = await r.json();
+      debugLog(`CoinGecko Response für ${sym}`, j);
       if(j.prices && j.prices.length>0){
         hist = j.prices.map(p=>p[1]*fx);
       } else {
-        console.error(`Keine historischen Daten für ${sym} verfügbar.`);
+        debugLog(`Keine historischen Daten von CoinGecko für ${sym}`);
       }
-    } catch (err) { console.error(err); hist=[]; }
+    } catch(err){
+      debugLog(`Fehler beim Abrufen von CoinGecko für ${sym}`, err);
+    }
   } else {
-    try {
+    try{
       const now = Math.floor(Date.now()/1000);
       const from = now - days*86400;
       const r = await fetch(`https://finnhub.io/api/v1/stock/candle?symbol=${sym}&resolution=D&from=${from}&to=${now}&token=${API_KEY}`);
       const j = await r.json();
+      debugLog(`Finnhub Response für ${sym}`, j);
       if(j.c && j.c.length>0){
         hist = j.c.map(v=>v*fx);
       } else {
-        console.error(`Keine historischen Daten für ${sym} verfügbar.`);
+        debugLog(`Keine historischen Daten von Finnhub für ${sym}`);
       }
-    } catch(err){ console.error(err); hist=[]; }
+    } catch(err){
+      debugLog(`Fehler beim Abrufen von Finnhub für ${sym}`, err);
+    }
   }
+
+  if(hist.length===0) statusDiv.textContent = `Fehler: Keine historischen Daten für ${sym}`;
   return hist;
+}
+
+// ---------------------
+// Debug-Funktion: zeigt API-Antworten
+// ---------------------
+function debugLog(message, data){
+  console.log(message, data || '');
+  const debugDiv = document.getElementById("debug");
+  if(debugDiv){
+    const p = document.createElement("p");
+    p.textContent = message + (data ? ` -> ${JSON.stringify(data).substring(0,150)}...` : '');
+    debugDiv.appendChild(p);
+  }
 }
 
 // ---------------------
