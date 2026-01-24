@@ -74,8 +74,8 @@ footer {
     <h1>🔮 Multi-KI Asset Analyse</h1>
     <div class="subtitle">Für Aktien Handel AG – Live & Professionell</div>
 </header>
-
 <div class="container">
+    <!-- ================== TEIL 2: ASSET SCANNER ================== -->
     <div class="card">
         <h2>📌 Asset Scanner</h2>
         <div class="status" id="status">Status: Bereit</div>
@@ -98,19 +98,29 @@ footer {
         <div class="progress"><div id="progressBar"></div></div>
         <div class="status" id="progressText">Warte auf Daten…</div>
     </div>
-
-    <div class="card">
+    <!-- ================== TEIL 3: CHART + TABELLE ================== -->
+    
+    <!-- SEPARATES CHART -->
+    <div class="card" style="height:300px;">
         <h2>💹 Live-Kurs & Analyse</h2>
         <div id="currentPrice">Aktueller Kurs: –</div>
         <div id="period">Zeitraum: –</div>
-        <canvas id="chart" height="220"></canvas>
+        <canvas id="chart" height="260" style="width:100%; height:260px;"></canvas>
     </div>
 
-    <div class="card scrollable-table">
+    <!-- TABELLE SEPARAT UND SCROLLBAR -->
+    <div class="card scrollable-table" style="max-height:300px;">
         <h2>🧠 KI-Prognosen</h2>
         <table>
             <thead>
-                <tr><th>KI-Modell</th><th>Prognose</th><th>Signal</th><th>Δ</th><th>Konfidenz</th><th>Datum/Uhrzeit</th></tr>
+                <tr>
+                    <th>KI-Modell</th>
+                    <th>Prognose</th>
+                    <th>Signal</th>
+                    <th>Δ</th>
+                    <th>Konfidenz</th>
+                    <th>Datum/Uhrzeit</th>
+                </tr>
             </thead>
             <tbody id="out"></tbody>
         </table>
@@ -271,11 +281,9 @@ async function predictModelVaried(data, basePeriod, kiIndex){
 }
 
 // ================== KONFIDENZ ==================
-function getConfidence(diff){
-    return Math.abs(diff)>0.1?"Hoch":Math.abs(diff)>0.05?"Mittel":"Niedrig";
-}
+function getConfidence(diff){ return Math.abs(diff)>0.1?"Hoch":Math.abs(diff)>0.05?"Mittel":"Niedrig"; }
 
-// ================== STABILES UPDATE CHART & TABELLE ==================
+// ================== CHART & TABELLE ==================
 function drawChart(hist,prognosen){
     const labels=hist.dates.map(d=>d.toISOString().slice(0,10));
     const avg=prognosen.reduce((a,b)=>a+b,0)/prognosen.length;
@@ -293,23 +301,7 @@ function drawChart(hist,prognosen){
                     {label:"Durchschnitt",data:[...Array(hist.prices.length-1).fill(null),avg],borderColor:"#ffffff",fill:false}
                 ]
             },
-            options:{
-                responsive:true,
-                maintainAspectRatio:false,
-                plugins:{
-                    tooltip:{
-                        enabled:true,
-                        mode:'nearest',
-                        intersect:false,
-                        callbacks:{
-                            label:function(context){
-                                return `${context.dataset.label}: ${context.raw.toFixed(2)}`;
-                            }
-                        }
-                    }
-                },
-                animation:false
-            }
+            options:{ responsive:true, maintainAspectRatio:false, plugins:{tooltip:{enabled:true}} , animation:false}
         });
     }else{
         chart.data.labels=labels;
@@ -317,7 +309,7 @@ function drawChart(hist,prognosen){
         chart.data.datasets[1].data=[...Array(hist.prices.length-1).fill(null),prognosen[1]];
         chart.data.datasets[2].data=[...Array(hist.prices.length-1).fill(null),prognosen[2]];
         chart.data.datasets[3].data=[...Array(hist.prices.length-1).fill(null),prognosen[3]];
-        chart.data.datasets[4].data=[...Array(hist.prices.length-1).fill(null),avg];
+        chart.data.datasets[4].data=[...Array(hist.prices.length-1].fill(null),avg];
         chart.update();
     }
 }
@@ -339,7 +331,7 @@ function displayTable(hist,prognosen){
     out.innerHTML=html;
 }
 
-// ================== LADE AUSGEWÄHLTES ASSET ==================
+// ================== ASSET LADEN ==================
 async function loadAsset(){
     const idx=assetSelect.value;
     if(idx===null) return;
