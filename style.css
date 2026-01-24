@@ -1,131 +1,55 @@
 /* style.css */
-
-/* Grundlayout */
-body {
-    background: #0f172a;
-    color: #e5e7eb;
-    font-family: Arial, sans-serif;
-    margin: 0;
-    padding: 15px;
+body { 
+    font-family: Arial, sans-serif; 
+    margin: 20px; 
+    background: #ffffff; 
+    color: #000; 
 }
 
-/* Überschrift */
-h1 {
-    text-align: center;
-    font-size: 1.6rem;
-    margin-bottom: 2px;
+h1 { 
+    font-size: 24px; 
+    margin-bottom: 15px; 
 }
 
-/* Untertitel */
-.subtitle {
-    text-align: center;
-    color: #94a3b8;
-    font-size: 0.9rem;
-    margin-bottom: 12px;
+label, select, button { 
+    display: block; 
+    margin: 5px 0; 
 }
 
-/* Steuerungselemente */
-.controls {
-    display: flex;
-    justify-content: center;
-    gap: 8px;
-    flex-wrap: wrap;
-    margin: 12px 0;
+select, button { 
+    padding: 5px; 
+    font-size: 14px; 
 }
 
-select, button {
-    background: #020617;
-    color: #e5e7eb;
-    border: 1px solid #22c55e;
-    padding: 8px 12px;
-    border-radius: 6px;
-    font-size: 0.85rem;
+#progressBar { 
+    width: 100%; 
+    height: 20px; 
+    margin-top: 10px; 
 }
 
-button:hover {
-    background: #22c55e;
-    color: #020617;
-    cursor: pointer;
+#progressText { 
+    margin: 5px 0; 
+    font-weight: bold; 
 }
 
-/* Aktueller Kurs */
-#currentPrice {
-    text-align: center;
-    font-weight: bold;
-    margin: 8px 0;
-    font-size: 1rem;
+#hiddenStatus { 
+    margin: 10px 0; 
+    font-weight: bold; 
+    color: green; 
 }
 
-/* Fortschrittsbalken */
-progress {
-    width: 80%;
-    height: 16px;
-    margin-top: 8px;
+table { 
+    border-collapse: collapse; 
+    width: 100%; 
+    margin-top: 10px; 
 }
 
-#progressText {
-    text-align: center;
-    margin-top: 4px;
-    font-size: 0.85rem;
+th, td { 
+    border: 1px solid #000; 
+    padding: 5px; 
+    text-align: center; 
 }
 
-/* Diagramm */
-canvas {
-    max-width: 100%;
-    margin: 18px auto;
-    display: block;
-    background: #020617;
-    border-radius: 10px;
-    height: 320px;
-}
-
-/* Tabelle */
-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 0.85rem;
-    margin-top: 12px;
-}
-
-th, td {
-    border: 1px solid #22c55e;
-    padding: 6px;
-    text-align: center;
-}
-
-/* Signalfarben */
-.buy { color: #22c55e; font-weight: bold; }
-.sell { color: #ef4444; font-weight: bold; }
-.hold { color: #facc15; font-weight: bold; }
-
-/* Konfidenz */
-.conf { color: #38bdf8; font-weight: bold; }
-
-/* Footer */
-.footer {
-    text-align: center;
-    margin-top: 14px;
-    font-size: 0.75rem;
-    color: #94a3b8;
-}
-
-/* Kauf-Links Buttons */
-.link-btn {
-    background: #020617;
-    color: #e5e7eb;
-    border: 1px solid #22c55e;
-    padding: 6px 12px;
-    border-radius: 6px;
-    margin: 2px;
-    cursor: pointer;
-}
-
-.link-btn:hover {
-    background: #22c55e;
-    color: #020617;
-}
-
-/* Markierung der besten KI */
-.bestKI {
-    background-color: #22c55e33;
+canvas { 
+    margin-top: 10px; 
 }
