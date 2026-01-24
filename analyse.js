@@ -295,3 +295,4 @@ document.addEventListener("DOMContentLoaded", async ()=>{
   assetSelect.value = randomAsset;
   await runAnalysis(randomAsset);
 });
+
