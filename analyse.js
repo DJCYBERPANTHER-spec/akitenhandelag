@@ -2,7 +2,7 @@
 // analyse.js – finale stabile Version 2026
 // ==============================
 
-const API_KEY = "HIER_DEIN_FINNHUB_KEY";
+const API_KEY = "d5qi0c9r01qhn30fr1r0d5qi0c9r01qhn30fr1rg";
 
 const ASSETS = [
   { symbol: "AAPL", name: "Apple Inc." },
@@ -272,3 +272,4 @@ document.addEventListener("DOMContentLoaded", async ()=>{
 function openYahoo(){ window.open(`https://finance.yahoo.com/quote/${assetSelect.value}`,"_blank"); }
 function openTradingView(){ window.open(`https://www.tradingview.com/symbols/${assetSelect.value}/`,"_blank"); }
 function openSwissquote(){ window.open(`https://www.swissquote.ch/sqw-en/private/trading/instruments/search?query=${assetSelect.value}`,"_blank"); }
+
