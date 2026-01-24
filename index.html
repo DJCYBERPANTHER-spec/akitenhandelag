@@ -3,363 +3,401 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Multi-KI Asset Analyse – Aktien Handel AG</title>
+<title>Aktien Handel AG – Multi-Asset Analyse</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0/dist/tf.min.js"></script>
 <style>
-body {
-    background:#0d0f17;
-    color:#e5e7eb;
-    font-family:'Segoe UI',Tahoma,Verdana,sans-serif;
-    margin:0; padding:0; overflow:hidden;
-}
-header {
-    position:fixed; top:0; left:0; right:0; height:120px;
-    background:#11151f; border-bottom:1px solid #22c55e; z-index:100;
-    display:flex; flex-direction:column; align-items:center; justify-content:center;
-}
-header h1 { margin:0; font-size:1.8rem; }
-header .subtitle { font-size:1rem; color:#94a3b8; }
-
-.container {
-    position:absolute; top:120px; bottom:50px; left:0; right:0;
-    overflow-y:auto; padding:20px;
-}
-
-.card {
-    background:#11151f;
-    border:1px solid #1f2937;
-    border-radius:12px;
-    padding:20px;
-    margin-bottom:20px;
-    box-shadow:0 4px 12px rgba(0,0,0,0.4);
-}
-
-.controls { display:flex; gap:10px; flex-wrap:wrap; justify-content:center; margin-bottom:12px; }
-select, button {
-    padding:10px; border-radius:8px; border:1px solid #22c55e;
-    background:#0e111b; color:#e5e7eb; font-size:0.9rem; cursor:pointer; transition:0.2s;
-}
-select:hover, button:hover { background:#161b2c; }
-
-.progress { height:12px; background:#1f2937; border-radius:6px; overflow:hidden; margin-top:8px; width:80%; margin-left:auto; margin-right:auto; }
-.progress div { height:100%; width:0%; background:#38bdf8; transition:width 0.3s; }
-
-.status { text-align:center; margin:10px 0; font-weight:bold; }
-.loader { text-align:center; font-size:0.9rem; color:#a8dadc; margin-bottom:10px; }
-
-canvas { background:#0e111b; border-radius:10px; display:block; margin:15px auto; max-width:100%; }
-
-table { width:100%; border-collapse:collapse; margin-top:15px; font-size:0.85rem; }
-th,td { border:1px solid #22c55e; padding:6px; text-align:center; }
-.buy { color:#22c55e; font-weight:bold; }
-.sell { color:#ef4444; font-weight:bold; }
-.hold { color:#facc15; font-weight:bold; }
-.conf { color:#38bdf8; font-weight:bold; }
-
-footer {
-    position:fixed; bottom:0; left:0; right:0; height:50px;
-    background:#11151f; border-top:1px solid #22c55e; display:flex;
-    align-items:center; justify-content:center; font-size:0.75rem; color:#94a3b8;
-}
-
-.scrollable-table {
-    max-height:300px; overflow-y:auto;
-}
+body {background:#0c0f1a;color:#e5e7eb;font-family:sans-serif;margin:0;padding:0;}
+header {position:fixed;top:0;left:0;right:0;height:100px;background:#11151f;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:100;}
+header h1{margin:0;font-size:1.8rem;}
+header .subtitle{font-size:1rem;color:#94a3b8;}
+.container{position:absolute;top:100px;bottom:50px;left:0;right:0;padding:15px;overflow-y:auto;}
+.card{background:#11151f;border:1px solid #1f2937;border-radius:12px;padding:15px;margin-bottom:15px;box-shadow:0 4px 12px rgba(0,0,0,0.4);}
+.controls{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-bottom:10px;}
+select,button{padding:8px 12px;border-radius:6px;border:1px solid #22c55e;background:#0e111b;color:#e5e7eb;cursor:pointer;}
+select:hover,button:hover{background:#161b2c;}
+canvas{background:#0e111b;border-radius:10px;display:block;margin:10px auto;}
+table{width:100%;border-collapse:collapse;font-size:0.85rem;}
+th,td{border:1px solid #22c55e;padding:6px;text-align:center;}
+.scrollable-table{max-height:250px;overflow-y:auto;}
+footer{position:fixed;bottom:0;left:0;right:0;height:50px;background:#11151f;color:#94a3b8;display:flex;align-items:center;justify-content:center;font-size:0.75rem;}
 </style>
 </head>
 <body>
 
 <header>
-    <h1>Multi-KI Asset Analyse</h1>
-    <div class="subtitle">Für Aktien Handel AG – Live & Professionell</div>
+<h1>🔹 Aktien Handel AG – Multi-Asset Analyse</h1>
+<div class="subtitle">Live Kurse + KI-Prognosen</div>
 </header>
+
 <div class="container">
-    <!-- ================== TEIL 2: ASSET SCANNER ================== -->
-    <div class="card">
-        <h2>📌 Asset Scanner</h2>
-        <div class="status" id="status">Status: Bereit</div>
-        <div class="loader" id="loader">–</div>
 
-        <div class="controls">
-            <select id="assetSelect"><option>Lade Assets…</option></select>
-            <select id="timeRange">
-                <option value="10">10 Tage</option>
-                <option value="30">30 Tage</option>
-                <option value="200">200 Tage</option>
-                <option value="365">365 Tage</option>
-            </select>
-            <button onclick="loadAsset()">📊 Analyse</button>
-            <button onclick="openYahoo()">Yahoo</button>
-            <button onclick="openTradingView()">TradingView</button>
-            <button onclick="openSwissquote()">Swissquote</button>
-        </div>
-
-        <div class="progress"><div id="progressBar"></div></div>
-        <div class="status" id="progressText">Warte auf Daten…</div>
-    </div>
-    <!-- ================== TEIL 3: CHART + TABELLE ================== -->
-    
-    <!-- SEPARATES CHART -->
-    <div class="card" style="height:300px;">
-        <h2>💹 Live-Kurs & Analyse</h2>
-        <div id="currentPrice">Aktueller Kurs: –</div>
-        <div id="period">Zeitraum: –</div>
-        <canvas id="chart" height="260" style="width:100%; height:260px;"></canvas>
-    </div>
-
-    <!-- TABELLE SEPARAT UND SCROLLBAR -->
-    <div class="card scrollable-table" style="max-height:300px;">
-        <h2>🧠 KI-Prognosen</h2>
-        <table>
-            <thead>
-                <tr>
-                    <th>KI-Modell</th>
-                    <th>Prognose</th>
-                    <th>Signal</th>
-                    <th>Δ</th>
-                    <th>Konfidenz</th>
-                    <th>Datum/Uhrzeit</th>
-                </tr>
-            </thead>
-            <tbody id="out"></tbody>
-        </table>
-    </div>
+<div class="card">
+<h2>📌 Multi-Asset Auswahl</h2>
+<div class="controls">
+<select id="multiSelect" multiple size="5">
+<option value="AAPL">Apple (AAPL)</option>
+<option value="MSFT">Microsoft (MSFT)</option>
+<option value="GOOGL">Alphabet (GOOGL)</option>
+<option value="BTCUSDT">Bitcoin (BTCUSDT)</option>
+<option value="ETHUSDT">Ethereum (ETHUSDT)</option>
+</select>
+<button onclick="loadMultiAssets()">Laden</button>
+</div>
+<div id="statusMulti">Status: Bereit</div>
 </div>
 
-<footer>@ Aktien Handel AG – Professionelle Analyse</footer>
+<div class="card" style="height:300px;">
+<h2>💹 Chart</h2>
+<canvas id="chart" height="260" style="width:100%; height:260px;"></canvas>
+</div>
+
+<div class="card scrollable-table">
+<h2>📊 Tabelle</h2>
+<table>
+<thead><tr><th>Asset</th><th>Kurs / Prognose</th></tr></thead>
+<tbody id="tableBody"></tbody>
+</table>
+</div>
+
+</div>
+
+<footer>© Aktien Handel AG</footer>
+
 <script>
-// ================== KONFIG ==================
-const FINNHUB_KEY="d5ohqjhr01qjast6qrjgd5ohqjhr01qjast6qrk0"; // API Key
-let chart=null;
+const FINNHUB_KEY="d5ohqjhr01qjast6qrjgd5ohqjhr01qjast6qrk0";
+let multiChart=null;
+let selectedAssets=[];
 let liveInterval=null;
-let validAssets=[];
-let checkedCount=0;
-let startTime=Date.now();
+let kiInterval=null;
 
-const MIN_DAYS=10;
-const TARGET_ASSETS=20;
-const DELAY=600; // ms zwischen Asset-Abfragen
-
-const STOCKS=["AAPL","MSFT","GOOGL","AMZN","TSLA","META","NVDA","JNJ","KO"];
-const CRYPTOS=["BTCUSDT","ETHUSDT","BNBUSDT","ADAUSDT","SOLUSDT"];
-const ALL_ASSETS=[...STOCKS.map(s=>({symbol:s,type:"stock"})),...CRYPTOS.map(c=>({symbol:c,type:"crypto"}))];
-
-const assetSelect=document.getElementById("assetSelect");
-
-// ================== HILFSFUNKTIONEN ==================
-function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
-function updateProgress(){
-    const progressBar=document.getElementById("progressBar");
-    const progressText=document.getElementById("progressText");
-    const percent=Math.min((validAssets.length/TARGET_ASSETS)*100,100);
-    progressBar.style.width=percent+"%";
-
-    const elapsed=(Date.now()-startTime)/1000;
-    const avg=checkedCount?elapsed/checkedCount:0;
-    const remaining=Math.max((TARGET_ASSETS-validAssets.length)*avg,0);
-    progressText.textContent=`Gefunden: ${validAssets.length}/${TARGET_ASSETS} | Prüft: ${checkedCount} | ETA: ${Math.ceil(remaining)}s`;
-}
-
-// ================== HISTORISCHE DATEN ==================
-async function fetchStockHistory(symbol,days=MIN_DAYS){
-    const to=Math.floor(Date.now()/1000);
-    const from=to-days*86400;
-    const url=`https://finnhub.io/api/v1/stock/candle?symbol=${symbol}&resolution=D&from=${from}&to=${to}&token=${FINNHUB_KEY}`;
-    const res=await fetch(url).then(r=>r.json());
-    if(res.s!=="ok" || !res.c || res.c.length<MIN_DAYS) throw "Keine Daten";
-    return {symbol,type:"stock",prices:res.c,dates:res.t.map(t=>new Date(t*1000))};
-}
-
-async function fetchCryptoHistory(symbol,days=MIN_DAYS){
-    const url=`https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=1d&limit=${days}`;
-    const res=await fetch(url).then(r=>r.json());
-    if(!Array.isArray(res) || res.length<MIN_DAYS) throw "Keine Daten";
-    return {symbol,type:"crypto",prices:res.map(x=>parseFloat(x[4])),dates:res.map(x=>new Date(x[0]))};
-}
-
-// ================== ASSET SUCHE ==================
-async function searchAssets(){
-    const periods=[365,200,MIN_DAYS];
-    for(const days of periods){
-        for(const a of ALL_ASSETS){
-            if(validAssets.length>=TARGET_ASSETS) break;
-            if(validAssets.find(v=>v.symbol===a.symbol)) continue;
-            checkedCount++;
-            try{
-                let data=a.type==="stock" ? await fetchStockHistory(a.symbol,days) : await fetchCryptoHistory(a.symbol,days);
-                validAssets.push(data);
-                addOption(data);
-            }catch(e){}
-            updateProgress();
-            await sleep(DELAY);
-        }
-        if(validAssets.length>=TARGET_ASSETS) break;
+// ================== Hilfsfunktionen ==================
+function generateDummyData(days=30){
+    const now=new Date();
+    let data=[], labels=[];
+    for(let i=days-1;i>=0;i--){
+        const d=new Date(now); d.setDate(now.getDate()-i);
+        labels.push(d.toISOString().slice(0,10));
+        data.push((Math.random()*20)+100);
     }
-    while(validAssets.length<TARGET_ASSETS){
-        for(const a of ALL_ASSETS){
-            if(validAssets.length>=TARGET_ASSETS) break;
-            if(validAssets.find(v=>v.symbol===a.symbol)) continue;
-            checkedCount++;
-            try{
-                let data=a.type==="stock" ? await fetchStockHistory(a.symbol,MIN_DAYS) : await fetchCryptoHistory(a.symbol,MIN_DAYS);
-                validAssets.push(data);
-                addOption(data);
-            }catch(e){}
-            updateProgress();
-            await sleep(DELAY);
-        }
-    }
-    document.getElementById("status").textContent="✅ Alle Assets gefunden";
+    return {labels,data};
 }
 
-// ================== DROPDOWN ==================
-function addOption(asset){
-    if(validAssets.length===1) assetSelect.innerHTML="";
-    const o=document.createElement("option");
-    o.value=validAssets.length-1;
-    o.textContent=`${asset.symbol} (${asset.type})`;
-    assetSelect.appendChild(o);
-}
-searchAssets();
-
-// ================== LIVE-KURSE ==================
-async function fetchUsdChf(){try{const r=await fetch("https://api.exchangerate.host/latest?base=USD&symbols=CHF");const j=await r.json();return Number(j?.rates?.CHF)||0.93;}catch{return 0.93;}}
-async function fetchQuote(sym){
+async function fetchData(symbol){
     try{
-        const url=sym.includes("USDT") ? `https://api.binance.com/api/v3/ticker/price?symbol=${sym}` : `https://finnhub.io/api/v1/quote?symbol=${sym}&token=${FINNHUB_KEY}`;
-        const r=await fetch(url); const j=await r.json();
-        if(sym.includes("USDT")) return parseFloat(j.price);
-        if(j.c!==undefined) return Number(j.c);
-        throw "Keine Kursdaten";
-    }catch(e){throw e;}
+        if(symbol.endsWith("USDT")){
+            const res=await fetch(`https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=1d&limit=30`);
+            const json=await res.json();
+            const data=json.map(x=>parseFloat(x[4]));
+            const labels=json.map(x=>new Date(x[0]).toISOString().slice(0,10));
+            return {labels,data};
+        } else {
+            const now=Math.floor(Date.now()/1000);
+            const from=now-30*86400;
+            const res=await fetch(`https://finnhub.io/api/v1/stock/candle?symbol=${symbol}&resolution=D&from=${from}&to=${now}&token=${FINNHUB_KEY}`);
+            const json=await res.json();
+            if(json.s!=="ok") throw "Keine Daten";
+            return {labels:json.t.map(t=>new Date(t*1000).toISOString().slice(0,10)), data:json.c};
+        }
+    } catch(e){
+        console.log("API Fehler",e);
+        return generateDummyData(30);
+    }
 }
 
-async function startLivePrice(idx){
-    const currentDiv=document.getElementById("currentPrice");
-    const asset=validAssets[idx];
-    async function updatePrice(){
-        try{
-            const usd=await fetchQuote(asset.symbol);
-            const fx=asset.type==="crypto"?1:await fetchUsdChf();
-            currentDiv.textContent=`Aktueller Kurs: ${(usd*fx).toFixed(2)} ${asset.type==="crypto"?"USDT":"CHF"}`;
-        }catch(err){currentDiv.textContent=`Fehler: ${err}`;}
+// ================== LSTM KI ==================
+async function predictLSTM(prices,lookback=10){
+    try{
+        const normMin=Math.min(...prices);
+        const normMax=Math.max(...prices);
+        const norm=prices.map(v=>(v-normMin)/(normMax-normMin||1));
+        let X=[],Y=[];
+        for(let i=0;i<norm.length-lookback;i++){
+            X.push(norm.slice(i,i+lookback).map(v=>[v]));
+            Y.push([norm[i+lookback]]);
+        }
+        if(X.length===0) return prices[prices.length-1];
+        const xs=tf.tensor3d(X);
+        const ys=tf.tensor2d(Y);
+        const model=tf.sequential();
+        model.add(tf.layers.lstm({units:12,inputShape:[lookback,1]}));
+        model.add(tf.layers.dense({units:1}));
+        model.compile({optimizer:"adam",loss:"meanSquaredError"});
+        await model.fit(xs,ys,{epochs:5,verbose:0});
+        const pred=model.predict(tf.tensor3d([X.at(-1)])).dataSync()[0];
+        return pred*(normMax-normMin)+normMin;
+    } catch(e){console.log("LSTM Fehler",e); return prices[prices.length-1];}
+}
+
+// ================== Multi-Asset Laden ==================
+async function loadMultiAssets(){
+    const sel=document.getElementById("multiSelect");
+    const options=[...sel.selectedOptions].map(o=>o.value);
+    if(options.length===0) return alert("Bitte Assets auswählen!");
+    document.getElementById("statusMulti").textContent="Lade Assets…";
+
+    selectedAssets.length=0;
+    for(const sym of options){
+        const res=await fetchData(sym);
+        const preds=[];
+        for(let i=0;i<4;i++) preds[i]=await predictLSTM(res.data,10+i*2);
+        selectedAssets.push({symbol:sym,labels:res.labels,prices:res.data,preds});
     }
-    await updatePrice();
+
+    drawMultiChart();
+    displayMultiTable();
+    document.getElementById("statusMulti").textContent="Fertig!";
+
+    // Live-Update alle 5s
     if(liveInterval) clearInterval(liveInterval);
-    liveInterval=setInterval(updatePrice,5000);
+    liveInterval=setInterval(updateLivePrices,5000);
+
+    // KI-Update alle 60s
+    if(kiInterval) clearInterval(kiInterval);
+    kiInterval=setInterval(updateKIPrognosen,60000);
 }
 
-// ================== KI-PROGNOSE ==================
-async function predictModelVaried(data, basePeriod, kiIndex){
-    const period=basePeriod + kiIndex*2;
-    const noisyData=data.prices.map(v=>v*(1+(Math.random()-0.5)/100));
-
-    const min=Math.min(...noisyData);
-    const max=Math.max(...noisyData);
-    const norm=noisyData.map(v=>(v-min)/(max-min||1));
-
-    let X=[],Y=[];
-    for(let i=0;i<norm.length-period;i++){
-        X.push(norm.slice(i,i+period).map(v=>[v]));
-        Y.push([norm[i+period]]);
+// ================== Chart ==================
+function drawMultiChart(){
+    const datasets=[];
+    selectedAssets.forEach((a,idx)=>{
+        datasets.push({label:a.symbol,data:a.prices,borderColor:getColor(idx),fill:false});
+        a.preds.forEach((p,i)=>{
+            datasets.push({label:`${a.symbol} KI${i+1}`,data:[...Array(a.prices.length-1).fill(null),p],borderColor:getColor(idx+i+1,true),borderDash:[5,5],fill:false});
+        });
+    });
+    const labels=selectedAssets[0]?.labels||[];
+    if(!multiChart){
+        multiChart=new Chart(document.getElementById("chart"),{
+            type:"line",
+            data:{labels,datasets},
+            options:{responsive:true,maintainAspectRatio:false,animation:false}
+        });
+    } else {
+        multiChart.data.labels=labels;
+        multiChart.data.datasets=datasets;
+        multiChart.update();
     }
-    if(X.length===0 || Y.length===0) return data.prices[data.prices.length-1];
-
-    const xs=tf.tensor3d(X);
-    const ys=tf.tensor2d(Y);
-
-    const units=12+kiIndex*2;
-    const model=tf.sequential();
-    model.add(tf.layers.lstm({units,inputShape:[period,1]}));
-    model.add(tf.layers.dense({units:1}));
-    model.compile({optimizer:"adam",loss:"meanSquaredError"});
-
-    await model.fit(xs,ys,{epochs:5,verbose:0});
-    const p=model.predict(tf.tensor3d([X.at(-1)])).dataSync()[0];
-    return p*(max-min)+min;
 }
 
-// ================== KONFIDENZ ==================
-function getConfidence(diff){ return Math.abs(diff)>0.1?"Hoch":Math.abs(diff)>0.05?"Mittel":"Niedrig"; }
+// ================== Tabelle ==================
+function displayMultiTable(){
+    const tbody=document.getElementById("tableBody");
+    tbody.innerHTML="";
+    selectedAssets.forEach(a=>{
+        const current=a.prices[a.prices.length-1];
+        const trCurr=document.createElement("tr");
+        trCurr.innerHTML=`<td>${a.symbol} Aktuell</td><td>${current.toFixed(2)}</td>`;
+        tbody.appendChild(trCurr);
+        a.preds.forEach((p,i)=>{
+            const diff=(p-current)/current;
+            const sig=diff>0.05?"KAUFEN":diff<-0.05?"VERKAUFEN":"HALTEN";
+            const tr=document.createElement("tr");
+            tr.innerHTML=`<td>${a.symbol} KI${i+1}</td><td>${p.toFixed(2)} (${sig})</td>`;
+            tbody.appendChild(tr);
+        });
+    });
+}
 
-// ================== CHART & TABELLE ==================
-function drawChart(hist,prognosen){
-    const labels=hist.dates.map(d=>d.toISOString().slice(0,10));
-    const avg=prognosen.reduce((a,b)=>a+b,0)/prognosen.length;
+// ================== Live Update ==================
+async function updateLivePrices(){
+    for(const a of selectedAssets){
+        const res=await fetchData(a.symbol);
+        a.prices=res.data;
+        a.labels=res.labels;
+    }
+    drawMultiChart();
+    displayMultiTable();
+}
 
+// ================== KI Update ==================
+async function updateKIPrognosen(){
+    for(const a of selectedAssets){
+        const preds=[];
+        for(let i=0;i<4;i++) preds[i]=await predictLSTM(a.prices,10+i*2);
+        a.preds=preds;
+    }
+    drawMultiChart();
+    displayMultiTable();
+}
+
+// ================== Farbpalette ==================
+function getColor(idx,light=false){
+    const colors=["#22c55e","#3b82f6","#f97316","#facc15","#ffffff","#8b5cf6","#ec4899","#f43f5e"];
+    let c=colors[idx % colors.length];
+    if(light) c+="88";
+    return c;
+}
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0/dist/tf.min.js"></script>
+
+<script>
+async function predictLSTM(prices,lookback=10){
+    try{
+        const normMin=Math.min(...prices);
+        const normMax=Math.max(...prices);
+        const norm=prices.map(v=>(v-normMin)/(normMax-normMin||1));
+
+        let X=[],Y=[];
+        for(let i=0;i<norm.length-lookback;i++){
+            X.push(norm.slice(i,i+lookback).map(v=>[v]));
+            Y.push([norm[i+lookback]]);
+        }
+        if(X.length===0) return prices[prices.length-1];
+
+        const xs=tf.tensor3d(X);
+        const ys=tf.tensor2d(Y);
+
+        const model=tf.sequential();
+        model.add(tf.layers.lstm({units:12,inputShape:[lookback,1]}));
+        model.add(tf.layers.dense({units:1}));
+        model.compile({optimizer:"adam",loss:"meanSquaredError"});
+
+        await model.fit(xs,ys,{epochs:5,verbose:0});
+
+        const pred=model.predict(tf.tensor3d([X.at(-1)])).dataSync()[0];
+        return pred*(normMax-normMin)+normMin;
+    } catch(e){
+        console.log("LSTM Fehler:",e);
+        return prices[prices.length-1];
+    }
+}
+
+// ================== NEUE LOAD-ASSET FUNKTION ==================
+async function loadAsset(){
+    const sel=document.getElementById("assetSelect").value;
+    document.getElementById("status").textContent="Lade Daten…";
+    const res=await fetchData(sel);
+    document.getElementById("status").textContent="Fertig";
+
+    // KI-Prognosen
+    const preds=[];
+    for(let i=0;i<4;i++){
+        preds[i]=await predictLSTM(res.data,10+i*2); // leicht unterschiedliche Lookback
+    }
+
+    // Chart
     if(!chart){
         chart=new Chart(document.getElementById("chart"),{
             type:"line",
             data:{
-                labels,
+                labels:res.labels,
                 datasets:[
-                    {label:"KI1",data:[...Array(hist.prices.length-1).fill(null),prognosen[0]],borderColor:"#22c55e",fill:false},
-                    {label:"KI2",data:[...Array(hist.prices.length-1).fill(null),prognosen[1]],borderColor:"#3b82f6",fill:false},
-                    {label:"KI3",data:[...Array(hist.prices.length-1).fill(null),prognosen[2]],borderColor:"#f97316",fill:false},
-                    {label:"KI4",data:[...Array(hist.prices.length-1).fill(null),prognosen[3]],borderColor:"#facc15",fill:false},
-                    {label:"Durchschnitt",data:[...Array(hist.prices.length-1).fill(null),avg],borderColor:"#ffffff",fill:false}
+                    {label:sel,data:res.data,borderColor:"#22c55e",fill:false},
+                    {label:"KI1",data:[...Array(res.data.length-1).fill(null),preds[0]],borderColor:"#3b82f6",fill:false},
+                    {label:"KI2",data:[...Array(res.data.length-1).fill(null),preds[1]],borderColor:"#f97316",fill:false},
+                    {label:"KI3",data:[...Array(res.data.length-1).fill(null),preds[2]],borderColor:"#facc15",fill:false},
+                    {label:"KI4",data:[...Array(res.data.length-1).fill(null),preds[3]],borderColor:"#ffffff",fill:false}
                 ]
             },
-            options:{ responsive:true, maintainAspectRatio:false, plugins:{tooltip:{enabled:true}} , animation:false}
+            options:{responsive:true,maintainAspectRatio:false,animation:false}
         });
-    }else{
-        chart.data.labels=labels;
-        chart.data.datasets[0].data=[...Array(hist.prices.length-1).fill(null),prognosen[0]];
-        chart.data.datasets[1].data=[...Array(hist.prices.length-1).fill(null),prognosen[1]];
-        chart.data.datasets[2].data=[...Array(hist.prices.length-1).fill(null),prognosen[2]];
-        chart.data.datasets[3].data=[...Array(hist.prices.length-1).fill(null),prognosen[3]];
-        chart.data.datasets[4].data=[...Array(hist.prices.length-1].fill(null),avg];
+    } else {
+        chart.data.labels=res.labels;
+        chart.data.datasets[0].data=res.data;
+        chart.data.datasets[0].label=sel;
+        for(let i=0;i<4;i++){
+            chart.data.datasets[i+1].data=[...Array(res.data.length-1).fill(null),preds[i]];
+        }
         chart.update();
     }
-}
 
-function displayTable(hist,prognosen){
-    const out=document.getElementById("out");
-    const current=hist.prices[hist.prices.length-1];
+    // Tabelle
+    const tbody=document.getElementById("tableBody");
+    tbody.innerHTML="";
     const now=new Date().toLocaleString();
-    let html="";
-    prognosen.forEach((p,i)=>{
-        const diff=(p-current)/current;
-        const sig=diff>0.05?"buy":diff<-0.05?"sell":"hold";
-        html+=`<tr><td>KI${i+1}</td><td>${p.toFixed(2)}</td><td class="${sig}">${sig.toUpperCase()}</td><td>${(diff*100).toFixed(1)}%</td><td class="conf">${getConfidence(diff)}</td><td>${now}</td></tr>`;
+    for(let i=0;i<res.data.length;i++){
+        const tr=document.createElement("tr");
+        tr.innerHTML=`<td>${res.labels[i]}</td><td>${res.data[i].toFixed(2)}</td>`;
+        tbody.appendChild(tr);
+    }
+    // KI-Prognosen Zeile hinzufügen
+    preds.forEach((p,i)=>{
+        const tr=document.createElement("tr");
+        const diff=(p-res.data[res.data.length-1])/res.data[res.data.length-1];
+        const sig=diff>0.05?"KAUFEN":diff<-0.05?"VERKAUFEN":"HALTEN";
+        tr.innerHTML=`<td>KI${i+1} Prognose</td><td>${p.toFixed(2)} (${sig})</td>`;
+        tbody.appendChild(tr);
     });
-    const avg=prognosen.reduce((a,b)=>a+b,0)/prognosen.length;
-    const diff=(avg-current)/current;
-    const sig=diff>0.05?"buy":diff<-0.05?"sell":"hold";
-    html+=`<tr><td>Durchschnitt</td><td>${avg.toFixed(2)}</td><td class="${sig}">${sig.toUpperCase()}</td><td>${(diff*100).toFixed(1)}%</td><td class="conf">${getConfidence(diff)}</td><td>${now}</td></tr>`;
-    out.innerHTML=html;
+
+    document.getElementById("currentPrice").textContent=`Aktueller Kurs: ${res.data[res.data.length-1].toFixed(2)}`;
 }
+</script>
+<script>
+let multiChart=null;
+const selectedAssets=[]; // Speichert die geladenen Assets
 
-// ================== ASSET LADEN ==================
-async function loadAsset(){
-    const idx=assetSelect.value;
-    if(idx===null) return;
-    const asset=validAssets[idx];
-    const basePeriod=parseInt(document.getElementById("timeRange").value);
-    document.getElementById("period").textContent=`Zeitraum: ${basePeriod} Tage`;
+async function loadMultiAssets(){
+    const sel=document.getElementById("multiSelect");
+    const options=[...sel.selectedOptions].map(o=>o.value);
+    if(options.length===0) return alert("Bitte Assets auswählen!");
+    document.getElementById("statusMulti").textContent="Lade Assets…";
 
-    await startLivePrice(idx);
-
-    const hist=asset;
-    const prognosen=[];
-    for(let i=0;i<4;i++){
-        try{ prognosen[i]=await predictModelVaried(hist, basePeriod, i); }
-        catch(e){ prognosen[i]=hist.prices[hist.prices.length-1]; }
+    selectedAssets.length=0; // reset
+    for(const sym of options){
+        const res=await fetchData(sym); // gleiche fetchData Funktion wie vorher
+        const preds=[];
+        for(let i=0;i<4;i++){
+            preds[i]=await predictLSTM(res.data,10+i*2);
+        }
+        selectedAssets.push({symbol:sym,labels:res.labels,prices:res.data,preds});
     }
 
-    drawChart(hist,prognosen);
-    displayTable(hist,prognosen);
+    drawMultiChart();
+    displayMultiTable();
+    document.getElementById("statusMulti").textContent="Fertig!";
 }
 
-// ================== KAUF-/INFO-LINKS ==================
-function openYahoo(){const idx=assetSelect.value;if(idx===null)return;const sym=validAssets[idx].symbol;window.open(`https://finance.yahoo.com/quote/${sym}`,"_blank");}
-function openTradingView(){const idx=assetSelect.value;if(idx===null)return;const a=validAssets[idx];const sym=a.type==="crypto"?`BINANCE:${a.symbol}`:a.symbol;window.open(`https://www.tradingview.com/chart/?symbol=${sym}`,"_blank");}
-function openSwissquote(){const idx=assetSelect.value;if(idx===null)return;const sym=validAssets[idx].symbol;window.open(`https://www.swissquote.ch/sqw-en/private/trading/instruments/search?query=${sym}`,"_blank");}
+// ================= CHART =================
+function drawMultiChart(){
+    const datasets=[];
+    selectedAssets.forEach((a,idx)=>{
+        datasets.push({label:a.symbol,data:a.prices,borderColor:getColor(idx),fill:false});
+        a.preds.forEach((p,i)=>{
+            datasets.push({label:`${a.symbol} KI${i+1}`,data:[...Array(a.prices.length-1).fill(null),p],borderColor:getColor(idx+i+1,true),borderDash:[5,5],fill:false});
+        });
+    });
+    const labels=selectedAssets[0]?.labels||[];
+    if(!multiChart){
+        multiChart=new Chart(document.getElementById("chart"),{
+            type:"line",
+            data:{labels,datasets},
+            options:{responsive:true,maintainAspectRatio:false,animation:false}
+        });
+    } else {
+        multiChart.data.labels=labels;
+        multiChart.data.datasets=datasets;
+        multiChart.update();
+    }
+}
 
-// ================== EVENT ==================
-assetSelect.addEventListener("change",()=>{loadAsset();});
+// ================= TABELLE =================
+function displayMultiTable(){
+    const tbody=document.getElementById("tableBody");
+    tbody.innerHTML="";
+    selectedAssets.forEach(a=>{
+        const current=a.prices[a.prices.length-1];
+        const now=new Date().toLocaleString();
+        const trCurr=document.createElement("tr");
+        trCurr.innerHTML=`<td>${a.symbol} Aktuell</td><td>${current.toFixed(2)}</td>`;
+        tbody.appendChild(trCurr);
+
+        a.preds.forEach((p,i)=>{
+            const diff=(p-current)/current;
+            const sig=diff>0.05?"KAUFEN":diff<-0.05?"VERKAUFEN":"HALTEN";
+            const tr=document.createElement("tr");
+            tr.innerHTML=`<td>${a.symbol} KI${i+1}</td><td>${p.toFixed(2)} (${sig})</td>`;
+            tbody.appendChild(tr);
+        });
+    });
+}
+
+// ================= Farbpalette =================
+function getColor(idx,light=false){
+    const colors=["#22c55e","#3b82f6","#f97316","#facc15","#ffffff","#8b5cf6","#ec4899","#f43f5e"];
+    let c=colors[idx % colors.length];
+    if(light) c+= "88"; // transparent für Prognose
+    return c;
+}
 </script>
-</body>
-</html>
-
