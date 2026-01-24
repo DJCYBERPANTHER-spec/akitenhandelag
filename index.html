@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Multi-KI Dashboard – CHF</title>
+<title>Multi-KI Dashboard – Aktien & Krypto in CHF</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0/dist/tf.min.js"></script>
 <style>
@@ -21,14 +21,17 @@ th,td{border:1px solid #22c55e;padding:6px;text-align:center}
 .sell{color:#ef4444;font-weight:bold}
 .hold{color:#facc15;font-weight:bold}
 .conf{color:#38bdf8;font-weight:bold}
+.warning{color:#f87171;font-weight:bold}
 .progress-container{width:80%;margin:0 auto;text-align:center}
 #currentPrice{margin:8px 0;font-weight:bold;text-align:center;font-size:1rem}
+.bestKI{background-color:#22c55e33;}
 </style>
 </head>
 <body>
 
 <h1>Multi-KI Aktien & Krypto Dashboard</h1>
-<div class="subtitle">Live-Daten, KI-Prognosen & Historie (CHF)</div>
+<div class="subtitle">Live-Kurse, Historie & KI-Prognosen (CHF)</div>
+
 <div id="currentPrice">Aktueller Kurs: –</div>
 
 <div class="controls">
@@ -39,6 +42,7 @@ th,td{border:1px solid #22c55e;padding:6px;text-align:center}
     <option value="120">6 Monate</option>
     <option value="240">1 Jahr</option>
   </select>
+  <button onclick="run()">Analyse starten</button>
 </div>
 
 <div class="status" id="status">Bereit</div>
@@ -52,7 +56,7 @@ th,td{border:1px solid #22c55e;padding:6px;text-align:center}
 <table>
 <thead>
 <tr>
-<th>KI</th><th>Prognose (CHF)</th><th>Signal</th><th>Δ %</th><th>Konfidenz</th>
+<th>KI</th><th>Prognose (CHF)</th><th>Signal</th><th>Δ %</th><th>Konfidenz</th><th>Warnung</th><th>Backtest</th><th>Aktion</th><th>Stop / Ziel</th>
 </tr>
 </thead>
 <tbody id="out"></tbody>
@@ -66,6 +70,7 @@ const progressText=document.getElementById("progressText");
 const currentPriceDiv=document.getElementById("currentPrice");
 let chart=null, liveInterval=null, fxRate=0;
 
+// --- Aktien + Kryptos ---
 const ASSETS=[
   {symbol:"AAPL",name:"Apple"},{symbol:"MSFT",name:"Microsoft"},{symbol:"NVDA",name:"NVIDIA"},
   {symbol:"AMZN",name:"Amazon"},{symbol:"GOOGL",name:"Alphabet"},{symbol:"TSLA",name:"Tesla"},
@@ -78,7 +83,7 @@ const ASSETS=[
 // --- USD → CHF ---
 async function fetchUsdChf(){ try{ const r=await fetch("https://api.exchangerate.host/latest?base=USD&symbols=CHF"); const j=await r.json(); return Number(j?.rates?.CHF)||0.93;}catch{return 0.93;}}
 
-// --- Asset prüfen und Dropdown füllen ---
+// --- Assets prüfen & Dropdown füllen ---
 async function initAssets(){
   selectStock.innerHTML="";
   progressText.textContent="Prüfe Assets...";
@@ -105,13 +110,12 @@ async function initAssets(){
     }
   }
   progressText.textContent="Fertig! Wähle ein Asset.";
-  if(selectStock.options.length>0){
-    selectStock.selectedIndex=0;
-    run(); // Direkt starten
-  }
+  fxRate=await fetchUsdChf();
 }
-
-// --- Aktueller Kurs ---
+window.addEventListener("load",()=>initAssets());
+</script>
+<script>
+// ================= Live-Kurs =================
 async function fetchQuote(sym){
   try{
     if(sym.includes("USD")){
@@ -129,14 +133,16 @@ async function fetchQuote(sym){
 }
 
 async function startLivePrice(sym){
-  fxRate=await fetchUsdChf();
-  async function update(){ const price=await fetchQuote(sym); if(price!==null) currentPriceDiv.textContent=`Aktueller Kurs: ${(price*fxRate).toFixed(2)} CHF`; }
+  async function update(){ 
+    const price=await fetchQuote(sym); 
+    if(price!==null) currentPriceDiv.textContent=`Aktueller Kurs: ${(price*fxRate).toFixed(2)} CHF`; 
+  }
   await update();
   if(liveInterval) clearInterval(liveInterval);
   liveInterval=setInterval(update,5000);
 }
 
-// --- Historische Daten ---
+// ================= Historische Daten =================
 async function fetchHistoricalData(sym,days){
   const now=Math.floor(Date.now()/1000);
   const start=now-days*24*60*60;
@@ -151,9 +157,9 @@ async function fetchHistoricalData(sym,days){
   return Array(days).fill(100);
 }
 
-// --- KI-Prognose ---
+// ================= KI-Prognose =================
 async function predictLSTM(data,period){
-  const noisy=data.map(v=>v*(1+(Math.random()-0.5)/100));
+  const noisy=data.map(v=>v*(1+(Math.random()-0.5)/100)); // leichtes Rauschen
   const min=Math.min(...noisy), max=Math.max(...noisy);
   const norm=noisy.map(v=>(v-min)/(max-min||1));
   let X=[], Y=[];
@@ -168,8 +174,29 @@ async function predictLSTM(data,period){
   return model.predict(tf.tensor3d([X.at(-1)])).dataSync()[0]*(max-min)+min;
 }
 
-// --- Signal & Konfidenz ---
+// ================= Warnungen & Signal =================
 function getConfidence(diff){ return Math.abs(diff)>0.1?"Hoch":Math.abs(diff)>0.05?"Mittel":"Niedrig"; }
+function calcWarning(hist){
+  const last=hist[hist.length-1], prev=hist[hist.length-2]||last;
+  const delta=(last-prev)/prev;
+  if(delta<-0.05) return "⚠️ Starker Kursabfall";
+  if(delta>0.05) return "⚠️ Starker Anstieg";
+  return "";
+}
+function decision(curr,fut,hist){
+  const delta=(fut-curr)/curr;
+  if(delta>0.05) return ["🟢 KAUFEN","Aufwärtstrend"];
+  if(delta<-0.05) return ["🔴 VERKAUFEN","Abwärtstrend"];
+  return ["⚪ HALTEN","Keine klare Richtung"];
+}
+function backtest(hist){
+  let e=0; const n=Math.min(60,hist.length-1);
+  for(let i=hist.length-n;i<hist.length-1;i++){ const p=hist[i]; e+=Math.min(Math.abs((p-hist[i+1])/hist[i+1]),1); }
+  return Math.max(0,((1-e/Math.min(60,hist.length-1))*100)).toFixed(1)+"%";
+}
+function risk(curr,hist){ const v=Math.sqrt(hist.reduce((a,b)=>a+Math.pow(b-curr,2),0)/hist.length); return {sl:(curr-2*v).toFixed(2),tp:(curr+3*v).toFixed(2)}; }
+
+// ================= Chart =================
 function drawChart(hist,preds){
   if(chart) chart.destroy();
   const avg=preds.reduce((a,b)=>a+b,0)/preds.length;
@@ -178,6 +205,7 @@ function drawChart(hist,preds){
     data:{
       labels:hist.map((_,i)=>`T${i+1}`),
       datasets:[
+        {label:"Historie",data:hist.map(v=>v*fxRate), borderColor:"#3b82f6",fill:false},
         {label:"KI1",data:[...Array(hist.length-1).fill(null), preds[0]*fxRate], borderColor:"#22c55e",fill:false},
         {label:"KI2",data:[...Array(hist.length-1).fill(null), preds[1]*fxRate], borderColor:"#3b82f6",fill:false},
         {label:"KI3",data:[...Array(hist.length-1).fill(null), preds[2]*fxRate], borderColor:"#f97316",fill:false},
@@ -187,6 +215,8 @@ function drawChart(hist,preds){
     }
   });
 }
+
+// ================= Tabelle =================
 function displayTable(hist,preds){
   const out=document.getElementById("out");
   let html="";
@@ -194,26 +224,56 @@ function displayTable(hist,preds){
   preds.forEach((p,i)=>{
     const diff=(p-lastPrice)/lastPrice;
     const sig=diff>0.05?"KAUFEN":diff<-0.05?"VERKAUFEN":"HALTEN";
-    html+=`<tr><td>KI${i+1}</td><td>${(p*fxRate).toFixed(2)}</td><td class="${sig.toLowerCase()}">${sig}</td><td>${(diff*100).toFixed(1)}%</td><td class="conf">${getConfidence(diff)}</td></tr>`;
+    const warn=calcWarning(hist);
+    const dec=decision(lastPrice,p,hist);
+    const r=risk(lastPrice,hist);
+    html+=`<tr>
+      <td>KI${i+1}</td>
+      <td>${(p*fxRate).toFixed(2)}</td>
+      <td class="${sig.toLowerCase()}">${sig}</td>
+      <td>${(diff*100).toFixed(1)}%</td>
+      <td class="conf">${getConfidence(diff)}</td>
+      <td class="warning">${warn}</td>
+      <td>${backtest(hist)}</td>
+      <td><b>${dec[0]}</b><br>${dec[1]}</td>
+      <td>🛑 ${r.sl}<br>🎯 ${r.tp}</td>
+    </tr>`;
   });
   out.innerHTML=html;
+  // Beste KI markieren
+  let bestValue=-Infinity, bestRow=null;
+  document.querySelectorAll("#out tr").forEach(row=>{const val=parseFloat(row.cells[1].textContent); if(val>bestValue){bestValue=val; bestRow=row;} row.classList.remove("bestKI");});
+  if(bestRow) bestRow.classList.add("bestKI");
 }
 
-// --- Analyse starten ---
+// ================= Analyse starten =================
 async function run(){
-  const sym=selectStock.value;
-  const period=parseInt(document.getElementById("timeRange").value);
-  progressBar.value=0; progressText.textContent="Analyse läuft…"; 
-  const hist=await fetchHistoricalData(sym,period*2); progressBar.value=30;
-  const preds=[];
-  for(let i=0;i<4;i++){ preds[i]=await predictLSTM(hist,period+i*2); progressBar.value=30+15*i; }
-  drawChart(hist,preds); displayTable(hist,preds); progressBar.value=100; progressText.textContent="Fertig ✔";
-  startLivePrice(sym);
+  try{
+    const sym=selectStock.value;
+    const period=parseInt(document.getElementById("timeRange").value);
+    progressBar.value=0; progressText.textContent="Analyse läuft…";
+
+    const hist=await fetchHistoricalData(sym,period*2);
+    progressBar.value=30; progressText.textContent="Historie geladen…";
+
+    const preds=[];
+    for(let i=0;i<4;i++){
+      preds[i]=await predictLSTM(hist,period+i*2);
+      progressBar.value=30+15*i;
+      progressText.textContent=`KI ${i+1} berechnet…`;
+    }
+
+    drawChart(hist,preds);
+    displayTable(hist,preds);
+    progressBar.value=100; progressText.textContent="Fertig ✔";
+
+    startLivePrice(sym);
+
+  }catch(err){
+    console.error(err);
+    progressText.textContent="Fehler: "+err;
+  }
 }
-
-// --- Direkt beim Laden starten ---
-window.addEventListener("load",()=>initAssets());
 </script>
-
 </body>
 </html>
