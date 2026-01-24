@@ -2,7 +2,7 @@
 // analyse.js – Teil 1/3 – Assets & Daten
 // ==============================
 
-const API_KEY = "DEIN_FINNHUB_KEY"; // Finnhub Key hier einsetzen
+const API_KEY = "d5qi0c9r01qhn30fr1r0d5qi0c9r01qhn30fr1rg"; // Finnhub Key hier einsetzen
 
 // -----------------
 // Assets
@@ -382,3 +382,4 @@ document.addEventListener("DOMContentLoaded", async ()=>{
   const randomAsset = getRandomAsset();
   await runFullAnalysis(randomAsset.symbol);
 });
+
