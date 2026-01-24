@@ -2,7 +2,7 @@
 // analyse.js – finale Version Teil 1 – Assets, KI-Modelle & Helper
 // ==============================
 
-const API_KEY = "HIER_DEIN_FINNHUB_KEY"; // Finnhub API Key einsetzen
+const API_KEY = "d5ohqjhr01qjast6qrjgd5ohqjhr01qjast6qrk0"; // Finnhub API Key einsetzen
 
 // -----------------
 // Assets
@@ -355,3 +355,4 @@ document.addEventListener("DOMContentLoaded", async ()=>{
   const asset = getRandomAsset();
   await runFullAnalysis(asset.symbol);
 });
+
