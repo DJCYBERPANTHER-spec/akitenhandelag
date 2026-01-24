@@ -1,5 +1,5 @@
 // ==============================
-// analyse.js – Optimierte KI
+// analyse.js – Komplette Version
 // ==============================
 
 const API_KEY = "d5qi0c9r01qhn30fr1r0d5qi0c9r01qhn30fr1rg";
@@ -23,6 +23,7 @@ const ASSETS = [
   { symbol: "LTC-USD", name: "Litecoin" }
 ];
 
+// DOM Elemente
 let assetSelect, analyseBtn, currentPriceDiv, warningDiv, progressBar, progressText, statusDiv, outTable, chartCanvas;
 let chart = null;
 let lstmModel = null;
@@ -34,7 +35,7 @@ let analysisRunning = false;
 function isCrypto(sym){ return sym.includes("USD"); }
 function getRandomAsset(){ return ASSETS[Math.floor(Math.random()*ASSETS.length)]; }
 
-// Fetch USD->CHF
+// USD -> CHF Umrechnung
 async function fetchUsdChf(){
   try{
     const r = await fetch("https://api.exchangerate.host/latest?base=USD&symbols=CHF");
@@ -68,39 +69,48 @@ async function fetchCurrentPrice(sym){
 }
 
 // ---------------------
-// Historische Daten max 365 Tage
+// Historische Daten
 // ---------------------
-async function fetchHistoricalData(sym, days=365){
+async function fetchHistoricalData(sym, days=365) {
   const fx = await fetchUsdChf();
   let hist = [];
-  if(isCrypto(sym)){
-    const map = { "BTC-USD":"bitcoin","ETH-USD":"ethereum","BNB-USD":"binancecoin","SOL-USD":"solana","ADA-USD":"cardano","DOGE-USD":"dogecoin","XRP-USD":"ripple","LTC-USD":"litecoin" };
-    try{
+
+  if (isCrypto(sym)) {
+    const map = { "BTC-USD": "bitcoin", "ETH-USD": "ethereum", "BNB-USD": "binancecoin", "SOL-USD": "solana", "ADA-USD": "cardano", "DOGE-USD": "dogecoin", "XRP-USD": "ripple", "LTC-USD": "litecoin" };
+    try {
       const r = await fetch(`https://api.coingecko.com/api/v3/coins/${map[sym]}/market_chart?vs_currency=usd&days=${days}`);
       const j = await r.json();
-      hist = j.prices.map(p=>p[1]);
-    }catch{ hist = [];}
+      if(j.prices && j.prices.length>0){
+        hist = j.prices.map(p=>p[1]*fx);
+      } else {
+        console.error(`Keine historischen Daten für ${sym} verfügbar.`);
+      }
+    } catch (err) { console.error(err); hist=[]; }
   } else {
-    try{
+    try {
       const now = Math.floor(Date.now()/1000);
       const from = now - days*86400;
       const r = await fetch(`https://finnhub.io/api/v1/stock/candle?symbol=${sym}&resolution=D&from=${from}&to=${now}&token=${API_KEY}`);
       const j = await r.json();
-      hist = j.c || [];
-    }catch{ hist = [];}
+      if(j.c && j.c.length>0){
+        hist = j.c.map(v=>v*fx);
+      } else {
+        console.error(`Keine historischen Daten für ${sym} verfügbar.`);
+      }
+    } catch(err){ console.error(err); hist=[]; }
   }
-  return hist.map(v=>v*fx);
+  return hist;
 }
 
 // ---------------------
-// Klassische KIs (Trend, Momentum, Volatilität)
+// Klassische KIs
 // ---------------------
 function trendModel(hist){ return hist.at(-1) + (hist.at(-1)-hist[0])/hist.length*7; }
 function momentumModel(hist){ return hist.at(-1) + (hist.at(-1)-hist.at(Math.max(0,hist.length-5)))*1.5; }
 function volatilityModel(hist){ const avg = hist.reduce((a,b)=>a+b,0)/hist.length; return avg + (hist.at(-1)-avg)*0.5; }
 
 // ---------------------
-// LSTM KI – asynchron
+// LSTM KI
 // ---------------------
 async function trainLSTM(hist, period=7){
   if(hist.length<period) return hist.at(-1);
@@ -123,13 +133,13 @@ async function trainLSTM(hist, period=7){
 }
 
 // ---------------------
-// Ensemble KI – alle Modelle zusammen
+// Ensemble KI
 // ---------------------
 async function ensemble(hist){
   const kiTrend = trendModel(hist);
   const kiMomentum = momentumModel(hist);
   const kiVol = volatilityModel(hist);
-  const kiLSTM = await trainLSTM(hist,7); // async
+  const kiLSTM = await trainLSTM(hist,7);
   const bestPrediction = (kiTrend + kiMomentum + kiVol + kiLSTM)/4;
   return { kiTrend, kiMomentum, kiVol, kiLSTM, bestPrediction };
 }
@@ -264,4 +274,3 @@ document.addEventListener("DOMContentLoaded", async ()=>{
   assetSelect.value = randomAsset;
   await runAnalysis(randomAsset);
 });
-
