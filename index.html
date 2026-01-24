@@ -3,18 +3,28 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Multi-KI Asset Analyse – Zukunft</title>
+<title>Multi-KI Asset Analyse – Aktien Handel AG</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0/dist/tf.min.js"></script>
 <style>
 body {
-    background: #0d0f17;
-    color: #e5e7eb;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    margin:0; padding:20px;
+    background:#0d0f17;
+    color:#e5e7eb;
+    font-family:'Segoe UI',Tahoma,Verdana,sans-serif;
+    margin:0; padding:0; overflow:hidden;
 }
-h1 { text-align:center; font-size:1.8rem; margin-bottom:4px; }
-.subtitle { text-align:center; color:#94a3b8; font-size:1rem; margin-bottom:10px; }
+header {
+    position:fixed; top:0; left:0; right:0; height:120px;
+    background:#11151f; border-bottom:1px solid #22c55e; z-index:100;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+}
+header h1 { margin:0; font-size:1.8rem; }
+header .subtitle { font-size:1rem; color:#94a3b8; }
+
+.container {
+    position:absolute; top:120px; bottom:50px; left:0; right:0;
+    overflow-y:auto; padding:20px;
+}
 
 .card {
     background:#11151f;
@@ -26,7 +36,10 @@ h1 { text-align:center; font-size:1.8rem; margin-bottom:4px; }
 }
 
 .controls { display:flex; gap:10px; flex-wrap:wrap; justify-content:center; margin-bottom:12px; }
-select, button { padding:10px; border-radius:8px; border:1px solid #22c55e; background:#0e111b; color:#e5e7eb; font-size:0.9rem; cursor:pointer; transition:0.2s; }
+select, button {
+    padding:10px; border-radius:8px; border:1px solid #22c55e;
+    background:#0e111b; color:#e5e7eb; font-size:0.9rem; cursor:pointer; transition:0.2s;
+}
 select:hover, button:hover { background:#161b2c; }
 
 .progress { height:12px; background:#1f2937; border-radius:6px; overflow:hidden; margin-top:8px; width:80%; margin-left:auto; margin-right:auto; }
@@ -43,81 +56,87 @@ th,td { border:1px solid #22c55e; padding:6px; text-align:center; }
 .sell { color:#ef4444; font-weight:bold; }
 .hold { color:#facc15; font-weight:bold; }
 .conf { color:#38bdf8; font-weight:bold; }
-.footer { text-align:center; margin-top:14px; font-size:0.75rem; color:#94a3b8; }
 
+footer {
+    position:fixed; bottom:0; left:0; right:0; height:50px;
+    background:#11151f; border-top:1px solid #22c55e; display:flex;
+    align-items:center; justify-content:center; font-size:0.75rem; color:#94a3b8;
+}
+
+.scrollable-table {
+    max-height:300px; overflow-y:auto;
+}
 </style>
 </head>
 <body>
 
-<h1>🔮 Multi-KI Asset Analyse</h1>
-<div class="subtitle">Aktien & Kryptowährungen – Live & Präzise</div>
+<header>
+    <h1>🔮 Multi-KI Asset Analyse</h1>
+    <div class="subtitle">Für Aktien Handel AG – Live & Professionell</div>
+</header>
 
-<div class="card">
-    <h2>📌 Asset Scanner</h2>
-    <div class="status" id="status">Status: Bereit</div>
-    <div class="loader" id="loader">–</div>
+<div class="container">
+    <div class="card">
+        <h2>📌 Asset Scanner</h2>
+        <div class="status" id="status">Status: Bereit</div>
+        <div class="loader" id="loader">–</div>
 
-    <div class="controls">
-        <select id="assetSelect"><option>Lade Assets…</option></select>
-        <select id="timeRange">
-            <option value="10">10 Tage</option>
-            <option value="30">30 Tage</option>
-            <option value="200">200 Tage</option>
-            <option value="365">365 Tage</option>
-        </select>
-        <button onclick="loadAsset()">📊 Analyse</button>
+        <div class="controls">
+            <select id="assetSelect"><option>Lade Assets…</option></select>
+            <select id="timeRange">
+                <option value="10">10 Tage</option>
+                <option value="30">30 Tage</option>
+                <option value="200">200 Tage</option>
+                <option value="365">365 Tage</option>
+            </select>
+            <button onclick="loadAsset()">📊 Analyse</button>
+        </div>
+
+        <div class="progress"><div id="progressBar"></div></div>
+        <div class="status" id="progressText">Warte auf Daten…</div>
     </div>
 
-    <div class="progress"><div id="progressBar"></div></div>
-    <div class="status" id="progressText">Warte auf Daten…</div>
+    <div class="card">
+        <h2>💹 Live-Kurs & Analyse</h2>
+        <div id="currentPrice">Aktueller Kurs: –</div>
+        <div id="period">Zeitraum: –</div>
+        <canvas id="chart" height="220"></canvas>
+    </div>
+
+    <div class="card scrollable-table">
+        <h2>🧠 KI-Prognosen</h2>
+        <table>
+            <thead>
+                <tr><th>KI-Modell</th><th>Prognose</th><th>Signal</th><th>Δ</th><th>Konfidenz</th><th>Datum/Uhrzeit</th></tr>
+            </thead>
+            <tbody id="out"></tbody>
+        </table>
+    </div>
 </div>
 
-<div class="card">
-    <h2>💹 Live-Kurs & Analyse</h2>
-    <div id="currentPrice">Aktueller Kurs: –</div>
-    <div id="period">Zeitraum: –</div>
-    <canvas id="chart" height="220"></canvas>
-</div>
-
-<div class="card">
-    <h2>🧠 KI-Prognosen</h2>
-    <table>
-        <thead>
-            <tr><th>KI-Modell</th><th>Prognose</th><th>Signal</th><th>Δ</th><th>Konfidenz</th><th>Datum/Uhrzeit</th></tr>
-        </thead>
-        <tbody id="out"></tbody>
-    </table>
-</div>
-
-<div class="footer">@ Analyse Tool – keine Anlageberatung</div>
-
+<footer>@ Aktien Handel AG – Professionelle Analyse</footer>
 <script>
-// ================== GRUNDKONFIG ==================
-const FINNHUB_KEY="DEIN_API_KEY_HIER"; // API Key
+// ================== KONFIG ==================
+const FINNHUB_KEY="DEIN_API_KEY_HIER"; // Finnhub API
 let chart=null;
 let liveInterval=null;
 let validAssets=[];
 let checkedCount=0;
 let startTime=Date.now();
 
-const STOCKS=["AAPL","MSFT","GOOGL","AMZN","TSLA","META","NVDA","JNJ","KO"];
-const CRYPTOS=["BTCUSDT","ETHUSDT","BNBUSDT","ADAUSDT","SOLUSDT"];
-
-const ALL_ASSETS=[
-    ...STOCKS.map(s=>({symbol:s,type:"stock"})),
-    ...CRYPTOS.map(c=>({symbol:c,type:"crypto"}))
-];
-
-const assetSelect=document.getElementById("assetSelect");
-</script>
-<script>
-// ================== KONFIG ==================
 const MIN_DAYS=10;
-const TARGET_ASSETS=20;  // Anzahl Assets, die mindestens gefunden werden sollen
+const TARGET_ASSETS=20;
 const DELAY=600; // ms zwischen Abfragen
 
+// Aktien & Kryptos (Beispiel)
+const STOCKS=["AAPL","MSFT","GOOGL","AMZN","TSLA","META","NVDA","JNJ","KO"];
+const CRYPTOS=["BTCUSDT","ETHUSDT","BNBUSDT","ADAUSDT","SOLUSDT"];
+const ALL_ASSETS=[...STOCKS.map(s=>({symbol:s,type:"stock"})),...CRYPTOS.map(c=>({symbol:c,type:"crypto"}))];
+
+const assetSelect=document.getElementById("assetSelect");
+
 // ================== HILFSFUNKTIONEN ==================
-function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
+function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
 function updateProgress(){
     const progressBar=document.getElementById("progressBar");
     const progressText=document.getElementById("progressText");
@@ -130,7 +149,7 @@ function updateProgress(){
     progressText.textContent=`Gefunden: ${validAssets.length}/${TARGET_ASSETS} | Prüft: ${checkedCount} | ETA: ${Math.ceil(remaining)}s`;
 }
 
-// ================== HISTORIE ABRUF ==================
+// ================== HISTORISCHE DATEN ==================
 async function fetchStockHistory(symbol,days=MIN_DAYS){
     const to=Math.floor(Date.now()/1000);
     const from=to-days*86400;
@@ -149,16 +168,14 @@ async function fetchCryptoHistory(symbol,days=MIN_DAYS){
 
 // ================== ASSET SUCHE ==================
 async function searchAssets(){
-    const periods=[365,200,MIN_DAYS]; // Multi-Zeitraum Fallback
+    const periods=[365,200,MIN_DAYS];
     for(const days of periods){
         for(const a of ALL_ASSETS){
             if(validAssets.length>=TARGET_ASSETS) break;
             if(validAssets.find(v=>v.symbol===a.symbol)) continue;
             checkedCount++;
             try{
-                let data=a.type==="stock" 
-                    ? await fetchStockHistory(a.symbol,days)
-                    : await fetchCryptoHistory(a.symbol,days);
+                let data=a.type==="stock" ? await fetchStockHistory(a.symbol,days) : await fetchCryptoHistory(a.symbol,days);
                 validAssets.push(data);
                 addOption(data);
             }catch(e){}
@@ -167,17 +184,14 @@ async function searchAssets(){
         }
         if(validAssets.length>=TARGET_ASSETS) break;
     }
-
-    // Fortlaufende Suche, falls < TARGET_ASSETS
+    // Fortlaufende Suche falls < TARGET_ASSETS
     while(validAssets.length<TARGET_ASSETS){
         for(const a of ALL_ASSETS){
             if(validAssets.length>=TARGET_ASSETS) break;
             if(validAssets.find(v=>v.symbol===a.symbol)) continue;
             checkedCount++;
             try{
-                let data=a.type==="stock"
-                    ? await fetchStockHistory(a.symbol,MIN_DAYS)
-                    : await fetchCryptoHistory(a.symbol,MIN_DAYS);
+                let data=a.type==="stock" ? await fetchStockHistory(a.symbol,MIN_DAYS) : await fetchCryptoHistory(a.symbol,MIN_DAYS);
                 validAssets.push(data);
                 addOption(data);
             }catch(e){}
@@ -197,26 +211,15 @@ function addOption(asset){
     assetSelect.appendChild(o);
 }
 
-// ======= AUTOMATISCH START =======
+// ======= AUTO-START SUCHE =======
 searchAssets();
-</script>
-<script>
-// ================== LIVE-KURSE ==================
-async function fetchUsdChf(){
-    try{
-        const r=await fetch("https://api.exchangerate.host/latest?base=USD&symbols=CHF");
-        const j=await r.json();
-        return Number(j?.rates?.CHF)||0.93;
-    }catch{return 0.93;}
-}
 
+// ================== LIVE-KURSE ==================
+async function fetchUsdChf(){try{const r=await fetch("https://api.exchangerate.host/latest?base=USD&symbols=CHF");const j=await r.json();return Number(j?.rates?.CHF)||0.93;}catch{return 0.93;}}
 async function fetchQuote(sym){
     try{
-        const url=sym.includes("USDT") 
-            ? `https://api.binance.com/api/v3/ticker/price?symbol=${sym}`
-            : `https://finnhub.io/api/v1/quote?symbol=${sym}&token=${FINNHUB_KEY}`;
-        const r=await fetch(url);
-        const j=await r.json();
+        const url=sym.includes("USDT") ? `https://api.binance.com/api/v3/ticker/price?symbol=${sym}` : `https://finnhub.io/api/v1/quote?symbol=${sym}&token=${FINNHUB_KEY}`;
+        const r=await fetch(url); const j=await r.json();
         if(sym.includes("USDT")) return parseFloat(j.price);
         if(j.c!==undefined) return Number(j.c);
         throw "Keine Kursdaten";
@@ -237,7 +240,8 @@ async function startLivePrice(idx){
     if(liveInterval) clearInterval(liveInterval);
     liveInterval=setInterval(updatePrice,5000);
 }
-
+</script>
+<script>
 // ================== KI-PROGNOSE ==================
 async function predictModelVaried(data, basePeriod, kiIndex){
     const period=basePeriod + kiIndex*2;
@@ -252,7 +256,6 @@ async function predictModelVaried(data, basePeriod, kiIndex){
         X.push(norm.slice(i,i+period).map(v=>[v]));
         Y.push([norm[i+period]]);
     }
-
     if(X.length===0 || Y.length===0) return data.prices[data.prices.length-1];
 
     const xs=tf.tensor3d(X);
@@ -279,12 +282,12 @@ async function loadAsset(){
     const idx=assetSelect.value;
     if(idx===null) return;
     const asset=validAssets[idx];
-    document.getElementById("period").textContent=`Zeitraum: ${document.getElementById("timeRange").value} Tage`;
+    const basePeriod=parseInt(document.getElementById("timeRange").value);
+    document.getElementById("period").textContent=`Zeitraum: ${basePeriod} Tage`;
+
     await startLivePrice(idx);
 
-    const basePeriod=parseInt(document.getElementById("timeRange").value);
     const hist=asset;
-
     const prognosen=[];
     for(let i=0;i<4;i++){
         try{ prognosen[i]=await predictModelVaried(hist, basePeriod, i); }
@@ -295,11 +298,12 @@ async function loadAsset(){
     displayTable(hist,prognosen);
 }
 
-// ================== CHART ZEICHNEN ==================
+// ================== CHART ==================
 function drawChart(hist,prognosen){
     if(chart) chart.destroy();
     const labels=hist.dates.map(d=>d.toISOString().slice(0,10));
     const avg=prognosen.reduce((a,b)=>a+b,0)/prognosen.length;
+
     chart=new Chart(document.getElementById("chart"),{
         type:"line",
         data:{
@@ -333,8 +337,7 @@ function displayTable(hist,prognosen){
     html+=`<tr><td>Durchschnitt</td><td>${avg.toFixed(2)}</td><td class="${sig}">${sig.toUpperCase()}</td><td>${(diff*100).toFixed(1)}%</td><td class="conf">${getConfidence(diff)}</td><td>${now}</td></tr>`;
     out.innerHTML=html;
 }
-</script>
-<script>
+
 // ================== KAUF-/INFO-LINKS ==================
 function openYahoo(){
     const idx=assetSelect.value;
@@ -357,9 +360,11 @@ function openSwissquote(){
     const sym=validAssets[idx].symbol;
     window.open(`https://www.swissquote.ch/sqw-en/private/trading/instruments/search?query=${sym}`,"_blank");
 }
-
+</script>
+<script>
 // ================== MULTI-ASSET VERGLEICH ==================
 async function compareAssets(selectedIndices){
+    if(selectedIndices.length===0) return;
     const compareDatasets=[];
     selectedIndices.forEach(idx=>{
         const asset=validAssets[idx];
@@ -371,6 +376,7 @@ async function compareAssets(selectedIndices){
             fill:false
         });
     });
+
     if(chart) chart.destroy();
     const labels=validAssets[0].dates.map(d=>d.toISOString().slice(0,10));
     chart=new Chart(document.getElementById("chart"),{
@@ -411,12 +417,20 @@ function getRandomColor(){
     return `rgb(${r},${g},${b})`;
 }
 
-// ================== OPTIONAL: AUTO-UPDATE ==================
+// ================== AUTO-UPDATE LIVE-KURSE ==================
 setInterval(()=>{
     const idx=assetSelect.value;
     if(idx!==null) startLivePrice(idx);
 },300000); // alle 5 Minuten
 
+// ================== OPTIONAL: MULTI-ASSET SELECTION ==================
+assetSelect.addEventListener("change",()=>{
+    const idx=assetSelect.value;
+    if(idx!==null){
+        startLivePrice(idx);
+        loadAsset();
+    }
+});
 </script>
 </body>
 </html>
