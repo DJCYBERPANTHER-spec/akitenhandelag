@@ -2,199 +2,175 @@
 <html lang="de">
 <head>
 <meta charset="UTF-8">
-<title>Asset Analyse Pro</title>
-
+<title>Asset Risiko & Crash Analyse</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
-body{
- font-family:Arial, sans-serif;
- background:#020617;
- color:#e5e7eb;
- padding:20px;
-}
-#app{
- max-width:900px;
- margin:auto;
- background:#020617;
-}
-.card{
- background:#020617;
- border:1px solid #1e293b;
- padding:15px;
- border-radius:10px;
- margin-bottom:15px;
-}
-select,button{
- padding:10px;
- width:100%;
- margin-top:5px;
- background:#020617;
- color:white;
- border:1px solid #1e293b;
- border-radius:6px;
-}
-.progress{height:8px;background:#1e293b;border-radius:4px;overflow:hidden}
-.progress div{height:100%;width:0%;background:#38bdf8}
-.small{font-size:12px;opacity:.8}
-.warn{color:#facc15}
-.good{color:#22c55e}
-.bad{color:#ef4444}
+body { font-family: Arial; background:#111; color:#eee; padding:20px }
+select, button { padding:8px; margin:5px }
+#status { margin-top:10px }
+.ok { color:#4caf50 }
+.warn { color:#ff9800 }
+.danger { color:#f44336 }
+small { color:#aaa }
 </style>
 </head>
 
 <body>
-<div id="app">
+<h2>📉 Asset Risiko- & Crash-Analyse</h2>
 
-<div class="card">
-<h2>🔍 Asset-Scanner</h2>
-<div id="status">Starte Suche…</div>
-<div class="progress"><div id="bar"></div></div>
-<div class="small" id="counter"></div>
-<div class="small" id="eta"></div>
-
+<div>
 <select id="assetSelect"></select>
-<button onclick="loadAsset()">📊 Analysieren</button>
+<button onclick="loadAsset()">Analysieren</button>
 </div>
 
-<div class="card">
-<h2>📈 Analyse</h2>
-<div id="price">–</div>
-<div id="trend">–</div>
-<div id="warning">–</div>
+<div id="status">
+<b>Status:</b> <span id="searchStatus">Suche Assets…</span><br>
+Geprüft: <span id="checked">0</span> |
+Gefunden: <span id="found">0</span> |
+ETA: <span id="eta">–</span>
+</div>
+
+<hr>
+
+<div id="info"></div>
 <canvas id="chart" height="120"></canvas>
 
-<button onclick="openTV()">TradingView</button>
-<button onclick="openBuy()">Kaufen</button>
-</div>
+<hr>
+<div id="warnings"></div>
 
-</div>
 <script>
-/* ================= CONFIG ================= */
-const FINNHUB_KEY="d5ohqjhr01qjast6qrjgd5ohqjhr01qjast6qrk0";
-const TARGET=10;
-const DELAY=1200;
-const PERIODS=[365,200,10];
+// ================== KONFIGURATION ==================
+const FINNHUB_KEY = "DEIN_API_KEY";
+const MIN_DAYS = 10;
+const TARGET_ASSETS = 10;
 
-/* ================= STATE ================= */
-let checked=0,found=[],start=Date.now();
+// Finanzkrisen
+const CRISES = [
+  { name:"Finanzkrise 2008", from:"2008-09-01", to:"2009-03-01" },
+  { name:"Eurokrise", from:"2010-05-01", to:"2012-07-01" },
+  { name:"Covid-Crash", from:"2020-02-15", to:"2020-04-15" },
+  { name:"Zins/Tech-Crash", from:"2022-01-01", to:"2022-10-01" }
+];
+
+// Kandidaten
+const STOCKS = ["AAPL","MSFT","GOOGL","AMZN","META","NVDA","TSLA","JPM","V","JNJ","KO","PEP","ADBE","ORCL","INTC"];
+const CRYPTOS = ["BTCUSDT","ETHUSDT","BNBUSDT","SOLUSDT","XRPUSDT","ADAUSDT","DOGEUSDT"];
+
+let validAssets = [];
+let checkedCount = 0;
+let startTime = Date.now();
 let chart;
-
-/* ================= ASSETS ================= */
-const STOCKS=[
- {s:"AAPL",n:"Apple Inc."},{s:"MSFT",n:"Microsoft Corporation"},
- {s:"AMZN",n:"Amazon.com Inc."},{s:"NVDA",n:"NVIDIA Corporation"},
- {s:"META",n:"Meta Platforms Inc."},{s:"TSLA",n:"Tesla Inc."}
-];
-const CRYPTO=[
- {s:"BTCUSDT",n:"Bitcoin"},{s:"ETHUSDT",n:"Ethereum"},
- {s:"BNBUSDT",n:"BNB"},{s:"SOLUSDT",n:"Solana"}
-];
-
-const ALL=[...STOCKS.map(x=>({...x,t:"stock"})),
-           ...CRYPTO.map(x=>({...x,t:"crypto"}))];
-
-/* ================= UI ================= */
-const sel=document.getElementById("assetSelect");
-function ui(){
- document.getElementById("counter").textContent=
-  `Geprüft: ${checked} | Gefunden: ${found.length}`;
- document.getElementById("bar").style.width=
-  Math.min(100,(found.length/TARGET)*100)+"%";
- let avg=((Date.now()-start)/1000)/(checked||1);
- document.getElementById("eta").textContent=
-  `ETA: ${Math.ceil((TARGET-found.length)*avg)}s`;
+// ================== HISTORIE LADEN ==================
+async function fetchStockHistory(symbol) {
+  const to = Math.floor(Date.now()/1000);
+  const from = to - 400*86400;
+  const url = `https://finnhub.io/api/v1/stock/candle?symbol=${symbol}&resolution=D&from=${from}&to=${to}&token=${FINNHUB_KEY}`;
+  const r = await fetch(url).then(r=>r.json());
+  if (r.s !== "ok" || r.c.length < MIN_DAYS) throw "no data";
+  return { type:"stock", symbol, dates:r.t.map(t=>new Date(t*1000)), prices:r.c };
 }
 
-/* ================= DATA ================= */
-async function stockHist(sym,days){
- const to=Math.floor(Date.now()/1000);
- const from=to-days*86400;
- const r=await fetch(
-  `https://finnhub.io/api/v1/stock/candle?symbol=${sym}&resolution=D&from=${from}&to=${to}&token=${FINNHUB_KEY}`);
- const d=await r.json();
- return d.s==="ok"?d.c:null;
+async function fetchCryptoHistory(symbol) {
+  const url = `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=1d&limit=400`;
+  const r = await fetch(url).then(r=>r.json());
+  if (!Array.isArray(r) || r.length < MIN_DAYS) throw "no data";
+  return {
+    type:"crypto",
+    symbol,
+    dates: r.map(x=>new Date(x[0])),
+    prices: r.map(x=>parseFloat(x[4]))
+  };
 }
 
-async function cryptoHist(sym,days){
- const r=await fetch(
-  `https://api.binance.com/api/v3/klines?symbol=${sym}&interval=1d&limit=${days}`);
- const d=await r.json();
- return Array.isArray(d)?d.map(x=>+x[4]):null;
-}
-
-/* ================= SCAN ================= */
-async function scan(){
- sel.innerHTML="";
- for(const a of ALL){
-  if(found.length>=TARGET)break;
-  checked++;
-  for(const p of PERIODS){
-   try{
-    const data=a.t==="stock"
-     ?await stockHist(a.s,p)
-     :await cryptoHist(a.s,p);
-    if(data&&data.length>=10){
-     found.push({...a,p});
-     let o=document.createElement("option");
-     o.value=a.s;o.textContent=`${a.n} (${a.t})`;
-     sel.appendChild(o);
-     break;
-    }
-   }catch{}
+// ================== ASSET SUCHEN ==================
+async function searchAssets() {
+  for (let s of STOCKS) {
+    await tryAsset(()=>fetchStockHistory(s));
   }
-  ui();
-  await new Promise(r=>setTimeout(r,DELAY));
- }
- document.getElementById("status").textContent="✅ Suche abgeschlossen";
+  for (let c of CRYPTOS) {
+    await tryAsset(()=>fetchCryptoHistory(c));
+  }
+  document.getElementById("searchStatus").textContent = "Suche abgeschlossen";
 }
 
-/* ================= ANALYSE ================= */
-async function loadAsset(){
- const sym=sel.value;
- const a=found.find(x=>x.s===sym);
- const data=a.t==="stock"
-  ?await stockHist(sym,a.p)
-  :await cryptoHist(sym,a.p);
-
- const last=data[data.length-1];
- document.getElementById("price").textContent=
-  `Aktueller Kurs: ${last.toFixed(2)}`;
-
- const ma=data.slice(-20).reduce((a,b)=>a+b,0)/20;
- document.getElementById("trend").textContent=
-  last>ma?"Trend: steigend":"Trend: fallend";
-
- const drop=(Math.max(...data)-last)/Math.max(...data);
- document.getElementById("warning").innerHTML=
-  drop>0.25?'<span class="warn">⚠️ Hoher Drawdown</span>':
-  '<span class="good">Keine Warnung</span>';
-
- if(chart)chart.destroy();
- chart=new Chart(document.getElementById("chart"),{
-  type:"line",
-  data:{labels:data.map((_,i)=>i),
-  datasets:[{data,borderWidth:2}]},
-  options:{plugins:{legend:{display:false}}}
- });
+async function tryAsset(fn) {
+  checkedCount++;
+  document.getElementById("checked").textContent = checkedCount;
+  try {
+    const data = await fn();
+    validAssets.push(data);
+    addOption(data);
+    document.getElementById("found").textContent = validAssets.length;
+  } catch {}
+  const elapsed = (Date.now()-startTime)/1000;
+  document.getElementById("eta").textContent =
+    Math.max(0, ((checkedCount+1)*elapsed/checkedCount - elapsed).toFixed(1))+"s";
 }
 
-/* ================= LINKS ================= */
-function openTV(){
- const a=found.find(x=>x.s===sel.value);
- const sym=a.t==="crypto"?"BINANCE:"+a.s:"NASDAQ:"+a.s;
- window.open(`https://www.tradingview.com/chart/?symbol=${sym}`,"_blank");
-}
-function openBuy(){
- const a=found.find(x=>x.s===sel.value);
- window.open(
-  a.t==="crypto"
-  ?`https://www.binance.com/en/trade/${a.s}`
-  :`https://www.nasdaq.com/market-activity/stocks/${a.s.toLowerCase()}`,
-  "_blank");
+// ================== UI ==================
+function addOption(a) {
+  const o = document.createElement("option");
+  o.value = validAssets.length-1;
+  o.textContent = `${a.symbol} (${a.type})`;
+  assetSelect.appendChild(o);
 }
 
-scan();
+function loadAsset() {
+  const a = validAssets[assetSelect.value];
+  renderChart(a);
+  analyse(a);
+}
+
+// ================== ANALYSE ==================
+function analyse(a) {
+  const p = a.prices;
+  const ret30 = ((p[p.length-1]-p[p.length-31])/p[p.length-31])*100;
+  const vol = std(p.slice(-30));
+  const dd = maxDrawdown(p);
+
+  let html = `<h3>${a.symbol}</h3>`;
+  html += `30T Performance: ${ret30.toFixed(2)}%<br>`;
+  html += `Volatilität: ${vol.toFixed(2)}<br>`;
+  html += `Max Drawdown: ${dd.toFixed(2)}%<br>`;
+  html += `<a href="https://www.tradingview.com/symbols/${a.symbol}/" target="_blank">TradingView</a> |
+           <a href="https://finance.yahoo.com/quote/${a.symbol}" target="_blank">Yahoo Finance</a>`;
+  info.innerHTML = html;
+
+  let w = "";
+  if (dd < -20) w += "<div class='danger'>🔴 Starker Drawdown</div>";
+  if (vol > (a.type==="crypto"?6:3)) w += "<div class='warn'>🟠 Hohe Volatilität</div>";
+  warnings.innerHTML = w || "<div class='ok'>🟢 Keine akute Warnung</div>";
+}
+
+// ================== CHART ==================
+function renderChart(a) {
+  if (chart) chart.destroy();
+  chart = new Chart(document.getElementById("chart"), {
+    type:"line",
+    data:{
+      labels:a.dates.map(d=>d.toISOString().slice(0,10)),
+      datasets:[{ label:a.symbol, data:a.prices, borderColor:"#4caf50", pointRadius:0 }]
+    }
+  });
+}
+
+// ================== HILFSFUNKTIONEN ==================
+function std(arr) {
+  const m = arr.reduce((a,b)=>a+b)/arr.length;
+  return Math.sqrt(arr.reduce((a,b)=>a+(b-m)**2,0)/arr.length);
+}
+function maxDrawdown(p) {
+  let peak=p[0], dd=0;
+  for (let x of p) {
+    if (x>peak) peak=x;
+    dd=Math.min(dd,(x-peak)/peak*100);
+  }
+  return dd;
+}
+
+// START
+searchAssets();
 </script>
 </body>
 </html>
