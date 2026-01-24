@@ -5,252 +5,187 @@
 <title>Asset Finder (Aktien & Krypto)</title>
 
 <style>
-body {
+body{
     font-family: Arial, sans-serif;
-    background: #0f172a;
-    color: #e5e7eb;
-    padding: 20px;
+    background:#0f172a;
+    color:#e5e7eb;
+    padding:20px;
 }
-
-h1 {
-    color: #38bdf8;
+select,button{
+    padding:10px;
+    margin-top:10px;
+    width:100%;
 }
-
-.card {
-    background: #020617;
-    padding: 20px;
-    border-radius: 10px;
-    max-width: 600px;
+#box{
+    background:#020617;
+    padding:20px;
+    border-radius:10px;
+    max-width:500px;
+    margin:auto;
 }
-
-select, button {
-    width: 100%;
-    padding: 10px;
-    margin-top: 10px;
-    background: #020617;
-    color: #e5e7eb;
-    border: 1px solid #334155;
-    border-radius: 6px;
+.progress{
+    height:10px;
+    background:#1e293b;
+    border-radius:5px;
+    overflow:hidden;
+    margin-top:10px;
 }
-
-button {
-    cursor: pointer;
-    background: #0284c7;
-    border: none;
+.progress div{
+    height:100%;
+    width:0%;
+    background:#38bdf8;
 }
-
-button:hover {
-    background: #0369a1;
-}
-
-.status {
-    margin-top: 10px;
-    font-size: 14px;
-}
-
-small {
-    color: #94a3b8;
-}
+.small{font-size:12px;opacity:.8}
 </style>
 </head>
 
 <body>
+<div id="box">
+<h2>📊 Asset-Scanner</h2>
 
-<h1>📊 Asset-Finder (Aktien & Krypto)</h1>
+<div id="status">Starte Suche…</div>
+<div class="progress"><div id="bar"></div></div>
+<div class="small" id="counter">Geprüft: 0 | Gefunden: 0</div>
+<div class="small" id="eta">ETA: –</div>
 
-<div class="card">
+<select id="assetSelect">
+<option>Lade Assets…</option>
+</select>
 
-    <p>Status: <b id="status">Starte Suche…</b></p>
-    <p>Geprüft: <b id="checkedCount">0</b></p>
-    <p>Gefunden: <b id="foundCount">0</b> / 10</p>
-    <p id="eta">⏳ Berechne Restzeit…</p>
-
-    <label>Gefundene Assets:</label>
-    <select id="assetSelect">
-        <option>Suche läuft…</option>
-    </select>
-
-    <button onclick="openTradingView()">📈 Auf TradingView öffnen</button>
-
-    <small>
-        Datenquelle: Finnhub<br>
-        Charts/Kauf: TradingView
-    </small>
-
+<button onclick="openTradingView()">📈 TradingView öffnen</button>
 </div>
 
 <script>
 /* =====================
    KONFIGURATION
 ===================== */
-
-const FINNHUB_API_KEY = "d5ohqjhr01qjast6qrjgd5ohqjhr01qjast6qrk0";
-
+const FINNHUB_API_KEY = "DEIN_API_KEY_HIER";
+const MIN_DAYS = 10;
 const TARGET_COUNT = 10;
-const PRIMARY_DAYS = 200;
-const FALLBACK_DAYS = 10;
-const CHECK_DELAY = 3000;
+const DELAY = 1200;
 
 /* =====================
-   ASSET LISTE
+   STATE
 ===================== */
-
-const ALL_ASSETS = [
-    { symbol: "AAPL", name: "Apple Inc." },
-    { symbol: "MSFT", name: "Microsoft Corporation" },
-    { symbol: "NVDA", name: "NVIDIA Corporation" },
-    { symbol: "AMZN", name: "Amazon.com Inc." },
-    { symbol: "GOOGL", name: "Alphabet Inc." },
-    { symbol: "META", name: "Meta Platforms Inc." },
-    { symbol: "TSLA", name: "Tesla Inc." },
-
-    { symbol: "BINANCE:BTCUSDT", name: "Bitcoin" },
-    { symbol: "BINANCE:ETHUSDT", name: "Ethereum" },
-    { symbol: "BINANCE:SOLUSDT", name: "Solana" },
-    { symbol: "BINANCE:BNBUSDT", name: "Binance Coin" },
-    { symbol: "BINANCE:ADAUSDT", name: "Cardano" }
-];
-
-/* =====================
-   VARIABLEN
-===================== */
-
 let found = [];
 let checked = 0;
-let index = 0;
-let minDays = PRIMARY_DAYS;
 let startTime = Date.now();
-let searching = true;
+let running = true;
 
 const assetSelect = document.getElementById("assetSelect");
 
 /* =====================
-   HILFSFUNKTIONEN
+   ASSET LISTEN
 ===================== */
 
-function setStatus(t){ document.getElementById("status").textContent = t; }
-function updateCounters(){
-    document.getElementById("checkedCount").textContent = checked;
-    document.getElementById("foundCount").textContent = found.length;
-}
+// SICHERE US-AKTIEN (funktionieren bei Finnhub)
+const STOCKS = [
+ {symbol:"AAPL",name:"Apple Inc."},
+ {symbol:"MSFT",name:"Microsoft Corporation"},
+ {symbol:"AMZN",name:"Amazon.com Inc."},
+ {symbol:"GOOGL",name:"Alphabet Inc. Class A"},
+ {symbol:"META",name:"Meta Platforms Inc."},
+ {symbol:"NVDA",name:"NVIDIA Corporation"},
+ {symbol:"TSLA",name:"Tesla Inc."},
+ {symbol:"JPM",name:"JPMorgan Chase & Co."},
+ {symbol:"V",name:"Visa Inc."},
+ {symbol:"WMT",name:"Walmart Inc."}
+];
+
+// KRYPTO (Binance – immer verfügbar)
+const CRYPTOS = [
+ {symbol:"BTCUSDT",name:"Bitcoin"},
+ {symbol:"ETHUSDT",name:"Ethereum"},
+ {symbol:"BNBUSDT",name:"BNB"},
+ {symbol:"SOLUSDT",name:"Solana"},
+ {symbol:"XRPUSDT",name:"XRP"}
+];
+
+const ALL = [...STOCKS.map(s=>({...s,type:"stock"})),
+             ...CRYPTOS.map(c=>({...c,type:"crypto"}))];
 /* =====================
-   HISTORIE PRÜFEN
+   HELFER
 ===================== */
+const sleep = ms => new Promise(r=>setTimeout(r,ms));
 
-async function hasHistory(symbol, days){
-    const to = Math.floor(Date.now()/1000);
-    const from = to - days*86400;
+function setStatus(t){document.getElementById("status").textContent=t}
+function updateUI(){
+ document.getElementById("counter").textContent =
+  `Geprüft: ${checked} | Gefunden: ${found.length}`;
+ document.getElementById("bar").style.width =
+  Math.min(100,(found.length/TARGET_COUNT)*100)+"%";
 
-    const url = `https://finnhub.io/api/v1/stock/candle?symbol=${encodeURIComponent(symbol)}&resolution=D&from=${from}&to=${to}&token=${FINNHUB_API_KEY}`;
-
-    const r = await fetch(url);
-    const d = await r.json();
-
-    return d.s === "ok" && d.c && d.c.length >= days;
-}
-
-/* =====================
-   ETA BERECHNUNG
-===================== */
-
-function updateETA(){
-    const elapsed = (Date.now() - startTime) / 1000;
-    const avg = checked > 0 ? elapsed / checked : 0;
-    const remaining = Math.max((TARGET_COUNT - found.length) * avg, 0);
-
-    document.getElementById("eta").textContent =
-        `⏳ ca. ${Math.ceil(remaining)} Sekunden verbleibend`;
-}
-
-/* =====================
-   ASSET SUCHE
-===================== */
-
-async function searchAssets(){
-    setStatus("Suche Assets…");
-
-    while(searching){
-        if(index >= ALL_ASSETS.length){
-            if(minDays > FALLBACK_DAYS){
-                minDays = FALLBACK_DAYS;
-                index = 0;
-                setStatus("Fallback auf 10 Tage Historie…");
-            } else {
-                setStatus("Suche beendet");
-                searching = false;
-                break;
-            }
-        }
-
-        const asset = ALL_ASSETS[index];
-        index++;
-        checked++;
-        updateCounters();
-        updateETA();
-
-        try{
-            const ok = await hasHistory(asset.symbol, minDays);
-            if(ok && !found.find(a=>a.symbol===asset.symbol)){
-                found.push(asset);
-                addToDropdown(asset);
-                updateCounters();
-                if(found.length >= TARGET_COUNT){
-                    setStatus("✅ Genug Assets gefunden");
-                    searching = false;
-                    break;
-                }
-            }
-        }catch(e){}
-
-        await sleep(CHECK_DELAY);
-    }
+ const elapsed=(Date.now()-startTime)/1000;
+ const avg=checked?elapsed/checked:0;
+ const eta=Math.max((TARGET_COUNT-found.length)*avg,0);
+ document.getElementById("eta").textContent=
+  `ETA: ca. ${Math.ceil(eta)}s`;
 }
 
 /* =====================
-   DROPDOWN
+   HISTORIE CHECK
 ===================== */
+async function stockHistory(sym){
+ const to=Math.floor(Date.now()/1000);
+ const from=to-MIN_DAYS*86400;
+ const r=await fetch(
+  `https://finnhub.io/api/v1/stock/candle?symbol=${sym}&resolution=D&from=${from}&to=${to}&token=${FINNHUB_API_KEY}`
+ );
+ const d=await r.json();
+ return d.s==="ok" && d.c?.length>=MIN_DAYS;
+}
 
-function addToDropdown(asset){
-    if(found.length === 1){
-        assetSelect.innerHTML = "";
-    }
-    const o = document.createElement("option");
-    o.value = asset.symbol;
-    o.textContent = asset.name;
+async function cryptoHistory(sym){
+ const r=await fetch(
+  `https://api.binance.com/api/v3/klines?symbol=${sym}&interval=1d&limit=${MIN_DAYS}`
+ );
+ const d=await r.json();
+ return Array.isArray(d) && d.length>=MIN_DAYS;
+}
+
+/* =====================
+   SUCHE
+===================== */
+async function run(){
+ assetSelect.innerHTML="";
+ setStatus("🔍 Suche Assets…");
+
+ for(const a of ALL){
+  if(!running||found.length>=TARGET_COUNT)break;
+
+  checked++;
+  try{
+   const ok = a.type==="stock"
+    ? await stockHistory(a.symbol)
+    : await cryptoHistory(a.symbol);
+
+   if(ok){
+    found.push(a);
+    const o=document.createElement("option");
+    o.value=a.symbol;
+    o.textContent=`${a.name} (${a.type})`;
     assetSelect.appendChild(o);
-}
+   }
+  }catch{}
+  updateUI();
+  await sleep(DELAY);
+ }
 
-/* =====================
-   TRADINGVIEW LINK
-===================== */
+ setStatus(found.length
+  ? "✅ Assets gefunden"
+  : "❌ Keine Assets gefunden");
+}
 
 function openTradingView(){
-    const sym = assetSelect.value;
-    if(!sym) return;
-
-    let url;
-    if(sym.startsWith("BINANCE:")){
-        url = `https://www.tradingview.com/chart/?symbol=${sym}`;
-    } else {
-        url = `https://www.tradingview.com/chart/?symbol=NASDAQ:${sym}`;
-    }
-    window.open(url, "_blank");
+ const o=assetSelect.selectedOptions[0];
+ if(!o)return;
+ const txt=o.textContent.includes("crypto")
+  ? `BINANCE:${assetSelect.value}`
+  : `NASDAQ:${assetSelect.value}`;
+ window.open(`https://www.tradingview.com/chart/?symbol=${txt}`,"_blank");
 }
 
-/* =====================
-   HILFSFUNKTION
-===================== */
-
-function sleep(ms){
-    return new Promise(r=>setTimeout(r, ms));
-}
-
-/* =====================
-   AUTOSTART
-===================== */
-
-searchAssets();
+run();
 </script>
-
 </body>
 </html>
