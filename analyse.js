@@ -1,8 +1,8 @@
 // ==============================
-// analyse.js – Best-of-Breed KI
+// analyse.js – Optimierte KI
 // ==============================
 
-const API_KEY = "d5qi0c9r01qhn30fr1r0d5qi0c9r01qhn30fr1rg";
+const API_KEY = "HIER_DEIN_FINNHUB_KEY";
 
 // ✅ Alle Aktien + Kryptowährungen
 const ASSETS = [
@@ -25,7 +25,6 @@ const ASSETS = [
 
 let assetSelect, analyseBtn, currentPriceDiv, warningDiv, progressBar, progressText, statusDiv, outTable, chartCanvas;
 let chart = null;
-let liveInterval = null;
 let lstmModel = null;
 let analysisRunning = false;
 
@@ -259,14 +258,6 @@ document.addEventListener("DOMContentLoaded", async ()=>{
     if(!assetSelect.value){ alert("Bitte Asset auswählen!"); return; }
     await runAnalysis(assetSelect.value);
   });
-
-  // Live Kurs Interval
-  liveInterval = setInterval(async ()=>{
-    if(assetSelect.value){
-      const live = await fetchCurrentPrice(assetSelect.value);
-      currentPriceDiv.textContent=`Aktueller Kurs: ${live.toFixed(2)} CHF`;
-    }
-  },5000);
 
   // Automatische Startanalyse mit zufälligem Asset
   const randomAsset = getRandomAsset().symbol;
