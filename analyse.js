@@ -1,4 +1,4 @@
-// analyse.js - Finale Version: robuste historische Daten
+// analyse.js - Final: Kryptos über CoinGecko, Aktien über Finnhub
 
 const API_KEY = "d5ohqjhr01qjast6qrjgd5ohqjhr01qjast6qrk0";
 
@@ -6,11 +6,12 @@ const assets = [
     {symbol:"AAPL",name:"Apple Inc."},{symbol:"MSFT",name:"Microsoft Corp."},
     {symbol:"NVDA",name:"NVIDIA Corp."},{symbol:"AMZN",name:"Amazon.com Inc."},
     {symbol:"GOOGL",name:"Alphabet Inc."},{symbol:"TSLA",name:"Tesla Inc."},
-    {symbol:"META",name:"Meta Platforms"},{symbol:"BTC-USD",name:"Bitcoin"},
-    {symbol:"ETH-USD",name:"Ethereum"},{symbol:"BNB-USD",name:"Binance Coin"},
-    {symbol:"SOL-USD",name:"Solana"},{symbol:"ADA-USD",name:"Cardano"},
-    {symbol:"DOGE-USD",name:"Dogecoin"},{symbol:"XRP-USD",name:"Ripple"},
-    {symbol:"LTC-USD",name:"Litecoin"},{symbol:"DOT-USD",name:"Polkadot"}
+    {symbol:"META",name:"Meta Platforms"},
+    {symbol:"BTC-USD",name:"Bitcoin"},{symbol:"ETH-USD",name:"Ethereum"},
+    {symbol:"BNB-USD",name:"Binance Coin"},{symbol:"SOL-USD",name:"Solana"},
+    {symbol:"ADA-USD",name:"Cardano"},{symbol:"DOGE-USD",name:"Dogecoin"},
+    {symbol:"XRP-USD",name:"Ripple"},{symbol:"LTC-USD",name:"Litecoin"},
+    {symbol:"DOT-USD",name:"Polkadot"}
 ];
 
 const assetSelect = document.getElementById("assetSelect");
@@ -34,15 +35,60 @@ async function fetchUsdChf(){
     }catch{return 0.93;}
 }
 
+// --- CoinGecko: historische Kryptos ---
+async function fetchCryptoHistoricalCoinGecko(sym, days = 365){
+    const mapping = {
+        "BTC-USD":"bitcoin","ETH-USD":"ethereum","BNB-USD":"binancecoin",
+        "SOL-USD":"solana","ADA-USD":"cardano","DOGE-USD":"dogecoin",
+        "XRP-USD":"ripple","LTC-USD":"litecoin","DOT-USD":"polkadot"
+    };
+    const id = mapping[sym];
+    if(!id) return [];
+
+    try{
+        const r = await fetch(`https://api.coingecko.com/api/v3/coins/${id}/market_chart?vs_currency=usd&days=${days}`);
+        const j = await r.json();
+        if(j.prices && j.prices.length>0) return j.prices.map(p=>p[1]);
+    }catch(e){console.warn("CoinGecko Fehler:", e);}
+    
+    // Fallback minimal
+    const fallback = [];
+    const base = 20000;
+    for(let i=0;i<Math.min(days,10);i++) fallback.push(base*(1+0.01*Math.random()));
+    return fallback;
+}
+
+// --- Finnhub: historische Aktien ---
+async function fetchStockHistoricalFinnhub(sym, maxDays=365, minDays=10){
+    const now = Math.floor(Date.now()/1000);
+    let days = maxDays;
+    let lastValidPrice = 100;
+
+    while(days >= minDays){
+        const from = now - days*24*60*60;
+        try{
+            const url = `https://finnhub.io/api/v1/stock/candle?symbol=${sym}&resolution=D&from=${from}&to=${now}&token=${API_KEY}`;
+            const res = await fetch(url);
+            const j = await res.json();
+            if(j.s==="ok" && j.c && j.c.length >= minDays){
+                lastValidPrice = j.c[j.c.length-1];
+                return j.c.map(Number);
+            }
+        }catch(e){console.warn("Finnhub Fehler:", e);}
+        days -= 30;
+    }
+
+    const fallback = [];
+    for(let i=0;i<minDays;i++) fallback.push(lastValidPrice*(1+0.005*(Math.random()-0.5)));
+    return fallback;
+}
+
 // --- Live-Kurs ---
 async function fetchQuote(sym){
     try{
         if(sym.includes("USD")){
-            const now = Math.floor(Date.now()/1000);
-            const from = now - 24*60*60;
-            const r = await fetch(`https://finnhub.io/api/v1/crypto/candle?symbol=${sym}&resolution=60&from=${from}&to=${now}&token=${API_KEY}`);
-            const j = await r.json();
-            if(j.s==="ok" && j.c.length>0) return j.c[j.c.length-1];
+            const hist = await fetchCryptoHistoricalCoinGecko(sym, 1);
+            return hist[hist.length-1];
         } else {
             const r = await fetch(`https://finnhub.io/api/v1/quote?symbol=${sym}&token=${API_KEY}`);
             const j = await r.json();
@@ -50,40 +96,6 @@ async function fetchQuote(sym){
         }
     }catch{}
     return null;
-}
-
-// --- Historische Daten robust ---
-async function fetchHistorical(sym, maxDays = 365, minDays = 10){
-    const now = Math.floor(Date.now()/1000);
-    let days = maxDays;
-    let lastValidPrice = 100; // Default für Fallback
-
-    while(days >= minDays){
-        const from = now - days*24*60*60;
-        try{
-            let url;
-            if(sym.includes("USD")){
-                url = `https://finnhub.io/api/v1/crypto/candle?symbol=${sym}&resolution=D&from=${from}&to=${now}&token=${API_KEY}`;
-            } else {
-                url = `https://finnhub.io/api/v1/stock/candle?symbol=${sym}&resolution=D&from=${from}&to=${now}&token=${API_KEY}`;
-            }
-            const res = await fetch(url);
-            const j = await res.json();
-            if(j.s==="ok" && j.c && j.c.length >= minDays){
-                lastValidPrice = j.c[j.c.length-1];
-                return j.c.map(Number);
-            }
-        }catch(e){console.warn("Historische Daten Fehler:",e);}
-        days -= 30; // 30er Schritte
-    }
-
-    // Fallback minimal: kleine Schwankungen um letzten bekannten Preis
-    const fallback = [];
-    const base = sym.includes("USD") ? 20000 : lastValidPrice;
-    for(let i=0;i<minDays;i++){
-        fallback.push(base*(1+((Math.random()-0.5)/100))); // ±0.5-1% kleine Schwankung
-    }
-    return fallback;
 }
 
 // --- LSTM KI ---
@@ -171,7 +183,10 @@ analyseBtn.addEventListener("click", async()=>{
     progressBar.value=0; progressText.textContent="Analyse startet…";
 
     const period = parseInt(periodSelect.value);
-    let hist = await fetchHistorical(sym, 365, 10);
+    let hist = [];
+    if(sym.includes("USD")) hist = await fetchCryptoHistoricalCoinGecko(sym, 365);
+    else hist = await fetchStockHistoricalFinnhub(sym, 365);
+
     const fx = await fetchUsdChf();
     const live = await fetchQuote(sym);
     currentPriceDiv.textContent = live ? `Aktueller Kurs: ${(live*fx).toFixed(2)} CHF` : "Kursdaten nicht verfügbar";
