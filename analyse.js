@@ -1,4 +1,4 @@
-const API_KEY = "HIER_DEIN_FINNHUB_KEY"; // Finnhub Key für Aktien
+const API_KEY = "d5ohqjhr01qjast6qrjgd5ohqjhr01qjast6qrk0"; // Finnhub Key für Aktien
 
 // --- Assets
 const ASSETS = [
@@ -149,3 +149,4 @@ document.addEventListener("DOMContentLoaded", async ()=>{
 analyseBtn.addEventListener("click", async ()=>{
   await runAnalysis(assetSelect.value);
 });
+
