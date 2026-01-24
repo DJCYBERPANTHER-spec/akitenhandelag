@@ -4,7 +4,7 @@ importScripts("https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0/dist/tf.min.
 self.onmessage = async function(e){
   const { prices, days } = e.data;
   const forecasts = [];
-  const rows = [];
+  const tableRows = [];
 
   for(let i=0;i<4;i++){
     self.postMessage({progress:i*25, progressText:`KI${i+1} berechnet Prognose…`});
@@ -19,7 +19,7 @@ self.onmessage = async function(e){
     if(delta > 5){ signal="Kaufen"; cls="buy"; action="Aufwärtstrend"; }
     if(delta < -5){ signal="Verkaufen"; cls="sell"; action="Abwärtstrend"; }
 
-    rows.push({
+    tableRows.push({
       name:`KI${i+1}`,
       forecast:lastForecast,
       signal,
@@ -30,42 +30,37 @@ self.onmessage = async function(e){
   }
 
   self.postMessage({progress:100, progressText:"Fertig"});
-  self.postMessage({forecasts, tableData:{rows,hist:prices}});
+  self.postMessage({forecasts, tableData:{rows:tableRows,hist:prices}});
 }
 
 // ================= LSTM Prognose =================
 async function predictLSTM(data, period){
-  // Daten normalisieren
-  const min = Math.min(...data), max = Math.max(...data);
-  const norm = data.map(v => (v - min) / (max - min || 1));
+  const min=Math.min(...data), max=Math.max(...data);
+  const norm=data.map(v=>(v-min)/(max-min||1));
 
-  // Input/Output für LSTM vorbereiten
-  const X = [], Y = [];
+  const X=[], Y=[];
   for(let i=0;i<norm.length-period;i++){
     X.push(norm.slice(i,i+period).map(v=>[v]));
     Y.push([norm[i+period]]);
   }
   if(X.length===0) return Array(period).fill(data[data.length-1]);
 
-  const xs = tf.tensor3d(X);
-  const ys = tf.tensor2d(Y);
+  const xs=tf.tensor3d(X);
+  const ys=tf.tensor2d(Y);
 
-  // Modell
-  const model = tf.sequential();
-  model.add(tf.layers.lstm({units:24, inputShape:[period,1]})); // höheres Units für Präzision
+  const model=tf.sequential();
+  model.add(tf.layers.lstm({units:24,inputShape:[period,1]}));
   model.add(tf.layers.dense({units:1}));
   model.compile({optimizer:"adam",loss:"meanSquaredError"});
 
-  // Kürzeres Training, schnell + präzise durch mehr Units
-  await model.fit(xs, ys, {epochs:10, verbose:0});
+  await model.fit(xs,ys,{epochs:10,verbose:0});
 
-  // Prognose iterativ für 'period' Tage
-  let lastSeq = X[X.length-1].slice();
-  const preds = [];
+  let lastSeq=X[X.length-1].slice();
+  const preds=[];
   for(let i=0;i<period;i++){
-    const next = model.predict(tf.tensor3d([lastSeq])).dataSync()[0]*(max-min)+min;
+    const next=model.predict(tf.tensor3d([lastSeq])).dataSync()[0]*(max-min)+min;
     preds.push(next);
-    lastSeq = lastSeq.slice(1);
+    lastSeq=lastSeq.slice(1);
     lastSeq.push([(next-min)/(max-min||1)]);
   }
 
