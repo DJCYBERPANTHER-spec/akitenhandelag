@@ -1,4 +1,4 @@
-/* style.css – abgestimmt auf JS Funktionen */
+/* style.css – Original Layout & Design */
 
 body {
   background: #0f172a;
@@ -22,16 +22,9 @@ h1 {
 
 .infoBox {
   text-align: center;
-  margin: 8px auto;
-  font-size: 0.95rem;
+  margin: 8px;
+  font-size: 0.9rem;
   font-weight: bold;
-  background: #1e293b;
-  padding: 6px 10px;
-  border-radius: 6px;
-}
-
-#warning {
-  color: #f97316;
 }
 
 .controls {
@@ -49,7 +42,6 @@ select, button {
   padding: 8px 12px;
   border-radius: 6px;
   font-size: 0.85rem;
-  transition: all 0.2s;
 }
 
 button:hover {
@@ -67,8 +59,6 @@ button:hover {
 
 progress {
   border-radius: 5px;
-  width: 80%;
-  height: 18px;
 }
 
 canvas {
@@ -100,6 +90,6 @@ th, td {
 .footer {
   text-align: center;
   margin-top: 14px;
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   color: #94a3b8;
 }
